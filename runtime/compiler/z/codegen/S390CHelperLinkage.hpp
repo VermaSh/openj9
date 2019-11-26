@@ -127,6 +127,7 @@ public:
       }
 
    TR::Register *buildDirectDispatch(TR::Node *callNode, TR::RegisterDependencyConditions** deps, TR::Register *returnReg=NULL);
+   TR::Register *buildDirectDispatchV1(TR::Node *callNode, TR::RegisterDependencyConditions **deps, TR::Register *returnReg = NULL);
    };
 
 }

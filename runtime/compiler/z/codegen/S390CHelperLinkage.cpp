@@ -110,7 +110,7 @@ J9::Z::CHelperLinkage::CHelperLinkage(TR::CodeGenerator * codeGen,TR_S390Linkage
       // GPR5 needs to be stored before using it as argument register.
       // Right now setting number of integer argument registers to 3.
       // TODO When we add support for more than 3 arguments, we should change this number to 5.
-      setNumIntegerArgumentRegisters(3);
+      setNumIntegerArgumentRegisters(5);
       }
 
    if (TR::Compiler->target.isZOS())
@@ -247,6 +247,108 @@ class RealRegisterManager
    TR::Register*        _Registers[TR::RealRegister::NumRegisters];
    TR::CodeGenerator*   _cg;
    };
+
+TR::Register * TR::S390CHelperLinkage::buildDirectDispatchV1(TR::Node * callNode,TR::RegisterDependencyConditions **deps, TR::Register *returnReg)
+{
+   traceMsg(comp(), "Entering buildDirectDispatchV1");
+       /*
+      Return conditions
+      - only one return at the end
+      Differenct cases being delt with in old function
+      1. isHelperCallWithinICF
+         - we need to return post dependiency conditions back to evaluator
+           to merge with ICF condition and attach to merge label
+      2. isFastPathOnly
+         - skips assembly glue goes directly to the c function
+         - need to attach post dependencies to restore java stack pointer
+
+      Different cases
+      1.
+
+      Questions
+      - How many
+
+      Note:
+      - Don't need to worry about calls which do not have vmthread as their first child
+   */
+       RealRegisterManager RealRegisters(cg());
+   for (int i = TR::RealRegister::FirstGPR; i < TR::RealRegister::NumRegisters; i++)
+      {
+      if (!self()->getPreserved(REGNUM(i)) && cg()->machine()->getRealRegister(i)->getState() != TR::RealRegister::Locked)
+         {
+         RealRegisters.use((TR::RealRegister::RegNum)i);
+         }
+      }
+   TR::RegisterDependencyConditions* preDeps = generateRegisterDependencyConditions(callNode->getNumChildren(), 0, cg());
+   TR::RegisterDependencyConditions *childNodeRegDeps = generateRegisterDependencyConditions(0, callNode->getNumChildren(), cg());
+   int argumentRegisterNumber = self()->getNumIntegerArgumentRegisters();
+   for (int i = 0; i < callNode->getNumChildren(); i++)
+      {
+      if (i < argumentRegisterNumber)
+         preDeps->addPreCondition(cg()->gprClobberEvaluate(callNode->getChild(i)), getIntegerArgumentRegister(i));
+      else
+         TR_ASSERT(false,"Parameters on Stack not supported yet");
+
+      childNodeRegDeps->addPostConditionIfNotAlreadyInserted(callNode->getChild(i)->getRegister(), TR::RealRegister::AssignAny);
+      }
+   TR::RealRegister::RegNum regRANum = cg()->getReturnAddressRegister();
+   TR::Register *regRA = RealRegisters.use(regRANum);
+   TR::RegisterDependencyConditions *postDeps = RealRegisters.buildRegisterDependencyConditions(regRANum);
+
+   bool isHelperCallWithinICF = deps != NULL;
+   /* If buildDirectDispatch is called within ICF we need to pass the dependencies which will be used there,
+      else we need single dependencylist to be attached to the BRASL
+      We return postdependency conditions back to evaluator to merge with ICF condition and attach to merge label
+   */
+   if (isHelperCallWithinICF)
+      *deps = new (cg()->trHeapMemory()) TR::RegisterDependencyConditions(postDeps, childNodeRegDeps, cg());
+
+   uint32_t offsetJ9SP = static_cast<uint32_t>(offsetof(J9VMThread, sp));
+   TR::SymbolReference *callSymRef = callNode->getSymbolReference();
+   void *destAddr = callNode->getSymbolReference()->getSymbol()->castToMethodSymbol()->getMethodAddress();
+   TR::Instruction *cursor = new (cg()->trHeapMemory()) TR::S390RILInstruction(TR::InstOpCode::BRASL, callNode, regRA, destAddr, callSymRef, cg());
+   cursor->setDependencyConditions(preDeps);
+   cursor->setNeedsGCMap(getPreservedRegisterMapForGC());
+   // If helper call is fast path helper call and is not within ICF,
+   // We need to attach post dependency to the restoring of java stack pointer.
+   // This will assure that reverse spilling occurs after restoring of java stack pointer
+   if (!isHelperCallWithinICF)
+      cursor->setDependencyConditions(postDeps);
+   preDeps->stopUsingDepRegs(cg());
+
+   TR::DataType returnType = callNode->getDataType();
+   if (returnReg == NULL)
+      {
+      switch (returnType)
+         {
+         case TR::NoType:
+            traceMsg(comp(), "ReturnType = %s\n", returnType.toString());
+            break;
+         case TR::Address:
+            traceMsg(comp(), "ReturnType = %s\n", returnType.toString());
+            returnReg = cg()->allocateCollectedReferenceRegister();
+            break;
+         case TR::Int8:
+         case TR::Int16:
+         case TR::Int32:
+#ifdef TR_TARGET_64BIT
+         case TR::Int64:
+#endif
+            traceMsg(comp(), "ReturnType = %s\n", returnType.toString());
+            returnReg = cg()->allocateRegister();
+            break;
+         default:
+            TR_ASSERT(false, "Unsupported Call return data type: %s\n", returnType.toString());
+            break;
+         }
+      }
+
+   // We need to fill returnReg only if it requested by evaluator or node returns value or address
+   if (returnReg != NULL)
+      generateRRInstruction(cg(), TR::InstOpCode::getLoadRegOpCode(), callNode, returnReg, RealRegisters.use(getLongHighReturnRegister()), cursor);
+
+   return returnReg;
+}
 
 /**   \brief Build a JIT helper call.
  *    \details
