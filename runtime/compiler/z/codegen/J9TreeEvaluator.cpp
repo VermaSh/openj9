@@ -6327,9 +6327,27 @@ static bool graDepsConflictWithInstanceOfDeps(TR::Node * depNode, TR::Node * nod
  *     This function generates a sequence to check per site cache for object class and cast class before calling out to jitInstanceOf helper
  */
 static
-void genInstanceOfDynamicCacheAndHelperCall(TR::Node *node, TR::CodeGenerator *cg, TR::Register *castClassReg, TR::Register *objClassReg, TR::Register *resultReg, TR_S390ScratchRegisterManager *srm, TR::LabelSymbol *doneLabel, TR::LabelSymbol *helperCallLabel, TR::LabelSymbol *dynamicCacheTestLabel, TR::LabelSymbol *branchLabel, TR::LabelSymbol *trueLabel, TR::LabelSymbol *falseLabel, bool dynamicCastClass, bool generateDynamicCache, bool cacheCastClass, bool ifInstanceOf, bool trueFallThrough )
+void genInstanceOfDynamicCacheAndHelperCall(
+   TR::Node *node,
+   TR::CodeGenerator *cg,
+   TR::Register *castClassReg,
+   TR::Register *objClassReg,
+   TR::Register *resultReg,
+   TR_S390ScratchRegisterManager *srm,
+   TR::LabelSymbol *doneLabel,
+   TR::LabelSymbol *helperCallLabel,
+   TR::LabelSymbol *dynamicCacheTestLabel,
+   TR::LabelSymbol *branchLabel,
+   TR::LabelSymbol *trueLabel,
+   TR::LabelSymbol *falseLabel,
+   bool dynamicCastClass,
+   bool generateDynamicCache,
+   bool cacheCastClass,
+   bool ifInstanceOf,
+   bool trueFallThrough
+   )
    {
-   TR::Compilation                *comp = cg->comp();
+   TR::Compilation *comp = cg->comp();
    bool needResult = resultReg != NULL;
    if (!castClassReg)
       castClassReg = cg->evaluate(node->getSecondChild());
@@ -6465,6 +6483,31 @@ void genInstanceOfDynamicCacheAndHelperCall(TR::Node *node, TR::CodeGenerator *c
    cg->generateDebugCounter(TR::DebugCounter::debugCounterName(comp, "instanceOf/(%s)/Helper", comp->signature()),1,TR::DebugCounter::Undetermined);
    J9::Z::CHelperLinkage *helperLink =  static_cast<J9::Z::CHelperLinkage*>(cg->getLinkage(TR_CHelper));
    resultReg = helperLink->buildDirectDispatch(node, resultReg);
+
+   TR::Node *directDispatchV1Node = TR::Node::createWithSymRef(
+      TR::ILOpCodes::call,
+      node->getNumChildren() + 1,
+      node->getSymbolReference()
+      );
+   TR::Register *vmThreadReg = cg->getMethodMetaDataRealRegister();
+   TR::Node *vmThread = TR::Node::createWithSymRef(
+      node,
+      TR::loadaddr,
+      0,
+      new (comp->trHeapMemory()) TR::SymbolReference(
+         comp->getSymRefTab(),
+         TR::RegisterMappedSymbol::createMethodMetaDataSymbol(
+            comp->trHeapMemory(),
+            "vmThread")
+         )
+      );
+   directDispatchV1Node->setAndIncChild(0, vmThread); // add vm thread as the first child
+   for (int i = 0; i < node->getNumChildren(); ++i)
+      {
+      directDispatchV1Node->setChild(i + 1, node->getChild(i));
+      }
+   resultReg = helperLink->buildDirectDispatchV1(directDispatchV1Node, resultReg); // Call to direct dispatch builder
+
    if (generateDynamicCache)
       {
       TR::LabelSymbol *skipSettingBitForFalseResult = generateLabelSymbol(cg);
@@ -6564,7 +6607,7 @@ J9::Z::TreeEvaluator::VMgenCoreInstanceofEvaluator(TR::Node * node, TR::CodeGene
    float topClassProbability=0.0;
    InstanceOfOrCheckCastSequences sequences[InstanceOfOrCheckCastMaxSequences];
    uint32_t numberOfProfiledClass;
-   uint32_t                       numSequencesRemaining = calculateInstanceOfOrCheckCastSequences(node, sequences, &compileTimeGuessClass, cg, profiledClassesList, &numberOfProfiledClass, maxProfiledClasses, &topClassProbability, &topClassWasCastClass);
+   uint32_t numSequencesRemaining = calculateInstanceOfOrCheckCastSequences(node, sequences, &compileTimeGuessClass, cg, profiledClassesList, &numberOfProfiledClass, maxProfiledClasses, &topClassProbability, &topClassWasCastClass);
    bool outLinedSuperClass = false;
    TR::Instruction *cursor = NULL;
    TR::Instruction *gcPoint = NULL;
@@ -6640,7 +6683,7 @@ J9::Z::TreeEvaluator::VMgenCoreInstanceofEvaluator(TR::Node * node, TR::CodeGene
    bool generateDynamicCache = false;
    bool cacheCastClass = false;
    InstanceOfOrCheckCastSequences *iter = &sequences[0];
-   while (numSequencesRemaining >   1 || (numSequencesRemaining==1 && *iter!=HelperCall))
+   while (numSequencesRemaining > 1 || (numSequencesRemaining == 1 && *iter != HelperCall))
       {
       switch (*iter)
          {
@@ -6845,6 +6888,9 @@ J9::Z::TreeEvaluator::VMgenCoreInstanceofEvaluator(TR::Node * node, TR::CodeGene
       ++iter;
       }
 
+   /* Since sequences is sorted in assending order based on expensiveness of the call
+    * if there is a helperCall we'll catch it here
+    */
    if (numSequencesRemaining > 0 && *iter == HelperCall)
       genInstanceOfDynamicCacheAndHelperCall(node, cg, castClassReg, objClassReg, resultReg, srm, doneLabel, callLabel, dynamicCacheTestLabel, branchLabel, trueLabel, falseLabel, dynamicCastClass, generateDynamicCache, cacheCastClass, ifInstanceOf, trueFallThrough);
 

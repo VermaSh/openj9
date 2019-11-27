@@ -2721,7 +2721,7 @@ fast_jitCollapseJNIReferenceFrame(J9VMThread *currentThread)
 UDATA J9FASTCALL
 #if defined(J9VM_ARCH_X86) || defined(J9VM_ARCH_S390)
 /* TODO Will be cleaned once all platforms adopt the correct parameter order */
-fast_jitInstanceOf(J9VMThread *currentThread, j9object_t object, J9Class *castClass)
+fast_jitInstanceOf(J9VMThread *currentThread, j9object_t object, J9Class *castClass) // TODO: this is called by the direct dispatch
 #else /* J9VM_ARCH_X86 || J9VM_ARCH_S390*/
 fast_jitInstanceOf(J9VMThread *currentThread, J9Class *castClass, j9object_t object)
 #endif /* J9VM_ARCH_X86 || J9VM_ARCH_S390*/
