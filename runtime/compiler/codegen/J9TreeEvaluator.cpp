@@ -697,6 +697,10 @@ uint32_t getInstanceOfOrCheckCastTopProfiledClass(TR::CodeGenerator *cg, TR::Nod
    }
 
 /**   \brief Generates an array of profiled classes with the boolean representing if the profiled class is instanceOf cast class or not
+ **   \param sequences
+ **      An array of applicable tests for the node, ordered from cheapest to expensive
+ **   \param compileTimeGuessClass
+ **      Output param used to indicate class implementation type
  **   \param profiledClassList
  **      An array of InstanceOfOrCheckCasrProfiledClasses structure passed from the main evaluator to fill up with profiled classes info
  **   \param numberOfProfiledClass
@@ -707,8 +711,20 @@ uint32_t getInstanceOfOrCheckCastTopProfiledClass(TR::CodeGenerator *cg, TR::Nod
  **      Probability of having topClass to be castClass.
  **   \param topClassWasCastClass
  **      Boolean pointer which will be set to true or false depending on if top profiled class was cast class or not
+ **   \return i
+ **      Number of applicable inlined tests for the node
  **/
-uint32_t J9::TreeEvaluator::calculateInstanceOfOrCheckCastSequences(TR::Node *instanceOfOrCheckCastNode, InstanceOfOrCheckCastSequences *sequences, TR_OpaqueClassBlock **compileTimeGuessClass, TR::CodeGenerator *cg, InstanceOfOrCheckCastProfiledClasses *profiledClassList, uint32_t *numberOfProfiledClass, uint32_t maxProfiledClass, float * topClassProbability, bool *topClassWasCastClass)
+uint32_t J9::TreeEvaluator::calculateInstanceOfOrCheckCastSequences(
+   TR::Node *instanceOfOrCheckCastNode,
+   InstanceOfOrCheckCastSequences *sequences,
+   TR_OpaqueClassBlock **compileTimeGuessClass,
+   TR::CodeGenerator *cg,
+   InstanceOfOrCheckCastProfiledClasses *profiledClassList,
+   uint32_t *numberOfProfiledClass,
+   uint32_t maxProfiledClass,
+   float * topClassProbability,
+   bool *topClassWasCastClass
+   )
    {
    TR_J9VMBase *fej9 = (TR_J9VMBase *)(cg->fe());
    TR_ASSERT(instanceOfOrCheckCastNode->getOpCode().isCheckCast() || instanceOfOrCheckCastNode->getOpCodeValue() == TR::instanceof, "Unexpected node opcode");
@@ -734,11 +750,24 @@ uint32_t J9::TreeEvaluator::calculateInstanceOfOrCheckCastSequences(TR::Node *in
 
    TR::SymbolReference *castClassSymRef = castClassNode->getSymbolReference();
 
-   if (cg->comp()->getOption(TR_OptimizeForSpace) || (cg->comp()->getOption(TR_DisableInlineCheckCast) && (instanceOfOrCheckCastNode->getOpCodeValue() == TR::checkcast || instanceOfOrCheckCastNode->getOpCodeValue() == TR::checkcastAndNULLCHK)) || (cg->comp()->getOption(TR_DisableInlineInstanceOf) && instanceOfOrCheckCastNode->getOpCodeValue() == TR::instanceof))
+   if (
+      cg->comp()->getOption(TR_OptimizeForSpace)
+      || (
+         cg->comp()->getOption(TR_DisableInlineCheckCast)
+         && (
+            instanceOfOrCheckCastNode->getOpCodeValue() == TR::checkcast
+            || instanceOfOrCheckCastNode->getOpCodeValue() == TR::checkcastAndNULLCHK
+            )
+         )
+      || (
+         cg->comp()->getOption(TR_DisableInlineInstanceOf)
+         && instanceOfOrCheckCastNode->getOpCodeValue() == TR::instanceof
+         )
+      )
       {
       if (instanceOfOrCheckCastNode->getOpCodeValue() == TR::checkcastAndNULLCHK)
          sequences[i++] = NullTest;
-      sequences[i++] = HelperCall;  
+      sequences[i++] = HelperCall;
       }
    // Object is known to be null, usually removed by the optimizer, but in case they're not we know the result of the cast/instanceof.
    //
@@ -793,7 +822,7 @@ uint32_t J9::TreeEvaluator::calculateInstanceOfOrCheckCastSequences(TR::Node *in
       TR_OpaqueClassBlock *castClass = (TR_OpaqueClassBlock *)castClassSym->getStaticAddress();
       J9UTF8              *castClassName = J9ROMCLASS_CLASSNAME(TR::Compiler->cls.romClassOf((TR_OpaqueClassBlock *) castClass));
       // Cast class is a primitive (implies this is an instanceof, since you can't cast an object to a primitive).
-      // Usually removed by the optimizer, but in case they're not we know they'll always fail, no object can be of a primitive type.
+      // Usually removed by the optimizer, but in this case it is not as we know they'll always fail, no object can be of a primitive type.
       // We don't even need to do a null test unless it's a checkcastAndNULLCHK node.
       //
       if (TR::Compiler->cls.isPrimitiveClass(cg->comp(), castClass))
