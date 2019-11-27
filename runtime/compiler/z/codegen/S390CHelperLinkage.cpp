@@ -248,7 +248,7 @@ class RealRegisterManager
    TR::CodeGenerator*   _cg;
    };
 
-TR::Register * TR::S390CHelperLinkage::buildDirectDispatchV1(TR::Node * callNode,TR::RegisterDependencyConditions **deps, TR::Register *returnReg)
+TR::Register * J9::Z::CHelperLinkage::CHelperLinkage::buildDirectDispatchV1(TR::Node * callNode,TR::RegisterDependencyConditions **deps, TR::Register *returnReg)
 {
    traceMsg(comp(), "Entering buildDirectDispatchV1");
        /*
