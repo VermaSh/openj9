@@ -304,10 +304,18 @@ TR::Register * J9::Z::CHelperLinkage::CHelperLinkage::buildDirectDispatchV1(TR::
       *deps = new (cg()->trHeapMemory()) TR::RegisterDependencyConditions(postDeps, childNodeRegDeps, cg());
 
    uint32_t offsetJ9SP = static_cast<uint32_t>(offsetof(J9VMThread, sp));
+   TR::Register *vmThreadRegister = callNode->getFirstChild()->getRegister();
+   // Storing Java Stack Pointer
+   TR::Register *javaStackPointerRegister = cg()->getStackPointerRealRegister();
+   TR::Instruction *cursor = generateRXInstruction(cg(), TR::InstOpCode::getStoreOpCode(), callNode, javaStackPointerRegister, generateS390MemoryReference(vmThreadRegister, offsetJ9SP, cg()));
    TR::SymbolReference *callSymRef = callNode->getSymbolReference();
    void *destAddr = callNode->getSymbolReference()->getSymbol()->castToMethodSymbol()->getMethodAddress();
-   TR::Instruction *cursor = new (cg()->trHeapMemory()) TR::S390RILInstruction(TR::InstOpCode::BRASL, callNode, regRA, destAddr, callSymRef, cg());
+   cursor = new (cg()->trHeapMemory()) TR::S390RILInstruction(TR::InstOpCode::BRASL, callNode, regRA, destAddr, callSymRef, cg());
    cursor->setDependencyConditions(preDeps);
+   // Reloading Java Stack pointer
+   cursor = generateRXInstruction(cg(), TR::InstOpCode::getLoadOpCode(), callNode, javaStackPointerRegister, generateS390MemoryReference(vmThreadRegister, offsetJ9SP, cg()), cursor);
+   // As GC map is attached to instruction after RA is done, it is guaranteed that all the non-preserved register by system linkage are either stored in preserved register
+   // Or spilled to stack. We only need to mark preserved register in GC map. Only possibility of non-preserved register containing a live object is in argument to helper which should be a clobberable copy of actual object.
    cursor->setNeedsGCMap(getPreservedRegisterMapForGC());
    // If helper call is fast path helper call and is not within ICF,
    // We need to attach post dependency to the restoring of java stack pointer.

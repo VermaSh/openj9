@@ -2754,7 +2754,7 @@ J9::Z::TreeEvaluator::checkcastEvaluator(TR::Node * node, TR::CodeGenerator * cg
          node->getNumChildren() + 1,
          node->getSymbolReference()
          );
-      TR::Register *vmThreadReg = cg->getMethodMetaDataRealRegister();
+      // TR::Register *vmThreadReg = cg->getMethodMetaDataRealRegister();
       TR::Node *vmThread = TR::Node::createWithSymRef(
          node,
          TR::loadaddr,
@@ -6482,14 +6482,14 @@ void genInstanceOfDynamicCacheAndHelperCall(
    generateS390LabelInstruction(cg, TR::InstOpCode::LABEL, node, helperCallLabel);
    cg->generateDebugCounter(TR::DebugCounter::debugCounterName(comp, "instanceOf/(%s)/Helper", comp->signature()),1,TR::DebugCounter::Undetermined);
    J9::Z::CHelperLinkage *helperLink =  static_cast<J9::Z::CHelperLinkage*>(cg->getLinkage(TR_CHelper));
-   resultReg = helperLink->buildDirectDispatch(node, resultReg);
+   // resultReg = helperLink->buildDirectDispatch(node, resultReg);
 
    TR::Node *directDispatchV1Node = TR::Node::createWithSymRef(
       TR::ILOpCodes::call,
       node->getNumChildren() + 1,
       node->getSymbolReference()
       );
-   TR::Register *vmThreadReg = cg->getMethodMetaDataRealRegister();
+   // TR::Register *vmThreadReg = cg->getMethodMetaDataRealRegister();
    TR::Node *vmThread = TR::Node::createWithSymRef(
       node,
       TR::loadaddr,
@@ -6507,6 +6507,7 @@ void genInstanceOfDynamicCacheAndHelperCall(
       directDispatchV1Node->setChild(i + 1, node->getChild(i));
       }
    resultReg = helperLink->buildDirectDispatchV1(directDispatchV1Node, resultReg); // Call to direct dispatch builder
+   cg->decReferenceCount(directDispatchV1Node->getFirstChild());
 
    if (generateDynamicCache)
       {
