@@ -304,7 +304,8 @@ TR::Register * J9::Z::CHelperLinkage::CHelperLinkage::buildDirectDispatchV1(TR::
       *deps = new (cg()->trHeapMemory()) TR::RegisterDependencyConditions(postDeps, childNodeRegDeps, cg());
 
    uint32_t offsetJ9SP = static_cast<uint32_t>(offsetof(J9VMThread, sp));
-   TR::Register *vmThreadRegister = callNode->getFirstChild()->getRegister();
+   TR::Register *vmThreadRegister = cg()->getMethodMetaDataRealRegister();
+   // TR::Register *vmThreadRegister = callNode->getFirstChild()->getRegister();
    // Storing Java Stack Pointer
    TR::Register *javaStackPointerRegister = cg()->getStackPointerRealRegister();
    TR::Instruction *cursor = generateRXInstruction(cg(), TR::InstOpCode::getStoreOpCode(), callNode, javaStackPointerRegister, generateS390MemoryReference(vmThreadRegister, offsetJ9SP, cg()));
