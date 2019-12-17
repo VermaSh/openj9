@@ -1085,6 +1085,8 @@ uint32_t J9::TreeEvaluator::calculateInstanceOfOrCheckCastSequences(
             }
          }
       }
+      if (sequences[i - 1] != HelperCall)
+         sequences[i++] = HelperCall;
 
    TR_ASSERT(sequences[i - 1] == HelperCall ||
              sequences[i - 1] == GoToTrue ||
