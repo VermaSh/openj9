@@ -2748,36 +2748,38 @@ J9::Z::TreeEvaluator::checkcastEvaluator(TR::Node * node, TR::CodeGenerator * cg
       outlinedConditions->addPostCondition(castClassReg, TR::RealRegister::AssignAny);
       cg->generateDebugCounter(TR::DebugCounter::debugCounterName(comp, "checkCast/(%s)/Helper", comp->signature()),1,TR::DebugCounter::Undetermined);
       TR::RegisterDependencyConditions *deps = NULL;
+      resultReg = startOOLLabel ? helperLink->buildDirectDispatch(node, &deps) : helperLink->buildDirectDispatch(node);
 
-      TR::Node *directDispatchV1Node = TR::Node::createWithSymRef(
-         TR::ILOpCodes::call,
-         node->getNumChildren() + 1,
-         node->getSymbolReference()
-         );
-      // TR::Register *vmThreadReg = cg->getMethodMetaDataRealRegister();
-      TR::Node *vmThread = TR::Node::createWithSymRef(
-         node,
-         TR::loadaddr,
-         0,
-         new (comp->trHeapMemory()) TR::SymbolReference(
-            comp->getSymRefTab(),
-            TR::RegisterMappedSymbol::createMethodMetaDataSymbol(
-               comp->trHeapMemory(),
-               "vmThread")
-            )
-         );
+      // TR::Node *directDispatchV1Node = TR::Node::createWithSymRef(
+      //    TR::ILOpCodes::call,
+      //    node->getNumChildren() + 1,
+      //    node->getSymbolReference()
+      //    );
+      // // TR::Register *vmThreadReg = cg->getMethodMetaDataRealRegister();
+      // TR::Node *vmThread = TR::Node::createWithSymRef(
+      //    node,
+      //    TR::loadaddr,
+      //    0,
+      //    new (comp->trHeapMemory()) TR::SymbolReference(
+      //       comp->getSymRefTab(),
+      //       TR::RegisterMappedSymbol::createMethodMetaDataSymbol(
+      //          comp->trHeapMemory(),
+      //          "vmThread")
+      //       )
+      //    );
 
-      directDispatchV1Node->setAndIncChild(0, vmThread); // add vm thread as the first child
-      for (int i = 0; i < node->getNumChildren(); ++i)
-         {
-         directDispatchV1Node->setChild(i + 1, node->getChild(i));
-         }
-      TR_ASSERT_FATAL(directDispatchV1Node->getSymbolReference() == node->getSymbolReference(), "getSymbolReference did not return the same value");
+      // directDispatchV1Node->setAndIncChild(0, vmThread); // add vm thread as the first child
+      // for (int i = 0; i < node->getNumChildren(); ++i)
+      //    {
+      //    directDispatchV1Node->setChild(i + 1, node->getChild(i));
+      //    }
+      // TR_ASSERT_FATAL(directDispatchV1Node->getSymbolReference() == node->getSymbolReference(), "getSymbolReference did not return the same value");
 
-      resultReg = startOOLLabel ?
-         helperLink->buildDirectDispatchV1(directDispatchV1Node, &deps)
-         : helperLink->buildDirectDispatchV1(directDispatchV1Node, static_cast<TR::RegisterDependencyConditions**>(NULL));
-      cg->decReferenceCount(directDispatchV1Node->getFirstChild());
+      // resultReg = startOOLLabel ?
+      //    helperLink->buildDirectDispatchV1(directDispatchV1Node, &deps)
+      //    : helperLink->buildDirectDispatchV1(directDispatchV1Node, static_cast<TR::RegisterDependencyConditions**>(NULL));
+      // cg->decReferenceCount(directDispatchV1Node->getFirstChild());
+
       if (resultReg)
          outlinedConditions->addPostCondition(resultReg, TR::RealRegister::AssignAny);
 
