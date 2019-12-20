@@ -250,7 +250,7 @@ class RealRegisterManager
 
 TR::Register * J9::Z::CHelperLinkage::CHelperLinkage::buildDirectDispatchV1(TR::Node * callNode,TR::RegisterDependencyConditions **deps, TR::Register *returnReg)
 {
-   traceMsg(comp(), "Entering buildDirectDispatchV1");
+   traceMsg(comp(), "Entering buildDirectDispatchV1\n");
        /*
       Return conditions
       - only one return at the end
@@ -356,6 +356,7 @@ TR::Register * J9::Z::CHelperLinkage::CHelperLinkage::buildDirectDispatchV1(TR::
    if (returnReg != NULL)
       generateRRInstruction(cg(), TR::InstOpCode::getLoadRegOpCode(), callNode, returnReg, RealRegisters.use(getLongHighReturnRegister()), cursor);
 
+   traceMsg(comp(), "Leaving buildDirectDispatchV1: node %p - return register %p\n",callNode,returnReg);
    return returnReg;
 }
 
