@@ -250,7 +250,7 @@ class RealRegisterManager
 
 TR::Register * J9::Z::CHelperLinkage::CHelperLinkage::buildDirectDispatchV1(TR::Node * callNode,TR::RegisterDependencyConditions **deps, TR::Register *returnReg)
 {
-   traceMsg(comp(), "Entering buildDirectDispatchV1\n");
+   traceMsg(comp(), "Entering buildDirectDispatchV1: node %p - return register %p\n",callNode,returnReg);
        /*
       Return conditions
       - only one return at the end
@@ -328,6 +328,7 @@ TR::Register * J9::Z::CHelperLinkage::CHelperLinkage::buildDirectDispatchV1(TR::
    TR::DataType returnType = callNode->getDataType();
    if (returnReg == NULL)
       {
+      traceMsg(comp(), "Return address is null here");
       switch (returnType)
          {
          case TR::NoType:
