@@ -6614,11 +6614,13 @@ J9::Z::TreeEvaluator::VMgenCoreInstanceofEvaluator(TR::Node * node, TR::CodeGene
    TR::Instruction *gcPoint = NULL;
 
    // We load resultReg with the parameter initialResult when we need result as outcome for routine
+   traceMsg(comp, "before needResult condition resultReg: %p -- needResult: %d\n",resultReg, needResult);
    if (needResult)
       {
       resultReg = cg->allocateRegister();
       cursor = generateRIInstruction(cg,TR::InstOpCode::getLoadHalfWordImmOpCode(),node,resultReg,static_cast<int32_t>(initialResult));
       }
+   traceMsg(comp, "after needResult condition resultReg: %p\n",resultReg);
 
    TR_S390OutOfLineCodeSection *outlinedSlowPath = NULL;
 
