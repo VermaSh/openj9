@@ -1907,7 +1907,7 @@ J9::Options::fePreProcess(void * base)
    // access StringBuffer objects from multiple threads.
    self()->setOption(TR_DisableLockResevation);
    // Setting number of onsite cache slots for instanceOf node to 4 on IBM Z
-   self()->setMaxOnsiteCacheSlotForInstanceOf(4);
+   self()->setMaxOnsiteCacheSlotForInstanceOf(0);
 #endif
    // Set a value for _safeReservePhysicalMemoryValue that is proportional
    // to the amount of free physical memory at boot time
