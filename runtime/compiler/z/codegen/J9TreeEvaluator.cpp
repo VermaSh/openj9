@@ -6559,6 +6559,7 @@ void genInstanceOfDynamicCacheAndHelperCall(
       srm->reclaimScratchRegister(dynamicCacheReg);
       }
 
+   traceMsg(comp, "genInstanceOfDynamicCacheAndHelperCall: resultReg before call: %p", resultReg);
    // WARNING: It is not recommended to have two exit point in OOL section
    // In this case we need it in case of ifInstanceOf to save additional complex logic in mainline section
    // In case if there is GLRegDeps attached to ifInstanceOf node, it will be evaluated and attached as post dependency conditions
