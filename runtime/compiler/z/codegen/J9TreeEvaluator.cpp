@@ -6900,6 +6900,7 @@ J9::Z::TreeEvaluator::VMgenCoreInstanceofEvaluator(TR::Node * node, TR::CodeGene
    if (numSequencesRemaining > 0 && *iter == HelperCall)
       genInstanceOfDynamicCacheAndHelperCall(node, cg, castClassReg, objClassReg, resultReg, srm, doneLabel, callLabel, dynamicCacheTestLabel, branchLabel, trueLabel, falseLabel, dynamicCastClass, generateDynamicCache, cacheCastClass, ifInstanceOf, trueFallThrough);
 
+   traceMsg(comp, "needResult: %d\n",needResult);
    if (needResult)
       {
       generateS390LabelInstruction(cg, TR::InstOpCode::LABEL, node, oppositeResultLabel);
