@@ -6688,8 +6688,6 @@ J9::Z::TreeEvaluator::VMgenCoreInstanceofEvaluator(TR::Node * node, TR::CodeGene
    bool generateDynamicCache = false;
    bool cacheCastClass = false;
    InstanceOfOrCheckCastSequences *iter = &sequences[0];
-   // Generate brc to callLabel
-   generateS390BranchInstruction(cg, TR::InstOpCode::BRC, TR::InstOpCode::COND_B, node, callLabel);
    while (numSequencesRemaining > 1 || (numSequencesRemaining == 1 && *iter != HelperCall))
       {
       switch (*iter)
