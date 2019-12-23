@@ -6559,7 +6559,7 @@ void genInstanceOfDynamicCacheAndHelperCall(
       srm->reclaimScratchRegister(dynamicCacheReg);
       }
 
-   traceMsg(comp, "genInstanceOfDynamicCacheAndHelperCall: resultReg before call: %p", resultReg);
+   traceMsg(comp, "genInstanceOfDynamicCacheAndHelperCall: resultReg before call: %p\n", resultReg);
    // WARNING: It is not recommended to have two exit point in OOL section
    // In this case we need it in case of ifInstanceOf to save additional complex logic in mainline section
    // In case if there is GLRegDeps attached to ifInstanceOf node, it will be evaluated and attached as post dependency conditions
@@ -6567,6 +6567,7 @@ void genInstanceOfDynamicCacheAndHelperCall(
    // We can take a risk of having two exit points in OOL here as there is no other register instruction between them
    if (ifInstanceOf)
       {
+      //TODO: figure out why they need to be populated when callee is not expecting result
       generateRRInstruction(cg, TR::InstOpCode::getLoadTestRegOpCode(), node, resultReg, resultReg);
       if (trueFallThrough)
          generateS390BranchInstruction(cg, TR::InstOpCode::BRC, TR::InstOpCode::COND_BE, node, branchLabel);
