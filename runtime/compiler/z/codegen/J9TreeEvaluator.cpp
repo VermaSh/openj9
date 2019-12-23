@@ -6893,6 +6893,7 @@ J9::Z::TreeEvaluator::VMgenCoreInstanceofEvaluator(TR::Node * node, TR::CodeGene
       ++iter;
       }
 
+   traceMsg(comp, "About to generate dynamic helper call: node: %p -- resultReg: %p  -- ifInstanceOf: %d\n", node, resultReg, ifInstanceOf);
    /* Since sequences is sorted in assending order based on expensiveness of the call
     * if there is a helperCall we'll catch it here
     */
