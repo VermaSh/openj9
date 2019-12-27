@@ -6565,7 +6565,7 @@ void genInstanceOfDynamicCacheAndHelperCall(
    // In case if there is GLRegDeps attached to ifInstanceOf node, it will be evaluated and attached as post dependency conditions
    // at the end of node
    // We can take a risk of having two exit points in OOL here as there is no other register instruction between them
-   if (ifInstanceOf)
+   if (needResult && ifInstanceOf)
       {
       //TODO: figure out why they need to be populated when callee is not expecting result
       generateRRInstruction(cg, TR::InstOpCode::getLoadTestRegOpCode(), node, resultReg, resultReg);
