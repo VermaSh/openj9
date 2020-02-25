@@ -42,6 +42,7 @@
 #include "il/Node_inlines.hpp"
 #include "il/TreeTop.hpp"
 #include "il/TreeTop_inlines.hpp"
+#include "il/AutomaticSymbol.hpp"
 #include "env/j9fieldsInfo.h"
 #include "env/VMJ9.h"
 #include "ilgen/ClassLookahead.hpp"
@@ -2177,6 +2178,8 @@ TR_J9ByteCodeIlGenerator::calculateElementAddressInContiguousArray(int32_t width
       {
       if (headerSize > 0)
          {
+         /* Pushkar Modification */
+	 return;
          loadConstant(TR::lconst, (int64_t)headerSize);
          // shift could have been null here (if no scaling is done for the index
          // ...so check for that and introduce an i2l if required for the aladd
@@ -2200,6 +2203,7 @@ TR_J9ByteCodeIlGenerator::calculateElementAddressInContiguousArray(int32_t width
       {
       if (headerSize > 0)
          {
+ 	 /* Pushkar modification */ 
          loadConstant(TR::iconst, headerSize);
          genBinary(TR::iadd);
          }
@@ -2246,6 +2250,42 @@ TR_J9ByteCodeIlGenerator::calculateIndexFromOffsetInContiguousArray(int32_t widt
          genBinary(TR::ishr);
       }
    }
+
+/*
+Method to create a simulated contiguous array view for arrays in Gencon.
+Effectively, the method takes in a pointer to the array header adds the size
+of the header (to get a pointer to the first data element).
+To avoid GC problems, we mark the pointer to the first data element as an 
+'internal pointer' and set the array base pointer as a pinning array pointer.
+TODO: GC modifications to handle this reference as a different type of internal 
+pointer?
+
+parameter: arrayBase -> Node referencing the array object (array header)
+*/
+void
+TR_J9ByteCodeIlGenerator::createContiguousArrayView(TR::Node* arrayBase) 
+    {
+
+    /* Create the contiguous array view node  i.e., header + header_size */
+    TR::Node * loadConstNode = TR::Node::create(TR::lconst, 0);
+    loadConstNode->setConstValue(TR::Compiler->om.contiguousArrayHeaderSizeInBytes());    
+    TR::Node * addNode = TR::Node::create(TR::aladd, 2, arrayBase, loadConstNode);
+    
+    /* Mark node as an internal pointer */
+    addNode->setIsInternalPointer(true);
+
+    /* create symbol for the array object reference (header pointer) */
+    TR::SymbolReference *arrAddrSymRef = symRefTab()->createTemporary(_methodSymbol, TR::Address);
+    TR::Node *arrStore = TR::Node::createStore(arrAddrSymRef, arrayBase);
+    genTreeTop(arrStore);
+   
+    /* Mark this symbol as a pinning array pointer */
+    addNode->setPinningArrayPointer(arrAddrSymRef->getSymbol()->castToAutoSymbol());
+    genTreeTop(addNode);
+
+    /* cache the contiguous array view node for future use */ 
+    _memRegionMap[arrayBase] = addNode;
+    }
 
 
 // Helper to calculate the address of the element of an array
@@ -2338,7 +2378,25 @@ TR_J9ByteCodeIlGenerator::calculateArrayElementAddress(TR::DataType dataType, bo
       {
       int32_t arrayHeaderSize = TR::Compiler->om.contiguousArrayHeaderSizeInBytes();
       calculateElementAddressInContiguousArray(width, arrayHeaderSize);
-      _stack->top()->setIsInternalPointer(true);
+    
+      /* Pushkar modification */
+      TR::Node *lshl = _stack->pop();
+      TR::Node *obj_ptr = _stack->pop();
+
+      if (_memRegionMap.find(obj_ptr) == _memRegionMap.end()) {   
+          createContiguousArrayView(obj_ptr);
+      }
+
+      TR::Node* temp = _memRegionMap[obj_ptr];
+      if (temp->getPinningArrayPointer() != NULL)
+          traceMsg(comp(), "\n Pinning Array Pointer Found \n");
+      if (temp->isInternalPointer())
+          traceMsg(comp(), "\n It is an Internal Pointer \n");     
+      TR::Node * addNode = TR::Node::create(TR::aladd, 2, lshl, temp);
+      _stack->push(addNode); 
+
+      printStack(comp(), _stack, "stack after myOwnAddition");
+      traceMsg(comp(), "\n ============================================================\n");
       }
 
    push(nodeThatWasNullChecked);
@@ -6720,7 +6778,7 @@ TR_J9ByteCodeIlGenerator::genNewArray(int32_t typeIndex)
    TR::Node * secondChild=pop();
    TR::Node * firstChild=pop();
    TR::Node * node = TR::Node::createWithSymRef(TR::newarray, 2, 2, firstChild, secondChild, symRefTab()->findOrCreateNewArraySymbolRef(_methodSymbol));
-
+   traceMsg(comp(), "\n Create with Sym Ref\n");
    if (_methodSymbol->skipZeroInitializationOnNewarrays())
      node->setCanSkipZeroInitialization(true);
 
@@ -6779,6 +6837,7 @@ TR_J9ByteCodeIlGenerator::genNewArray(int32_t typeIndex)
        !generateArraylets && separateInitializationFromAllocation &&
        comp()->cg()->getSupportsArraySet())
       {
+      traceMsg(comp(), "\n In Here?\n");
       node->setCanSkipZeroInitialization(true);
 
       TR::Node *arrayRefNode;
@@ -6821,6 +6880,7 @@ TR_J9ByteCodeIlGenerator::genNewArray(int32_t typeIndex)
       arraysetNode->setArraysetLengthMultipleOfPointerSize(true);
 
       initNode = TR::Node::create(TR::treetop, 1, arraysetNode);
+      printStack(comp(), _stack, "stack after initNode\n");
       }
 
    _methodSymbol->setHasNews(true);
@@ -6828,6 +6888,15 @@ TR_J9ByteCodeIlGenerator::genNewArray(int32_t typeIndex)
    if (initNode)
       genTreeTop(initNode);
    push(node);
+   printStack(comp(), _stack, "stack after it's all done\n"); 
+
+   /* Pushkar Modification */
+   if (_memRegionMap.find(node) != _memRegionMap.end()) {
+       genFlush(0);
+       return;
+   }
+ 
+   createContiguousArrayView(node);
    genFlush(0);
    }
 
@@ -6847,6 +6916,14 @@ TR_J9ByteCodeIlGenerator::genANewArray()
    _methodSymbol->setHasNews(true);
    genTreeTop(node);
    push(node);
+
+   /* Pushkar Modification */
+   if (_memRegionMap.find(node) != _memRegionMap.end()) {
+       genFlush(0);
+       return;
+   }
+
+   createContiguousArrayView(node);
    genFlush(0);
    }
 
@@ -6874,6 +6951,14 @@ TR_J9ByteCodeIlGenerator::genMultiANewArray(int32_t dims)
 
    genTreeTop(node);
    push(node);
+
+   /* Pushkar Modification */
+   if (_memRegionMap.find(node) != _memRegionMap.end()) {
+       genFlush(0);
+       return;
+   }
+
+   createContiguousArrayView(node);
    }
 
 //----------------------------------------------

@@ -82,6 +82,12 @@ public:
    }
    virtual TR::ResolvedMethodSymbol *methodSymbol() const { return _methodSymbol;}
 
+   typedef TR::typed_allocator<std::pair<TR::Node*, TR::SymbolReference*>, TR::Region &> contiguousMemRegionAllocator;
+   std::map<TR::Node*, TR::SymbolReference*, std::less<TR::Node *>, contiguousMemRegionAllocator> _contiguousMemRegionMap;
+
+   typedef TR::typed_allocator<std::pair<TR::Node*, TR::Node*>, TR::Region &> memRegionAllocator;
+   std::map<TR::Node*, TR::Node*, std::less<TR::Node *>, memRegionAllocator> _memRegionMap;
+
 private:
 
    bool trace(){ return comp()->getOption(TR_TraceBC) || comp()->getOption(TR_TraceILGen); }
@@ -208,6 +214,8 @@ private:
    void         storeAuto(TR::DataType type, int32_t slot, bool isAdjunct = false);
    void         storeArrayElement(TR::DataType dt){ storeArrayElement(dt, comp()->il.opCodeForIndirectArrayStore(dt)); }
    void         storeArrayElement(TR::DataType dt, TR::ILOpCodes opCode, bool checks = true);
+
+   void         createContiguousArrayView(TR::Node* arrayBase);
 
    void         calculateElementAddressInContiguousArray(int32_t, int32_t);
    void         calculateIndexFromOffsetInContiguousArray(int32_t, int32_t);
