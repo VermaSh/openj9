@@ -2157,14 +2157,17 @@ TR_J9ByteCodeIlGenerator::genArrayBoundsCheck(TR::Node * offset, int32_t width)
 void
 TR_J9ByteCodeIlGenerator::calculateElementAddressInContiguousArray(int32_t width, int32_t headerSize)
    {
+   traceMsg(comp(), "In calculateElementAddressInContiguousArray\n");
    const bool isForArrayAccess = true;
    int32_t shift = TR::TransformUtil::convertWidthToShift(width);
    if (shift)
       {
+      traceMsg(comp(), "shift > 0 (i.e., is true)\n");
       loadConstant(TR::iconst, shift);
       // generate a TR::aladd instead if required
       if (comp()->target().is64Bit())
          {
+         traceMsg(comp(), "If shift and 64 bit\n");
          // stack is now ...index,shift<===
          TR::Node *second = pop();
          genUnary(TR::i2l, isForArrayAccess);
@@ -2178,8 +2181,17 @@ TR_J9ByteCodeIlGenerator::calculateElementAddressInContiguousArray(int32_t width
       {
       if (headerSize > 0)
          {
+         traceMsg(comp(), "64 bit and headerSize > 0\n");
          /* Pushkar Modification */
-	 return;
+         if (_arrayChanges <= comp()->getOptions()->getZZArrayModificationCounter() || comp()->getOptions()->getZZArrayModificationCounter() == -99) {
+             if (!shift) {
+    		 traceMsg(comp(), "!shift \n");
+                 genUnary(TR::i2l, isForArrayAccess);
+             }
+	     return;
+         }
+         else
+             traceMsg(comp(), "\n** Not making any more modifications as _arrayChanges=%d\n", _arrayChanges);
          loadConstant(TR::lconst, (int64_t)headerSize);
          // shift could have been null here (if no scaling is done for the index
          // ...so check for that and introduce an i2l if required for the aladd
@@ -2204,6 +2216,10 @@ TR_J9ByteCodeIlGenerator::calculateElementAddressInContiguousArray(int32_t width
       if (headerSize > 0)
          {
  	 /* Pushkar modification */ 
+         if (_arrayChanges <= comp()->getOptions()->getZZArrayModificationCounter() || comp()->getOptions()->getZZArrayModificationCounter() == -99)
+             return;
+         else
+             traceMsg(comp(), "\n** Not making any more modifications as _arrayChanges=%d\n", _arrayChanges);
          loadConstant(TR::iconst, headerSize);
          genBinary(TR::iadd);
          }
@@ -2294,7 +2310,7 @@ TR_J9ByteCodeIlGenerator::createContiguousArrayView(TR::Node* arrayBase)
 void
 TR_J9ByteCodeIlGenerator::calculateArrayElementAddress(TR::DataType dataType, bool checks)
    {
-
+   traceMsg(comp(), "In calculateElementAddress\n");
    if (comp()->getOption(TR_EnableSIMDLibrary))
        {
        if (dataType == TR::VectorInt8)
@@ -2380,23 +2396,30 @@ TR_J9ByteCodeIlGenerator::calculateArrayElementAddress(TR::DataType dataType, bo
       calculateElementAddressInContiguousArray(width, arrayHeaderSize);
     
       /* Pushkar modification */
-      TR::Node *lshl = _stack->pop();
-      TR::Node *obj_ptr = _stack->pop();
-
-      if (_memRegionMap.find(obj_ptr) == _memRegionMap.end()) {   
-          createContiguousArrayView(obj_ptr);
+      if (_arrayChanges > comp()->getOptions()->getZZArrayModificationCounter() && comp()->getOptions()->getZZArrayModificationCounter() != -99){
+          traceMsg(comp(), "\n** Not making any more modifications as _arrayChanges=%d\n", _arrayChanges);
+          _stack->top()->setIsInternalPointer(true);
       }
+      else {
+          TR::Node *lshl = _stack->pop();
+          TR::Node *obj_ptr = _stack->pop();
 
-      TR::Node* temp = _memRegionMap[obj_ptr];
-      if (temp->getPinningArrayPointer() != NULL)
-          traceMsg(comp(), "\n Pinning Array Pointer Found \n");
-      if (temp->isInternalPointer())
-          traceMsg(comp(), "\n It is an Internal Pointer \n");     
-      TR::Node * addNode = TR::Node::create(TR::aladd, 2, lshl, temp);
-      _stack->push(addNode); 
+          if (_memRegionMap.find(obj_ptr) == _memRegionMap.end()) {   
+              createContiguousArrayView(obj_ptr);
+              _arrayChanges++;
+          }
 
-      printStack(comp(), _stack, "stack after myOwnAddition");
-      traceMsg(comp(), "\n ============================================================\n");
+          TR::Node* temp = _memRegionMap[obj_ptr];
+          if (temp->getPinningArrayPointer() != NULL)
+              traceMsg(comp(), "\n Pinning Array Pointer Found \n");
+          if (temp->isInternalPointer())
+              traceMsg(comp(), "\n It is an Internal Pointer \n");     
+          TR::Node * addNode = TR::Node::create(TR::aladd, 2, temp, lshl);
+          _stack->push(addNode); 
+
+          printStack(comp(), _stack, "stack after myOwnAddition");
+          traceMsg(comp(), "\n ============================================================\n");
+      }
       }
 
    push(nodeThatWasNullChecked);
@@ -6130,6 +6153,8 @@ TR_J9ByteCodeIlGenerator::loadArrayElement(TR::DataType dataType, TR::ILOpCodes 
       return;
       }
 
+   traceMsg(comp(), "In loadArrayElement\n");
+
    bool genSpineChecks = comp()->requiresSpineChecks();
 
    _suppressSpineChecks = false;
@@ -6890,6 +6915,12 @@ TR_J9ByteCodeIlGenerator::genNewArray(int32_t typeIndex)
    push(node);
    printStack(comp(), _stack, "stack after it's all done\n"); 
 
+   if (_arrayChanges > comp()->getOptions()->getZZArrayModificationCounter() && comp()->getOptions()->getZZArrayModificationCounter() != -99) {
+       traceMsg(comp(), "\n** Not making any more modifications as _arrayChanges=%d\n", _arrayChanges);
+       genFlush(0);
+       return;
+   }
+
    /* Pushkar Modification */
    if (_memRegionMap.find(node) != _memRegionMap.end()) {
        genFlush(0);
@@ -6897,6 +6928,7 @@ TR_J9ByteCodeIlGenerator::genNewArray(int32_t typeIndex)
    }
  
    createContiguousArrayView(node);
+   _arrayChanges++;
    genFlush(0);
    }
 
@@ -6917,6 +6949,12 @@ TR_J9ByteCodeIlGenerator::genANewArray()
    genTreeTop(node);
    push(node);
 
+   if (_arrayChanges > comp()->getOptions()->getZZArrayModificationCounter() && comp()->getOptions()->getZZArrayModificationCounter() != -99) {
+       traceMsg(comp(), "\n** Not making any more modifications as _arrayChanges=%d\n", _arrayChanges);
+       genFlush(0);
+       return;
+   }
+
    /* Pushkar Modification */
    if (_memRegionMap.find(node) != _memRegionMap.end()) {
        genFlush(0);
@@ -6924,6 +6962,7 @@ TR_J9ByteCodeIlGenerator::genANewArray()
    }
 
    createContiguousArrayView(node);
+   _arrayChanges++;
    genFlush(0);
    }
 
@@ -6952,6 +6991,12 @@ TR_J9ByteCodeIlGenerator::genMultiANewArray(int32_t dims)
    genTreeTop(node);
    push(node);
 
+   if (_arrayChanges > comp()->getOptions()->getZZArrayModificationCounter() && comp()->getOptions()->getZZArrayModificationCounter() != -99) {
+       traceMsg(comp(), "\n** Not making any more modifications as _arrayChanges=%d\n", _arrayChanges);
+       genFlush(0);
+       return;
+   }
+
    /* Pushkar Modification */
    if (_memRegionMap.find(node) != _memRegionMap.end()) {
        genFlush(0);
@@ -6959,6 +7004,7 @@ TR_J9ByteCodeIlGenerator::genMultiANewArray(int32_t dims)
    }
 
    createContiguousArrayView(node);
+   _arrayChanges++;
    }
 
 //----------------------------------------------

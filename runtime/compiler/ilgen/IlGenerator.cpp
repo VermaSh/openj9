@@ -74,7 +74,8 @@ TR_J9ByteCodeIlGenerator::TR_J9ByteCodeIlGenerator(
      _ilGenMacroInvokeExactCalls(NULL),
      _methodHandleInvokeCalls(NULL),
      _contiguousMemRegionMap(std::less<TR::Node *>(), contiguousMemRegionAllocator(comp->trMemory()->currentStackRegion())),
-     _memRegionMap(std::less<TR::Node *>(), memRegionAllocator(comp->trMemory()->currentStackRegion())) 
+     _memRegionMap(std::less<TR::Node *>(), memRegionAllocator(comp->trMemory()->currentStackRegion())),
+     _arrayChanges(0) 
    {
    static const char *noLookahead = feGetEnv("TR_noLookahead");
    _noLookahead = (noLookahead || comp->getOption(TR_DisableLookahead)) ? true : false;
@@ -188,7 +189,7 @@ TR_J9ByteCodeIlGenerator::genIL()
       }
 
    comp()->setCurrentIlGenerator(0);
-
+ 
    return success;
    }
 
