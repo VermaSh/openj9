@@ -110,6 +110,7 @@
 
 static void printStack(TR::Compilation *comp, TR_Stack<TR::Node*> *stack, const char *message)
    {
+   return;
    // TODO: This should be in the debug DLL
    if (stack->isEmpty())
       {
@@ -606,7 +607,8 @@ TR::Block * TR_J9ByteCodeIlGenerator::walker(TR::Block * prevBlock)
          // be commoned, but this overall clarity seems to favour the terser format.
          //
          //comp()->getDebug()->restoreNodeChecklist(beforeTreesInserted);
-         printStack(comp(), _stack, "stack after");
+         //if (comp()->getOption(TR_TraceILGen))
+         //    printStack(comp(), _stack, "stack after");
 
          traceMsg(comp(), "  ============================================================\n");
 
@@ -1073,7 +1075,8 @@ TR_J9ByteCodeIlGenerator::genNodeAndPopChildren(TR::ILOpCodes opcode, int32_t nu
          TR::StackMemoryRegion stackMemoryRegion(*comp()->trMemory());
 
          TR_BitVector before(comp()->getNodeCount(), trMemory(), stackAlloc, growable);
-         printStack(comp(), _stack, "stack after expandPlaceholderCalls");
+         //if (comp()->getOption(TR_TraceILGen))
+         //    printStack(comp(), _stack, "stack after expandPlaceholderCalls");
          comp()->getDebug()->restoreNodeChecklist(before);
          }
       }
@@ -2417,7 +2420,8 @@ TR_J9ByteCodeIlGenerator::calculateArrayElementAddress(TR::DataType dataType, bo
           TR::Node * addNode = TR::Node::create(TR::aladd, 2, temp, lshl);
           _stack->push(addNode); 
 
-          printStack(comp(), _stack, "stack after myOwnAddition");
+          //if (comp()->getOption(TR_TraceILGen))
+          //    printStack(comp(), _stack, "stack after myOwnAddition");
           traceMsg(comp(), "\n ============================================================\n");
       }
       }
@@ -6905,7 +6909,8 @@ TR_J9ByteCodeIlGenerator::genNewArray(int32_t typeIndex)
       arraysetNode->setArraysetLengthMultipleOfPointerSize(true);
 
       initNode = TR::Node::create(TR::treetop, 1, arraysetNode);
-      printStack(comp(), _stack, "stack after initNode\n");
+      //if (comp()->getOption(TR_TraceILGen))
+      //    printStack(comp(), _stack, "stack after initNode\n");
       }
 
    _methodSymbol->setHasNews(true);
@@ -6913,7 +6918,8 @@ TR_J9ByteCodeIlGenerator::genNewArray(int32_t typeIndex)
    if (initNode)
       genTreeTop(initNode);
    push(node);
-   printStack(comp(), _stack, "stack after it's all done\n"); 
+   //if (comp()->getOption(TR_TraceILGen))
+   //    printStack(comp(), _stack, "stack after it's all done\n"); 
 
    if (_arrayChanges > comp()->getOptions()->getZZArrayModificationCounter() && comp()->getOptions()->getZZArrayModificationCounter() != -99) {
        traceMsg(comp(), "\n** Not making any more modifications as _arrayChanges=%d\n", _arrayChanges);
