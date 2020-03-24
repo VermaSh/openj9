@@ -2218,11 +2218,6 @@ TR_J9ByteCodeIlGenerator::calculateElementAddressInContiguousArray(int32_t width
       {
       if (headerSize > 0)
          {
- 	 /* Pushkar modification */ 
-         if (_arrayChanges <= comp()->getOptions()->getZZArrayModificationCounter() || comp()->getOptions()->getZZArrayModificationCounter() == -99)
-             return;
-         else
-             traceMsg(comp(), "\n** Not making any more modifications as _arrayChanges=%d\n", _arrayChanges);
          loadConstant(TR::iconst, headerSize);
          genBinary(TR::iadd);
          }
@@ -2399,7 +2394,7 @@ TR_J9ByteCodeIlGenerator::calculateArrayElementAddress(TR::DataType dataType, bo
       calculateElementAddressInContiguousArray(width, arrayHeaderSize);
     
       /* Pushkar modification */
-      if (_arrayChanges > comp()->getOptions()->getZZArrayModificationCounter() && comp()->getOptions()->getZZArrayModificationCounter() != -99){
+      if (!comp()->target().is64Bit() || (_arrayChanges > comp()->getOptions()->getZZArrayModificationCounter() && comp()->getOptions()->getZZArrayModificationCounter() != -99)){
           traceMsg(comp(), "\n** Not making any more modifications as _arrayChanges=%d\n", _arrayChanges);
           _stack->top()->setIsInternalPointer(true);
       }
@@ -6921,7 +6916,7 @@ TR_J9ByteCodeIlGenerator::genNewArray(int32_t typeIndex)
    //if (comp()->getOption(TR_TraceILGen))
    //    printStack(comp(), _stack, "stack after it's all done\n"); 
 
-   if (_arrayChanges > comp()->getOptions()->getZZArrayModificationCounter() && comp()->getOptions()->getZZArrayModificationCounter() != -99) {
+   if (!comp()->target().is64Bit() || (_arrayChanges > comp()->getOptions()->getZZArrayModificationCounter() && comp()->getOptions()->getZZArrayModificationCounter() != -99)) {
        traceMsg(comp(), "\n** Not making any more modifications as _arrayChanges=%d\n", _arrayChanges);
        genFlush(0);
        return;
@@ -6955,7 +6950,7 @@ TR_J9ByteCodeIlGenerator::genANewArray()
    genTreeTop(node);
    push(node);
 
-   if (_arrayChanges > comp()->getOptions()->getZZArrayModificationCounter() && comp()->getOptions()->getZZArrayModificationCounter() != -99) {
+   if (!comp()->target().is64Bit() || (_arrayChanges > comp()->getOptions()->getZZArrayModificationCounter() && comp()->getOptions()->getZZArrayModificationCounter() != -99)) {
        traceMsg(comp(), "\n** Not making any more modifications as _arrayChanges=%d\n", _arrayChanges);
        genFlush(0);
        return;
@@ -6997,7 +6992,7 @@ TR_J9ByteCodeIlGenerator::genMultiANewArray(int32_t dims)
    genTreeTop(node);
    push(node);
 
-   if (_arrayChanges > comp()->getOptions()->getZZArrayModificationCounter() && comp()->getOptions()->getZZArrayModificationCounter() != -99) {
+   if (!comp()->target().is64Bit() || (_arrayChanges > comp()->getOptions()->getZZArrayModificationCounter() && comp()->getOptions()->getZZArrayModificationCounter() != -99)) {
        traceMsg(comp(), "\n** Not making any more modifications as _arrayChanges=%d\n", _arrayChanges);
        genFlush(0);
        return;
