@@ -74,6 +74,20 @@ SymbolReference::SymbolReference(
 
 static char * dataTypeToSig[] = {0,"B","Z","C","S","I","J","F","D",0,0,0};
 
+/* Pushkar PB Addition */
+void
+SymbolReference::setReuse(bool b)
+  {
+  _reuse = b;
+  }  
+
+bool
+SymbolReference::canReuse()
+  {
+  return _reuse;
+  }
+
+
 /**
  * This method is used when _cpIndex is to be used for resolution.
  * For any other purpose, use getCPIndex().

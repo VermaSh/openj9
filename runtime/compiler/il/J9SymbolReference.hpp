@@ -111,6 +111,11 @@ public:
     */
    const char *getTypeSignature(int32_t & len, TR_AllocationKind = stackAlloc, bool *isFixed = NULL);
 
+   /* Pushkar PB Addition */
+   void setReuse(bool b);
+   bool canReuse();
+
+
 protected:
 
    SymbolReference(TR::SymbolReferenceTable * symRefTab,
@@ -122,8 +127,11 @@ protected:
                                     offset,
                                     name) {}
 
-   };
+private:
+   /* Pushkar PB Addition */
+   bool _reuse = true;
 
+   };
 
 char * prependNumParensToSig(const char *, int32_t & len, int32_t,  TR_AllocationKind = stackAlloc);
 

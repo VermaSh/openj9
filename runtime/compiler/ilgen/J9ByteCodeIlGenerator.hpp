@@ -88,7 +88,7 @@ public:
    typedef TR::typed_allocator<std::pair<TR::Node*, TR::Node*>, TR::Region &> memRegionAllocator;
    std::map<TR::Node*, TR::Node*, std::less<TR::Node *>, memRegionAllocator> _memRegionMap;
 
-   int32_t _arrayChanges;
+   static int32_t _arrayChanges;
 private:
 
    bool trace(){ return comp()->getOption(TR_TraceBC) || comp()->getOption(TR_TraceILGen); }
