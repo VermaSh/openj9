@@ -52,14 +52,14 @@ class OMR_EXTENSIBLE SymbolReference : public OMR::SymbolReferenceConnector
 public:
 
    SymbolReference(TR::SymbolReferenceTable * symRefTab) :
-      OMR::SymbolReferenceConnector(symRefTab) {}
+      OMR::SymbolReferenceConnector(symRefTab) { _reuse = true; }
 
    SymbolReference(TR::SymbolReferenceTable * symRefTab,
                    TR::Symbol * symbol,
                    intptr_t offset = 0) :
       OMR::SymbolReferenceConnector(symRefTab,
                                     symbol,
-                                    offset) {}
+                                    offset) { _reuse = true; }
 
    SymbolReference(TR::SymbolReferenceTable * symRefTab,
                    int32_t refNumber,
@@ -68,7 +68,7 @@ public:
       OMR::SymbolReferenceConnector(symRefTab,
                                     refNumber,
                                     ps,
-                                    offset) {}
+                                    offset) { _reuse = true; }
 
    SymbolReference(TR::SymbolReferenceTable *symRefTab,
                    TR::SymbolReferenceTable::CommonNonhelperSymbol number,
@@ -77,7 +77,7 @@ public:
       OMR::SymbolReferenceConnector(symRefTab,
                                     number,
                                     ps,
-                                    offset) {}
+                                    offset) { _reuse = true; }
 
    SymbolReference(TR::SymbolReferenceTable *symRefTab,
                    TR::Symbol *sym,
@@ -93,7 +93,7 @@ public:
       OMR::SymbolReferenceConnector(symRefTab,
                                     sr,
                                     offset,
-                                    knownObjectIndex) {}
+                                    knownObjectIndex) { _reuse = true; }
 
    uint32_t getCPIndexForVM();
 
@@ -125,11 +125,11 @@ protected:
       OMR::SymbolReferenceConnector(symRefTab,
                                     symbol,
                                     offset,
-                                    name) {}
+                                    name) { _reuse = true; }
 
 private:
    /* Pushkar PB Addition */
-   bool _reuse = true;
+   bool _reuse;
 
    };
 
