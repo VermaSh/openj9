@@ -3551,13 +3551,13 @@ TR_J9ByteCodeIlGenerator::genInvoke(TR::SymbolReference * symRef, TR::Node *indi
          case TR::java_lang_Integer_numberOfTrailingZeros:
             opcode = TR::inotz;
             break;
-         case TR::java_lang_Integer_bitCount:
+/*         case TR::java_lang_Integer_bitCount:
             if (comp()->target().cpu.hasPopulationCountInstruction())
                opcode = TR::ipopcnt;
             else
                opcode = TR::BadILOp;
             break;
-         case TR::java_lang_Long_highestOneBit:
+*/         case TR::java_lang_Long_highestOneBit:
             opcode = TR::lhbit;
             break;
          case TR::java_lang_Long_lowestOneBit:
