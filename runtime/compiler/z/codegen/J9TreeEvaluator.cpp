@@ -2803,6 +2803,7 @@ J9::Z::TreeEvaluator::checkcastEvaluator(TR::Node * node, TR::CodeGenerator * cg
          }
       TR_ASSERT_FATAL(directDispatchV1Node->getSymbolReference() == node->getSymbolReference(), "getSymbolReference did not return the same value");
 
+      // Notes: Why do we need to pass different register dependency conditions if not start of out of line label?
       resultReg = startOOLLabel ?
          helperLink->buildDirectDispatchV1(directDispatchV1Node, &deps)
          : helperLink->buildDirectDispatchV1(directDispatchV1Node, static_cast<TR::RegisterDependencyConditions**>(NULL));
@@ -6635,9 +6636,8 @@ void genInstanceOfDynamicCacheAndHelperCall(TR::Node *node, TR::CodeGenerator *c
    // In case if there is GLRegDeps attached to ifInstanceOf node, it will be evaluated and attached as post dependency conditions
    // at the end of node
    // We can take a risk of having two exit points in OOL here as there is no other register instruction between them
-   if (needResult && ifInstanceOf)
+   if (needResult && ifInstanceOf)// TODO: issue is that generateRRInstruction is called for calls which do not need result
       {
-      //TODO: figure out why they need to be populated when callee is not expecting result
       generateRRInstruction(cg, TR::InstOpCode::getLoadTestRegOpCode(), node, resultReg, resultReg);
       if (trueFallThrough)
          generateS390BranchInstruction(cg, TR::InstOpCode::BRC, TR::InstOpCode::COND_BE, node, branchLabel);
