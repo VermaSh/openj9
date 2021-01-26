@@ -4543,22 +4543,8 @@ public final class String implements Serializable, Comparable<String>, CharSeque
 		if (start >= 0 && 0 <= length && length <= data.length - start) {
 			char[] buffer = StringCoding.decode(encoding, data, start, length);
 
-			if (enableCompression) {
-				if (encoding.equals("ISO_8859-1") || canEncodeAsLatin1(buffer, 0, buffer.length)) {
-					value = new char[(buffer.length + 1) >>> 1];
-					count = buffer.length;
-
-					compress(buffer, 0, value, 0, buffer.length);
-				} else {
-					value = buffer;
-					count = buffer.length | uncompressedBit;
-
-					initCompressionFlag();
-				}
-			} else {
-				value = buffer;
-				count = buffer.length;
-			}
+			value = buffer;
+			count = buffer.length;
 		} else {
 			throw new StringIndexOutOfBoundsException();
 		}
