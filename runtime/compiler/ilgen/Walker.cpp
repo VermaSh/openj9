@@ -2415,6 +2415,7 @@ TR_J9ByteCodeIlGenerator::calculateArrayElementAddress(TR::DataType dataType, bo
          // if not found in the cache.
          if (_memRegionMap.find(obj_ptr) == _memRegionMap.end())
             {
+            traceMsg(comp(), "Walker.cpp:calculateArrayElementAddress: contiguous-array-view was not found\n");
             createContiguousArrayView(obj_ptr);
             _arrayChanges++;
             }
@@ -6200,6 +6201,7 @@ TR_J9ByteCodeIlGenerator::loadArrayElement(TR::DataType dataType, TR::ILOpCodes 
 
       if (comp()->useCompressedPointers())
          {
+         traceMsg(comp(), "Walker.cpp:loadArrayElement: about to generate compressed refs\n");
          // Returns non-null if the compressedRefs anchor is going to
          // be part of the subtrees
          //
@@ -7366,6 +7368,7 @@ TR_J9ByteCodeIlGenerator::storeInstance(TR::SymbolReference * symRef)
          // returns non-null if the compressedRefs anchor is going to
          // be part of the subtrees (for now, it is a treetop)
          //
+         traceMsg(comp(), "Walker.cpp:storeInstance: about to generate compressed refs\n");
          TR::Node *newValue = genCompressedRefs(storeValue, true, -1);
          if (newValue)
             {
@@ -7822,6 +7825,7 @@ TR_J9ByteCodeIlGenerator::storeArrayElement(TR::DataType dataType, TR::ILOpCodes
 
    if (genTranslateTT)
       {
+      traceMsg(comp(), "Walker.cpp:storeArrayElement: about to generate compressed refs\n");
       TR::Node *newValue = genCompressedRefs(storeNode, true, -1);
       if (newValue)
          {
