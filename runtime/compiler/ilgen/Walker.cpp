@@ -2268,6 +2268,7 @@ void
 TR_J9ByteCodeIlGenerator::createContiguousArrayView(TR::Node* arrayBase)
    {
 
+   traceMsg(comp(), "walker.cpp:createContiguousArrayView: entering method");
    /* Create the contiguous array view node  i.e., header + dataAddr field offset */
    TR::Node *dataAddrFieldOffset = TR::Node::create(TR::lconst, 0);
    // TR::Compiler->om.isDiscontiguousArray(comp,arrayBase->getAddress()); // for discontiguous arrays
@@ -2293,6 +2294,12 @@ TR_J9ByteCodeIlGenerator::createContiguousArrayView(TR::Node* arrayBase)
 
    /* cache the contiguous array view node for future use */
    _memRegionMap[arrayBase] = firstArrayElementAddress;
+
+   TR_ASSERT_FATAL(firstArrayElementAddress->getPinningArrayPointer() != NULL, "Pinning array pointer not found");
+   TR_ASSERT_FATAL(firstArrayElementAddress->isInternalPointer(), "It is not an internal pointer");
+
+   traceMsg(comp(), "walker.cpp:createContiguousArrayView: leaving method");
+
    }
 #endif /* TR_TARGET_64BIT */
 
@@ -2420,6 +2427,8 @@ TR_J9ByteCodeIlGenerator::calculateArrayElementAddress(TR::DataType dataType, bo
             }
 
          TR::Node *firstArrayElementAddress = _memRegionMap[arrayBaseAddress];
+         TR_ASSERT_FATAL(firstArrayElementAddress->getPinningArrayPointer() != NULL, "Pinning array pointer not found");
+         TR_ASSERT_FATAL(firstArrayElementAddress->isInternalPointer(), "It is not an internal pointer");
          if (firstArrayElementAddress->getPinningArrayPointer() != NULL)
             traceMsg(comp(), "\n Pinning Array Pointer Found \n");
          if (firstArrayElementAddress->isInternalPointer())
