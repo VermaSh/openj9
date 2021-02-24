@@ -2231,6 +2231,7 @@ TR_J9ByteCodeIlGenerator::calculateIndexFromOffsetInContiguousArray(int32_t widt
       }
    }
 
+#if defined(TR_TARGET_64BIT)
 /**
  * Method to create the contiguous-array-view for arrays in Gencon.
  * Effectively, the method takes in a pointer to the array header adds the size
@@ -2244,10 +2245,6 @@ TR_J9ByteCodeIlGenerator::calculateIndexFromOffsetInContiguousArray(int32_t widt
 void
 TR_J9ByteCodeIlGenerator::createContiguousArrayView(TR::Node* arrayBase) 
    {
-
-   // dataAddr field is only available on 64 bit targets
-   if (!comp()->target().is64Bit())
-      return;
 
    /* Create the contiguous array view node  i.e., header + dataAddr field offset */
    TR::Node *dataAddrFieldOffset = TR::Node::create(TR::lconst, 0);
@@ -2275,6 +2272,7 @@ TR_J9ByteCodeIlGenerator::createContiguousArrayView(TR::Node* arrayBase)
    /* cache the contiguous array view node for future use */ 
    _memRegionMap[arrayBase] = firstArrayElementAddress;
    }
+#endif /* TR_TARGET_64BIT */
 
 // Helper to calculate the address of the element of an array
 // RTSJ: if we should be generating arraylets, access the spine
@@ -2373,8 +2371,7 @@ TR_J9ByteCodeIlGenerator::calculateArrayElementAddress(TR::DataType dataType, bo
       * if any of the above checks fail we can not use the dataAddr field
       * in the array header, thus revert to original implementation (spineCHKs)
       */
-      if (!comp()->target().is64Bit()
-         || comp()->getOption(TR_DisableInternalPointers)
+      if (comp()->getOption(TR_DisableInternalPointers)
          || (_arrayChanges > comp()->getOptions()->getZZArrayModificationCounter()
             && comp()->getOptions()->getZZArrayModificationCounter() != -99))
          {
@@ -2385,6 +2382,7 @@ TR_J9ByteCodeIlGenerator::calculateArrayElementAddress(TR::DataType dataType, bo
          // Wouldn't this fail too if internal pointers are disabled??
          _stack->top()->setIsInternalPointer(true);
          }
+#if defined(TR_TARGET_64BIT)
       else
          {
          TR::Node *index = _stack->pop();
@@ -2414,6 +2412,7 @@ TR_J9ByteCodeIlGenerator::calculateArrayElementAddress(TR::DataType dataType, bo
          //    printStack(comp(), _stack, "stack after myOwnAddition");
          traceMsg(comp(), "\n ============================================================\n");
          }
+#endif /* TR_TARGET_64BIT */
       }
 
    push(nodeThatWasNullChecked);
@@ -7067,6 +7066,7 @@ TR_J9ByteCodeIlGenerator::genNewArray(int32_t typeIndex)
       genTreeTop(initNode);
    push(node);
 
+#if defined(TR_TARGET_64BIT)
   /**
    * Check for the following:
    *     1. 64 bit?
@@ -7077,8 +7077,7 @@ TR_J9ByteCodeIlGenerator::genNewArray(int32_t typeIndex)
    * in the array header, thus revert to original implementation (spineCHKs)
    */
    bool canCreateContiguousArrayView = true;
-   if (!comp()->target().is64Bit()
-      || comp()->getOption(TR_DisableInternalPointers) 
+   if (comp()->getOption(TR_DisableInternalPointers) 
       || (_arrayChanges > comp()->getOptions()->getZZArrayModificationCounter() 
          && comp()->getOptions()->getZZArrayModificationCounter() != -99))
       {
@@ -7095,6 +7094,7 @@ TR_J9ByteCodeIlGenerator::genNewArray(int32_t typeIndex)
       createContiguousArrayView(node);
       _arrayChanges++;
       }
+#endif /* TR_TARGET_64BIT */
 
    genFlush(0);
    }
@@ -7116,6 +7116,7 @@ TR_J9ByteCodeIlGenerator::genANewArray()
    genTreeTop(node);
    push(node);
 
+#if defined(TR_TARGET_64BIT)
   /**
    * Check for the following:
    *     1. 64 bit?
@@ -7126,8 +7127,7 @@ TR_J9ByteCodeIlGenerator::genANewArray()
    * in the array header, thus revert to original implementation (spineCHKs)
    */
    bool canCreateContiguousArrayView = true;
-   if (!comp()->target().is64Bit()
-      || comp()->getOption(TR_DisableInternalPointers) 
+   if (comp()->getOption(TR_DisableInternalPointers) 
       || (_arrayChanges > comp()->getOptions()->getZZArrayModificationCounter() 
          && comp()->getOptions()->getZZArrayModificationCounter() != -99))
       {
@@ -7144,6 +7144,7 @@ TR_J9ByteCodeIlGenerator::genANewArray()
       createContiguousArrayView(node);
       _arrayChanges++;
       }
+#endif /* TR_TARGET_64BIT */
 
    genFlush(0);
    }
@@ -7173,6 +7174,7 @@ TR_J9ByteCodeIlGenerator::genMultiANewArray(int32_t dims)
    genTreeTop(node);
    push(node);
 
+#if defined(TR_TARGET_64BIT)
   /**
    * Check for the following:
    *     1. 64 bit?
@@ -7183,8 +7185,7 @@ TR_J9ByteCodeIlGenerator::genMultiANewArray(int32_t dims)
    * in the array header, thus revert to original implementation (spineCHKs)
    */
    bool canCreateContiguousArrayView = true;
-   if (!comp()->target().is64Bit()
-      || comp()->getOption(TR_DisableInternalPointers) 
+   if (comp()->getOption(TR_DisableInternalPointers) 
       || (_arrayChanges > comp()->getOptions()->getZZArrayModificationCounter() 
          && comp()->getOptions()->getZZArrayModificationCounter() != -99))
       {
@@ -7201,6 +7202,7 @@ TR_J9ByteCodeIlGenerator::genMultiANewArray(int32_t dims)
       createContiguousArrayView(node);
       _arrayChanges++;
       }
+#endif /* TR_TARGET_64BIT */
    }
 
 //----------------------------------------------

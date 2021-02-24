@@ -82,9 +82,11 @@ public:
    }
    virtual TR::ResolvedMethodSymbol *methodSymbol() const { return _methodSymbol;}
 
+#if defined(TR_TARGET_64BIT)
    typedef TR::typed_allocator<std::pair<TR::Node*, TR::Node*>, TR::Region &> memRegionAllocator;
    // Mapping between Array Pointer -> Contiguous-Array-View pointer
    std::map<TR::Node*, TR::Node*, std::less<TR::Node *>, memRegionAllocator> _memRegionMap;
+#endif /* TR_TARGET_64BIT */
 
    /* A debugging tool that tracks how many arrays we would like to enable
     * the contiguous-array-view optimization for. This can help us in situations
@@ -218,7 +220,9 @@ private:
    void         storeArrayElement(TR::DataType dt){ storeArrayElement(dt, comp()->il.opCodeForIndirectArrayStore(dt)); }
    void         storeArrayElement(TR::DataType dt, TR::ILOpCodes opCode, bool checks = true);
 
+#if defined(TR_TARGET_64BIT)
    void         createContiguousArrayView(TR::Node* arrayBase);
+#endif /* TR_TARGET_64BIT */
 
    void         calculateElementAddressInContiguousArray(int32_t, int32_t);
    void         calculateIndexFromOffsetInContiguousArray(int32_t, int32_t);
