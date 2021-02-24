@@ -2271,30 +2271,31 @@ TR_J9ByteCodeIlGenerator::createContiguousArrayView(TR::Node* arrayBase)
    if (!comp()->target().is64Bit())
       return;
 
-   /* Create the contiguous array view node  i.e., header + header_size */
-   TR::Node * loadConstNode = TR::Node::create(TR::lconst, 0);
+   /* Create the contiguous array view node  i.e., header + dataAddr field offset */
+   TR::Node *dataAddrFieldOffset = TR::Node::create(TR::lconst, 0);
    // TR::Compiler->om.isDiscontiguousArray(comp,arrayBase->getAddress()); // for discontiguous arrays
-   loadConstNode->setConstValue(fej9()->getOffsetOfContiguousDataAddrField());
-   TR::Node * addNode = TR::Node::create(TR::aladd, 2, arrayBase, loadConstNode);
+   dataAddrFieldOffset->setConstValue(fej9()->getOffsetOfContiguousDataAddrField());
+   TR::Node *dataAddrFieldAddress = TR::Node::create(TR::aladd, 2, arrayBase, dataAddrFieldOffset);
+   TR::Node *firstArrayElementAddress = TR::Node::create(TR::aload, 1, dataAddrFieldAddress);
 
    /* Mark node as an internal pointer */
-   addNode->setIsInternalPointer(true);
+   firstArrayElementAddress->setIsInternalPointer(true);
 
    /* create symbol for the array object reference (header pointer) */
-   TR::SymbolReference *arrAddrSymRef = symRefTab()->createTemporary(_methodSymbol, TR::Address);
+   TR::SymbolReference *arrayBaseSymRef = symRefTab()->createTemporary(_methodSymbol, TR::Address);
 
    /* Mark these as non reusable */
-   arrAddrSymRef->setReuse(false);
+   arrayBaseSymRef->setReuse(false);
 
-   TR::Node *arrStore = TR::Node::createStore(arrAddrSymRef, arrayBase);
+   TR::Node *arrStore = TR::Node::createStore(arrayBaseSymRef, arrayBase);
    genTreeTop(arrStore);
 
    /* Mark this symbol as a pinning array pointer */
-   addNode->setPinningArrayPointer(arrAddrSymRef->getSymbol()->castToAutoSymbol());
-   genTreeTop(addNode);
+   firstArrayElementAddress->setPinningArrayPointer(arrayBaseSymRef->getSymbol()->castToAutoSymbol());
+   genTreeTop(firstArrayElementAddress);
 
    /* cache the contiguous array view node for future use */
-   _memRegionMap[arrayBase] = addNode;
+   _memRegionMap[arrayBase] = firstArrayElementAddress;
    }
 
 // Helper to calculate the address of the element of an array
@@ -2408,28 +2409,28 @@ TR_J9ByteCodeIlGenerator::calculateArrayElementAddress(TR::DataType dataType, bo
          }
       else
          {
-         TR::Node *lshl = _stack->pop();
-         TR::Node *obj_ptr = _stack->pop();
+         TR::Node *index = _stack->pop();
+         TR::Node *arrayBaseAddress = _stack->pop();
 
          // Use contiguous-array-view from the cache. Create a contiguous-array-view
          // if not found in the cache.
-         if (_memRegionMap.find(obj_ptr) == _memRegionMap.end())
+         if (_memRegionMap.find(arrayBaseAddress) == _memRegionMap.end())
             {
             traceMsg(comp(), "Walker.cpp:calculateArrayElementAddress: contiguous-array-view was not found\n");
-            createContiguousArrayView(obj_ptr);
+            createContiguousArrayView(arrayBaseAddress);
             _arrayChanges++;
             }
 
-         TR::Node* temp = _memRegionMap[obj_ptr];
-         if (temp->getPinningArrayPointer() != NULL)
+         TR::Node *firstArrayElementAddress = _memRegionMap[arrayBaseAddress];
+         if (firstArrayElementAddress->getPinningArrayPointer() != NULL)
             traceMsg(comp(), "\n Pinning Array Pointer Found \n");
-         if (temp->isInternalPointer())
+         if (firstArrayElementAddress->isInternalPointer())
             traceMsg(comp(), "\n It is an Internal Pointer \n");
 
-         TR::Node * addNode = TR::Node::create(TR::aladd, 2, temp, lshl);
-         _stack->push(addNode); 
+         TR::Node * arrayElement = TR::Node::create(TR::aladd, 2, firstArrayElementAddress, index);
+         _stack->push(arrayElement);
          _stack->top()->setIsInternalPointer(true);
-         _stack->top()->setPinningArrayPointer(temp->getPinningArrayPointer());
+         _stack->top()->setPinningArrayPointer(firstArrayElementAddress->getPinningArrayPointer());
 
          //if (comp()->getOption(TR_TraceILGen))
          //    printStack(comp(), _stack, "stack after myOwnAddition");
