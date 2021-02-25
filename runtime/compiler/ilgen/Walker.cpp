@@ -2284,18 +2284,23 @@ TR_J9ByteCodeIlGenerator::createContiguousArrayView(TR::Node* arrayBase)
     TR::Node * loadConstNode = TR::Node::create(TR::lconst, 0);
     loadConstNode->setConstValue(TR::Compiler->om.contiguousArrayHeaderSizeInBytes());    
     TR::Node * addNode = TR::Node::create(TR::aladd, 2, arrayBase, loadConstNode);
-    
+    traceMsg(comp(), "createContiguousArrayView: have just created a new addNode\n");
+
     /* Mark node as an internal pointer */
     addNode->setIsInternalPointer(true);
+    traceMsg(comp(), "createContiguousArrayView: set internal pointer to true for addNode\n");
 
     /* create symbol for the array object reference (header pointer) */
     TR::SymbolReference *arrAddrSymRef = symRefTab()->createTemporary(_methodSymbol, TR::Address);
     arrAddrSymRef->setReuse(false);
     TR::Node *arrStore = TR::Node::createStore(arrAddrSymRef, arrayBase);
     genTreeTop(arrStore);
-   
+ 
+    TR::AutomaticSymbol *ret = NULL;
+    traceMsg(comp(), "firstArrayElementAddress->setPinningArrayPointer() == arrayBaseSymRef->getSymbol()->castToAutoSymbol(): %d\n", ret == arrAddrSymRef->getSymbol()->castToAutoSymbol());
     /* Mark this symbol as a pinning array pointer */
-    addNode->setPinningArrayPointer(arrAddrSymRef->getSymbol()->castToAutoSymbol());
+    ret = addNode->setPinningArrayPointer(arrAddrSymRef->getSymbol()->castToAutoSymbol());
+    traceMsg(comp(), "firstArrayElementAddress->setPinningArrayPointer() == arrayBaseSymRef->getSymbol()->castToAutoSymbol(): %d\n", ret == arrAddrSymRef->getSymbol()->castToAutoSymbol());
     genTreeTop(addNode);
 
     /* cache the contiguous array view node for future use */ 
