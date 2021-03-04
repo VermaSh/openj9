@@ -8954,6 +8954,7 @@ J9::Z::TreeEvaluator::VMnewEvaluator(TR::Node * node, TR::CodeGenerator * cg)
       //////////////////////////////////////////////////////////////////////////////////////////////////////
       TR::Instruction *current;
       TR::Instruction *firstInstruction;
+      TR::Register* firstElementAddr = srm->findOrCreateScratchRegister();
       srm->addScratchRegistersToDependencyList(conditions);
 
       current = cg->getAppendInstruction();
@@ -9031,6 +9032,20 @@ J9::Z::TreeEvaluator::VMnewEvaluator(TR::Node * node, TR::CodeGenerator * cg)
          genInitArrayHeader(node, iCursor, isVariableLen, classAddress, NULL, resReg, zeroReg,
                enumReg, dataSizeReg, temp1Reg, litPoolBaseReg, conditions, cg);
 
+#ifdef J9VM_ENV_DATA64
+         // TR::Register* firstElementAddr = srm->findOrCreateScratchRegister();
+         TR::MemoryReference *firstElementMR = generateS390MemoryReference(resReg, dataBegin, cg);
+         iCursor = generateRXInstruction(cg, TR::InstOpCode::getLoadOpCode(), node, firstElementAddr, firstElementMR, iCursor);
+         TR::MemoryReference *dataAddrMR = NULL;
+
+         if (TR::Compiler->om.isDiscontiguousArray(allocateSize))
+            dataAddrMR = generateS390MemoryReference(resReg, fej9->getOffsetOfDiscontiguousDataAddrField(), cg);
+         else
+            dataAddrMR = generateS390MemoryReference(resReg, fej9->getOffsetOfContiguousDataAddrField(), cg);
+
+         iCursor = generateRXInstruction(cg, TR::InstOpCode::getStoreOpCode(), node, firstElementAddr, dataAddrMR, iCursor);
+#endif /* J9VM_ENV_DATA64 */
+         srm->reclaimScratchRegister(firstElementAddr);
          // Write Arraylet Pointer
          if (generateArraylets)
             {
