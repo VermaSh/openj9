@@ -9824,6 +9824,17 @@ J9::Z::TreeEvaluator::VMnewEvaluator(TR::Node * node, TR::CodeGenerator * cg)
          genInitArrayHeader(node, iCursor, isVariableLen, classAddress, NULL, resReg, zeroReg,
                enumReg, dataSizeReg, temp1Reg, litPoolBaseReg, conditions, cg);
 
+#ifdef TR_TARGET_64BIT
+         TR::MemoryReference *dataAddrMR = NULL;
+
+         if (TR::Compiler->om.isDiscontiguousArray(allocateSize))
+            dataAddrMR = generateS390MemoryReference(resReg, fej9->getOffsetOfDiscontiguousDataAddrField(), cg);
+         else
+            dataAddrMR = generateS390MemoryReference(resReg, fej9->getOffsetOfContiguousDataAddrField(), cg);
+
+         iCursor = generateRXInstruction(cg, TR::InstOpCode::getLoadOpCode(), node, temp1Reg, generateS390MemoryReference(resReg, dataBegin, cg), iCursor);
+         iCursor = generateRXInstruction(cg, TR::InstOpCode::getStoreOpCode(), node, temp1Reg, dataAddrMR, iCursor);
+#endif /* TR_TARGET_64BIT */
          // Write Arraylet Pointer
          if (generateArraylets)
             {
