@@ -2493,6 +2493,16 @@ J9::ARM64::TreeEvaluator::VMnewEvaluator(TR::Node *node, TR::CodeGenerator *cg)
    if (isArrayNew)
       {
       genInitArrayHeader(node, cg, clazz, resultReg, classReg, lengthReg, zeroReg, tempReg1);
+      /* jit_inline_allocation_sequence:
+       * if isArrayNew, then we are either creating TR::newArray or TR::anewarray.
+       * In either case we want to update the dataAddr slot
+       * 
+       * - First array element offset (comp->generateArraylets())
+       *    discontiguous arrays: fej9->getArrayletFirstElementOffset(elementSize, comp);
+       *        - Not sure how it deals with the case when array can not be contiguous
+       *    contiguous arrays   : TR::Compiler->om.contiguousArrayHeaderSizeInBytes(); or headerSize
+       * - Array object: resultReg
+       */
       }
    else
       {

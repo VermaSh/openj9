@@ -1316,6 +1316,14 @@ TR::Register *OMR::ARM::TreeEvaluator::VMnewEvaluator(TR::Node *node, TR::CodeGe
       if (isDoubleArray)
          genAlignDoubleArray(cg, node, iCursor, isVariableLen, resReg, objectSize, dataBegin, dataSizeReg, temp1Reg, temp2Reg);
       genInitArrayHeader(cg, node, iCursor, isVariableLen, clazz, resReg, zeroReg, enumReg, dataSizeReg, temp1Reg, temp2Reg);
+      /* jit_inline_allocation_sequence:
+       * if isArray, then we are either creating TR::newArray or TR::anewarray.
+       * In either case we want to update the dataAddr slot
+       * 
+       * - First array element offset: dataBegin
+       *    - Doesn't seem to be doing anything for discountiguous arrays
+       * - Array object: resReg
+       */
       }
    else
       {

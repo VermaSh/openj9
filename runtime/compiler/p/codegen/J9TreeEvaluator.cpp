@@ -6482,6 +6482,13 @@ TR::Register *J9::Power::TreeEvaluator::VMnewEvaluator(TR::Node *node, TR::CodeG
             if (p1)
                generateInstruction(cg, TR::InstOpCode::bad, node);
             }
+         /* jit_inline_allocation_sequence:
+          * if isArray, then we are either creating TR::newArray or TR::anewarray.
+          * In either case we want to update the dataAddr slot
+          * 
+          * - First array element offset: dataBegin
+          * - Array object: resReg
+          */
          }
       else
          {

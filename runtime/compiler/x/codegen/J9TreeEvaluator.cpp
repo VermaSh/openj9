@@ -7847,6 +7847,18 @@ J9::X86::TreeEvaluator::VMnewEvaluator(
       {
       genInitObjectHeader(node, clazz, classReg, targetReg, tempReg, monitorSlotIsInitialized, false, cg);
       }
+   
+   /* jit_inline_allocation_sequence:
+    * if isArrayNew, we are either creating TR::newArray or TR::anewarray.
+    * In either case we want to update the dataAddr slot
+    * 
+    * - First array element offset: dataOffset
+    * - Array object: targetReg
+    */
+   if (isArrayNew)
+      {
+      // jit_inline_allocation_sequence: write to dataAddr slot
+      }
 
    if (fej9->inlinedAllocationsMustBeVerified() && (node->getOpCodeValue() == TR::New ||
                                                         node->getOpCodeValue() == TR::anewarray) )
