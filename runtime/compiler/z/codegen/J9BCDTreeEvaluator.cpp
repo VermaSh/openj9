@@ -1917,7 +1917,7 @@ J9::Z::TreeEvaluator::pd2zdVectorEvaluatorHelper(TR::Node * node, TR::CodeGenera
 
    if(cg->traceBCDCodeGen())
       {
-      traceMsg(comp, "gen VUKPZ, sizeOfZonedValue=%d, precision=%d\n", sizeOfZonedValue, precision);
+      traceMsg(comp, "gen VUPKZ, sizeOfZonedValue=%d, precision=%d\n", sizeOfZonedValue, precision);
       }
 
    generateVSIInstruction(cg, TR::InstOpCode::VUPKZ, node, valueRegister, targetMR, sizeOfZonedValue - 1);
