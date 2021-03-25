@@ -115,8 +115,8 @@ typedef struct J9IndexableObject* mm_j9array_t;
 
 #define J9JAVAARRAYCONTIGUOUS_EA(vmThread, array, index, elemType) \
 	(J9VMTHREAD_COMPRESS_OBJECT_REFERENCES(vmThread) \
-		? (&((elemType*)((((J9IndexableObjectContiguousCompressed *)(array)) + 1)))[(index)]) \
-		: (&((elemType*)((((J9IndexableObjectContiguousFull *)(array)) + 1)))[(index)]))
+		? (&((elemType*)((((J9IndexableObjectContiguousCompressed *)(array))->dataAddr)))[(index)]) \
+		: (&((elemType*)((((J9IndexableObjectContiguousFull *)(array))->dataAddr)))[(index)]))
 
 #define J9JAVAARRAYCONTIGUOUS_EA_VM(javaVM, array, index, elemType) \
 	(J9JAVAVM_COMPRESS_OBJECT_REFERENCES(javaVM) \
