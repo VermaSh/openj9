@@ -7855,10 +7855,20 @@ J9::X86::TreeEvaluator::VMnewEvaluator(
     * - First array element offset: dataOffset
     * - Array object: targetReg
     */
+#ifdef TR_TARGET_64BIT
    if (isArrayNew)
       {
       // jit_inline_allocation_sequence: write to dataAddr slot
+      TR::MemoryReference *dataAddrMR = NULL;
+      if (TR::Compiler->om.isDiscontiguousArray(allocationSize))
+         dataAddrMR = generateX86MemoryReference(targetReg, fej9->getOffsetOfDiscontiguousDataAddrField(), cg);
+      else
+         dataAddrMR = generateX86MemoryReference(targetReg, fej9->getOffsetOfContiguousDataAddrField(), cg);
+
+      generateRegMemInstruction(LEA8RegMem, node, tempReg, generateX86MemoryReference(targetReg, dataOffset, cg), cg);
+      generateMemRegInstruction(S8MemReg, node, dataAddrMR, tempReg, cg);
       }
+#endif /* TR_TARGET_64BIT */
 
    if (fej9->inlinedAllocationsMustBeVerified() && (node->getOpCodeValue() == TR::New ||
                                                         node->getOpCodeValue() == TR::anewarray) )
