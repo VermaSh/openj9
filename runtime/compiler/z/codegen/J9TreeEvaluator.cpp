@@ -8954,7 +8954,6 @@ J9::Z::TreeEvaluator::VMnewEvaluator(TR::Node * node, TR::CodeGenerator * cg)
       //////////////////////////////////////////////////////////////////////////////////////////////////////
       TR::Instruction *current;
       TR::Instruction *firstInstruction;
-      TR::Register* firstElementAddr = srm->findOrCreateScratchRegister();
       srm->addScratchRegistersToDependencyList(conditions);
 
       current = cg->getAppendInstruction();
@@ -9032,10 +9031,7 @@ J9::Z::TreeEvaluator::VMnewEvaluator(TR::Node * node, TR::CodeGenerator * cg)
          genInitArrayHeader(node, iCursor, isVariableLen, classAddress, NULL, resReg, zeroReg,
                enumReg, dataSizeReg, temp1Reg, litPoolBaseReg, conditions, cg);
 
-#ifdef J9VM_ENV_DATA64
-         // TR::Register* firstElementAddr = srm->findOrCreateScratchRegister();
-         TR::MemoryReference *firstElementMR = generateS390MemoryReference(resReg, dataBegin, cg);
-         iCursor = generateRXInstruction(cg, TR::InstOpCode::getLoadOpCode(), node, firstElementAddr, firstElementMR, iCursor);
+#ifdef TR_TARGET_64BIT
          TR::MemoryReference *dataAddrMR = NULL;
 
          if (TR::Compiler->om.isDiscontiguousArray(allocateSize))
@@ -9043,9 +9039,9 @@ J9::Z::TreeEvaluator::VMnewEvaluator(TR::Node * node, TR::CodeGenerator * cg)
          else
             dataAddrMR = generateS390MemoryReference(resReg, fej9->getOffsetOfContiguousDataAddrField(), cg);
 
-         iCursor = generateRXInstruction(cg, TR::InstOpCode::getStoreOpCode(), node, firstElementAddr, dataAddrMR, iCursor);
-#endif /* J9VM_ENV_DATA64 */
-         srm->reclaimScratchRegister(firstElementAddr);
+         iCursor = generateRXInstruction(cg, TR::InstOpCode::getLoadOpCode(), node, temp1Reg, generateS390MemoryReference(resReg, dataBegin, cg), iCursor);
+         iCursor = generateRXInstruction(cg, TR::InstOpCode::getStoreOpCode(), node, temp1Reg, dataAddrMR, iCursor);
+#endif /* TR_TARGET_64BIT */
          // Write Arraylet Pointer
          if (generateArraylets)
             {
