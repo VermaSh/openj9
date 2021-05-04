@@ -199,10 +199,10 @@ J9::Z::TreeEvaluator::ud2pdEvaluator(TR::Node * node, TR::CodeGenerator * cg)
                             1, TR::DebugCounter::Cheap);
    TR::Register* targetReg = NULL;
 
-   static char* isVectorBCDEnv = feGetEnv("TR_enableVectorBCD");
-   if(comp->target().cpu.supportsFeature(OMR_FEATURE_S390_VECTOR_PACKED_DECIMAL) &&
-           !comp->getOption(TR_DisableVectorBCD) ||
-           isVectorBCDEnv)
+   static const bool isVectorBCDEnv = feGetEnv("TR_enableVectorBCD") != NULL;
+   if(comp->target().cpu.supportsFeature(OMR_FEATURE_S390_VECTOR_PACKED_DECIMAL)
+      && (!comp->getOption(TR_DisableVectorBCD)
+         || isVectorBCDEnv))
       {
       targetReg = ud2pdVectorEvaluatorHelper(node, cg);
       }
@@ -1916,10 +1916,10 @@ J9::Z::TreeEvaluator::pd2zdEvaluator(TR::Node * node, TR::CodeGenerator * cg)
    TR::Register* targetReg = NULL;
    cg->generateDebugCounter("PD-Op/pd2zd", 1, TR::DebugCounter::Cheap);
 
-   static char* isVectorBCDEnv = feGetEnv("TR_enableVectorBCD");
-   if(cg->comp()->target().cpu.supportsFeature(OMR_FEATURE_S390_VECTOR_PACKED_DECIMAL) &&
-           !cg->comp()->getOption(TR_DisableVectorBCD) ||
-           isVectorBCDEnv)
+   static const bool isVectorBCDEnv = feGetEnv("TR_enableVectorBCD") != NULL;
+   if (cg->comp()->target().cpu.supportsFeature(OMR_FEATURE_S390_VECTOR_PACKED_DECIMAL) 
+      && (!cg->comp()->getOption(TR_DisableVectorBCD)
+         || isVectorBCDEnv))
       {
       targetReg = pd2zdVectorEvaluatorHelper(node, cg);
       }
