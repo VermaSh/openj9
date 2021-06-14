@@ -2069,13 +2069,6 @@ J9::Z::TreeEvaluator::BCDCHKEvaluatorImpl(TR::Node * node,
    for (uint32_t i = 0; i < numCallParam; ++i)
       callNode->setAndIncChild(i, childRootNode->getChild(i + callChildStartIndex));
 
-   // Evaluate secondChild's children, if the secondChild is an address node into a byte[]
-   if(isResultPD && secondChild->getNumChildren() == 2)
-      {
-      cg->evaluate(secondChild->getFirstChild());
-      cg->evaluate(secondChild->getSecondChild());
-      }
-
    // Evaluate intrinsics node
    TR::Register* bcdOpResultReg = NULL;
    if(isVariableParam)
@@ -2131,7 +2124,7 @@ J9::Z::TreeEvaluator::BCDCHKEvaluatorImpl(TR::Node * node,
          }
 
       cg->decReferenceCount(secondChild);
-      cg->stopUsingRegister(callResultReg);
+      cg->stopUsingRegister(callResultReg); // TODO: seems like a duplicate.
       }
    else
       {
