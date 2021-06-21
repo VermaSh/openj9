@@ -9825,15 +9825,48 @@ J9::Z::TreeEvaluator::VMnewEvaluator(TR::Node * node, TR::CodeGenerator * cg)
                enumReg, dataSizeReg, temp1Reg, litPoolBaseReg, conditions, cg);
 
 #ifdef TR_TARGET_64BIT
+         TR::Register *discontiguousDataAddrOffsetReg = NULL;
          TR::MemoryReference *dataAddrMR = NULL;
+         TR::MemoryReference *dataAddrSlotMR = NULL;
 
-         if (TR::Compiler->om.isDiscontiguousArray(allocateSize))
-            dataAddrMR = generateS390MemoryReference(resReg, fej9->getOffsetOfDiscontiguousDataAddrField(), cg);
+         if (TR::Compiler->om.compressObjectReferences() && NULL != dataSizeReg)
+            { // We need to check sizeReg at runtime to determine correct offset of dataAddr field.
+            if (comp->getOption(TR_TraceCG))
+               traceMsg(comp, "Dealing with compressed refs variable length array.\n");
+
+            discontiguousDataAddrOffsetReg = cg->allocateRegister();
+            iCursor = generateRegRegInstruction(TR::InstOpCode::getXORRegOpCode(), node, discontiguousDataAddrOffsetReg, discontiguousDataAddrOffsetReg, cg);
+            iCursor = generateRegImmInstruction(TR::InstOpCode::CG, node, dataSizeReg, 1, cg);
+            iCursor = generateRegImmInstruction(TR::InstOpCode::ALCG, node, discontiguousDataAddrOffsetReg, 0, cg);
+
+            dataAddrMR = generateS390MemoryReference(resReg, discontiguousDataAddrOffsetReg, 3, TR::Compiler->om.contiguousArrayHeaderSizeInBytes(), cg);
+            dataAddrSlotMR = generateS390MemoryReference(resReg, discontiguousDataAddrOffsetReg, 3, fej9->getOffsetOfContiguousDataAddrField(), cg);
+            }
+         else if (NULL == dataSizeReg && node->getFirstChild()->getOpCode().isLoadConst() && node->getFirstChild()->getInt() == 0)
+            { // TODO: Verify if the nodes are the same
+            if (comp->getOption(TR_TraceCG))
+               traceMsg(comp, "Dealing with zero size fixed length array.\n");
+
+            dataAddrMR = generateS390MemoryReference(resReg, TR::Compiler->om.discontiguousArrayHeaderSizeInBytes(), cg);
+            dataAddrSlotMR = generateS390MemoryReference(resReg, fej9->getOffsetOfDiscontiguousDataAddrField(), cg);
+            }
          else
-            dataAddrMR = generateS390MemoryReference(resReg, fej9->getOffsetOfContiguousDataAddrField(), cg);
+            {
+            if (comp->getOption(TR_TraceCG))
+               traceMsg(comp, "Dealing with either contiguous array of non zero size or noncompressed refs variable length array.\n");
 
-         iCursor = generateRXInstruction(cg, TR::InstOpCode::getLoadOpCode(), node, temp1Reg, generateS390MemoryReference(resReg, dataBegin, cg), iCursor);
-         iCursor = generateRXInstruction(cg, TR::InstOpCode::getStoreOpCode(), node, temp1Reg, dataAddrMR, iCursor);
+            dataAddrMR = generateS390MemoryReference(resReg, TR::Compiler->om.contiguousArrayHeaderSizeInBytes(), cg);
+            dataAddrSlotMR = generateS390MemoryReference(resReg, fej9->getOffsetOfContiguousDataAddrField(), cg);
+            }
+
+         iCursor = generateRXInstruction(cg, TR::InstOpCode::getLoadOpCode(), node, temp1Reg, dataAddrMR, iCursor);
+         iCursor = generateRXInstruction(cg, TR::InstOpCode::getStoreOpCode(), node, temp1Reg, dataAddrSlotMR, iCursor);
+         if (NULL != discontiguousDataAddrOffsetReg)
+            {
+            deps->addPostCondition(discontiguousDataAddrOffsetReg, TR::RealRegister::NoReg, cg);
+            cg->stopUsingRegister(discontiguousDataAddrOffsetReg);
+            }
+
 #endif /* TR_TARGET_64BIT */
          // Write Arraylet Pointer
          if (generateArraylets)
