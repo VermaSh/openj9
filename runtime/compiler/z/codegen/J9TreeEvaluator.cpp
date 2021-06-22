@@ -9835,9 +9835,10 @@ J9::Z::TreeEvaluator::VMnewEvaluator(TR::Node * node, TR::CodeGenerator * cg)
                traceMsg(comp, "Dealing with compressed refs variable length array.\n");
 
             discontiguousDataAddrOffsetReg = cg->allocateRegister();
-            iCursor = generateRegRegInstruction(TR::InstOpCode::getXORRegOpCode(), node, discontiguousDataAddrOffsetReg, discontiguousDataAddrOffsetReg, cg);
-            iCursor = generateRegImmInstruction(TR::InstOpCode::CG, node, dataSizeReg, 1, cg);
-            iCursor = generateRegImmInstruction(TR::InstOpCode::ALCG, node, discontiguousDataAddrOffsetReg, 0, cg);
+            // TODO: Can we use the API call with just the target register?
+            iCursor = generateRREInstruction(cg, TR::InstOpCode::getXORRegOpCode(), node, discontiguousDataAddrOffsetReg, discontiguousDataAddrOffsetReg);
+            iCursor = generateRXInstruction(cg, TR::InstOpCode::CG, node, dataSizeReg, generateS390MemoryReference(1, cg));
+            iCursor = generateRXInstruction(cg, TR::InstOpCode::ALCG, node, discontiguousDataAddrOffsetReg, generateS390MemoryReference(0, cg));
 
             dataAddrMR = generateS390MemoryReference(resReg, discontiguousDataAddrOffsetReg, 3, TR::Compiler->om.contiguousArrayHeaderSizeInBytes(), cg);
             dataAddrSlotMR = generateS390MemoryReference(resReg, discontiguousDataAddrOffsetReg, 3, fej9->getOffsetOfContiguousDataAddrField(), cg);
