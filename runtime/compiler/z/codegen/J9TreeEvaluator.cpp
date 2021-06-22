@@ -9840,8 +9840,8 @@ J9::Z::TreeEvaluator::VMnewEvaluator(TR::Node * node, TR::CodeGenerator * cg)
             iCursor = generateRXInstruction(cg, TR::InstOpCode::CG, node, dataSizeReg, generateS390MemoryReference(1, cg));
             iCursor = generateRXInstruction(cg, TR::InstOpCode::ALCG, node, discontiguousDataAddrOffsetReg, generateS390MemoryReference(0, cg));
 
-            dataAddrMR = generateS390MemoryReference(resReg, discontiguousDataAddrOffsetReg, 3, TR::Compiler->om.contiguousArrayHeaderSizeInBytes(), cg);
-            dataAddrSlotMR = generateS390MemoryReference(resReg, discontiguousDataAddrOffsetReg, 3, fej9->getOffsetOfContiguousDataAddrField(), cg);
+            dataAddrMR = generateS390MemoryReference(resReg, discontiguousDataAddrOffsetReg, TR::Compiler->om.contiguousArrayHeaderSizeInBytes(), cg);
+            dataAddrSlotMR = generateS390MemoryReference(resReg, discontiguousDataAddrOffsetReg, fej9->getOffsetOfContiguousDataAddrField(), cg);
             }
          else if (NULL == dataSizeReg && node->getFirstChild()->getOpCode().isLoadConst() && node->getFirstChild()->getInt() == 0)
             { // TODO: Verify if the nodes are the same
@@ -9864,7 +9864,7 @@ J9::Z::TreeEvaluator::VMnewEvaluator(TR::Node * node, TR::CodeGenerator * cg)
          iCursor = generateRXInstruction(cg, TR::InstOpCode::getStoreOpCode(), node, temp1Reg, dataAddrSlotMR, iCursor);
          if (NULL != discontiguousDataAddrOffsetReg)
             {
-            deps->addPostCondition(discontiguousDataAddrOffsetReg, TR::RealRegister::NoReg, cg);
+            conditions->addPostCondition(discontiguousDataAddrOffsetReg, TR::RealRegister::AssignAny);
             cg->stopUsingRegister(discontiguousDataAddrOffsetReg);
             }
 
