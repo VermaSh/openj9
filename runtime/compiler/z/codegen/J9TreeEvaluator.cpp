@@ -9835,16 +9835,17 @@ J9::Z::TreeEvaluator::VMnewEvaluator(TR::Node * node, TR::CodeGenerator * cg)
                traceMsg(comp, "Dealing with compressed refs variable length array.\n");
 
             discontiguousDataAddrOffsetReg = cg->allocateRegister();
-            // TODO: Can we use the API call with just the target register?
             iCursor = generateRREInstruction(cg, TR::InstOpCode::getXORRegOpCode(), node, discontiguousDataAddrOffsetReg, discontiguousDataAddrOffsetReg);
-            iCursor = generateRXInstruction(cg, TR::InstOpCode::CG, node, dataSizeReg, generateS390MemoryReference(1, cg));
-            iCursor = generateRXInstruction(cg, TR::InstOpCode::ALCG, node, discontiguousDataAddrOffsetReg, generateS390MemoryReference(0, cg));
+            iCursor = generateRILInstruction(cg, TR::InstOpCode::LGFI, node, temp1Reg, 1);
+            iCursor = generateRRInstruction(cg, TR::InstOpCode::getSubstractRegOpCode(), node, temp1Reg, dataSizeReg);
+            iCursor = generateRREInstruction(cg, TR::InstOpCode::ALCGR, node, discontiguousDataAddrOffsetReg, discontiguousDataAddrOffsetReg);
+            iCursor = generateRSInstruction(cg, TR::InstOpCode::getShiftLeftLogicalSingleOpCode(), node, discontiguousDataAddrOffsetReg, discontiguousDataAddrOffsetReg, 3);
 
-            dataAddrMR = generateS390MemoryReference(resReg, discontiguousDataAddrOffsetReg, TR::Compiler->om.contiguousArrayHeaderSizeInBytes(), cg);
-            dataAddrSlotMR = generateS390MemoryReference(resReg, discontiguousDataAddrOffsetReg, fej9->getOffsetOfContiguousDataAddrField(), cg);
+            dataAddrMR = generateS390MemoryReference(resReg, discontiguousDataAddrOffsetReg, TR::Compiler->om.discontiguousArrayHeaderSizeInBytes(), cg);
+            dataAddrSlotMR = generateS390MemoryReference(resReg, discontiguousDataAddrOffsetReg, fej9->discontiguousArrayHeaderSizeInBytes(), cg);
             }
          else if (NULL == dataSizeReg && node->getFirstChild()->getOpCode().isLoadConst() && node->getFirstChild()->getInt() == 0)
-            { // TODO: Verify if the nodes are the same
+            {
             if (comp->getOption(TR_TraceCG))
                traceMsg(comp, "Dealing with zero size fixed length array.\n");
 
@@ -9862,12 +9863,12 @@ J9::Z::TreeEvaluator::VMnewEvaluator(TR::Node * node, TR::CodeGenerator * cg)
 
          iCursor = generateRXInstruction(cg, TR::InstOpCode::getLoadOpCode(), node, temp1Reg, dataAddrMR, iCursor);
          iCursor = generateRXInstruction(cg, TR::InstOpCode::getStoreOpCode(), node, temp1Reg, dataAddrSlotMR, iCursor);
+
          if (NULL != discontiguousDataAddrOffsetReg)
             {
             conditions->addPostCondition(discontiguousDataAddrOffsetReg, TR::RealRegister::AssignAny);
             cg->stopUsingRegister(discontiguousDataAddrOffsetReg);
             }
-
 #endif /* TR_TARGET_64BIT */
          // Write Arraylet Pointer
          if (generateArraylets)
