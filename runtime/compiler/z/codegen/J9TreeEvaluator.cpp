@@ -9829,20 +9829,25 @@ J9::Z::TreeEvaluator::VMnewEvaluator(TR::Node * node, TR::CodeGenerator * cg)
          TR::MemoryReference *dataAddrMR = NULL;
          TR::MemoryReference *dataAddrSlotMR = NULL;
 
-         if (TR::Compiler->om.compressObjectReferences() && NULL != dataSizeReg)
+         if (TR::Compiler->om.compressObjectReferences() && isVariableLen)
             { // We need to check sizeReg at runtime to determine correct offset of dataAddr field.
             if (comp->getOption(TR_TraceCG))
                traceMsg(comp, "Dealing with compressed refs variable length array.\n");
 
             discontiguousDataAddrOffsetReg = cg->allocateRegister();
+            iCursor = generateRREInstruction(cg, TR::InstOpCode::LNGR, node, discontiguousDataAddrOffsetReg, dataSizeReg);
+            iCursor = generateRSInstruction(cg, TR::InstOpCode::SRAG, node, discontiguousDataAddrOffsetReg, discontiguousDataAddrOffsetReg, 63);
+            iCursor = generateRSInstruction(cg, TR::InstOpCode::SLLG, node, discontiguousDataAddrOffsetReg, discontiguousDataAddrOffsetReg, 3);
+            iCursor = generateRREInstruction(cg, TR::InstOpCode::LNGR, node, discontiguousDataAddrOffsetReg, discontiguousDataAddrOffsetReg);
+/* Working
             iCursor = generateRREInstruction(cg, TR::InstOpCode::getXORRegOpCode(), node, discontiguousDataAddrOffsetReg, discontiguousDataAddrOffsetReg);
-            iCursor = generateRILInstruction(cg, TR::InstOpCode::LGFI, node, temp1Reg, 1);
-            iCursor = generateRRInstruction(cg, TR::InstOpCode::getSubstractRegOpCode(), node, temp1Reg, dataSizeReg);
-            iCursor = generateRREInstruction(cg, TR::InstOpCode::ALCGR, node, discontiguousDataAddrOffsetReg, discontiguousDataAddrOffsetReg);
-            iCursor = generateRSInstruction(cg, TR::InstOpCode::getShiftLeftLogicalSingleOpCode(), node, discontiguousDataAddrOffsetReg, discontiguousDataAddrOffsetReg, 3);
-
+            iCursor = generateRRRInstruction(cg, TR::InstOpCode::getSubtractThreeRegOpCode(), node, temp1Reg, dataSizeReg, discontiguousDataAddrOffsetReg); // cc = 2 if size > 0
+            iCursor = generateRREInstruction(cg, TR::InstOpCode::ALCGR, node, discontiguousDataAddrOffsetReg, discontiguousDataAddrOffsetReg); // slotReg = 1
+            iCursor = generateRSInstruction(cg, TR::InstOpCode::getShiftLeftLogicalSingleOpCode(), node, discontiguousDataAddrOffsetReg, discontiguousDataAddrOffsetReg, 3); // slotRet = 8
+            iCursor = generateRREInstruction(cg, TR::InstOpCode::getLoadNegativeOpCode(), node, discontiguousDataAddrOffsetReg, discontiguousDataAddrOffsetReg); // slotReg = f8
+*/
             dataAddrMR = generateS390MemoryReference(resReg, discontiguousDataAddrOffsetReg, TR::Compiler->om.discontiguousArrayHeaderSizeInBytes(), cg);
-            dataAddrSlotMR = generateS390MemoryReference(resReg, discontiguousDataAddrOffsetReg, fej9->discontiguousArrayHeaderSizeInBytes(), cg);
+            dataAddrSlotMR = generateS390MemoryReference(resReg, discontiguousDataAddrOffsetReg, fej9->getOffsetOfDiscontiguousDataAddrField(), cg);
             }
          else if (NULL == dataSizeReg && node->getFirstChild()->getOpCode().isLoadConst() && node->getFirstChild()->getInt() == 0)
             {
@@ -9861,8 +9866,8 @@ J9::Z::TreeEvaluator::VMnewEvaluator(TR::Node * node, TR::CodeGenerator * cg)
             dataAddrSlotMR = generateS390MemoryReference(resReg, fej9->getOffsetOfContiguousDataAddrField(), cg);
             }
 
-         iCursor = generateRXInstruction(cg, TR::InstOpCode::getLoadOpCode(), node, temp1Reg, dataAddrMR, iCursor);
-         iCursor = generateRXInstruction(cg, TR::InstOpCode::getStoreOpCode(), node, temp1Reg, dataAddrSlotMR, iCursor);
+         iCursor = generateRXInstruction(cg, TR::InstOpCode::AGF, node, temp1Reg, dataAddrMR, iCursor);
+         iCursor = generateRXInstruction(cg, TR::InstOpCode::STG, node, temp1Reg, dataAddrSlotMR, iCursor);
 
          if (NULL != discontiguousDataAddrOffsetReg)
             {
