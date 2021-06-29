@@ -9825,7 +9825,7 @@ J9::Z::TreeEvaluator::VMnewEvaluator(TR::Node * node, TR::CodeGenerator * cg)
                enumReg, dataSizeReg, temp1Reg, litPoolBaseReg, conditions, cg);
 
 #ifdef TR_TARGET_64BIT
-         TR::Register *discontiguousDataAddrOffsetReg = NULL;
+         TR::Register *dataAddrOffsetReg = NULL;
          TR::MemoryReference *dataAddrMR = NULL;
          TR::MemoryReference *dataAddrSlotMR = NULL;
 
@@ -9834,20 +9834,14 @@ J9::Z::TreeEvaluator::VMnewEvaluator(TR::Node * node, TR::CodeGenerator * cg)
             if (comp->getOption(TR_TraceCG))
                traceMsg(comp, "Dealing with compressed refs variable length array.\n");
 
-            discontiguousDataAddrOffsetReg = cg->allocateRegister();
-            iCursor = generateRREInstruction(cg, TR::InstOpCode::LNGR, node, discontiguousDataAddrOffsetReg, dataSizeReg);
-            iCursor = generateRSInstruction(cg, TR::InstOpCode::SRAG, node, discontiguousDataAddrOffsetReg, discontiguousDataAddrOffsetReg, 63);
-            iCursor = generateRSInstruction(cg, TR::InstOpCode::SLLG, node, discontiguousDataAddrOffsetReg, discontiguousDataAddrOffsetReg, 3);
-            iCursor = generateRREInstruction(cg, TR::InstOpCode::LNGR, node, discontiguousDataAddrOffsetReg, discontiguousDataAddrOffsetReg);
-/* Working
-            iCursor = generateRREInstruction(cg, TR::InstOpCode::getXORRegOpCode(), node, discontiguousDataAddrOffsetReg, discontiguousDataAddrOffsetReg);
-            iCursor = generateRRRInstruction(cg, TR::InstOpCode::getSubtractThreeRegOpCode(), node, temp1Reg, dataSizeReg, discontiguousDataAddrOffsetReg); // cc = 2 if size > 0
-            iCursor = generateRREInstruction(cg, TR::InstOpCode::ALCGR, node, discontiguousDataAddrOffsetReg, discontiguousDataAddrOffsetReg); // slotReg = 1
-            iCursor = generateRSInstruction(cg, TR::InstOpCode::getShiftLeftLogicalSingleOpCode(), node, discontiguousDataAddrOffsetReg, discontiguousDataAddrOffsetReg, 3); // slotRet = 8
-            iCursor = generateRREInstruction(cg, TR::InstOpCode::getLoadNegativeOpCode(), node, discontiguousDataAddrOffsetReg, discontiguousDataAddrOffsetReg); // slotReg = f8
-*/
-            dataAddrMR = generateS390MemoryReference(resReg, discontiguousDataAddrOffsetReg, TR::Compiler->om.discontiguousArrayHeaderSizeInBytes(), cg);
-            dataAddrSlotMR = generateS390MemoryReference(resReg, discontiguousDataAddrOffsetReg, fej9->getOffsetOfDiscontiguousDataAddrField(), cg);
+            dataAddrOffsetReg = cg->allocateRegister();
+            iCursor = generateRREInstruction(cg, TR::InstOpCode::LNGR, node, dataAddrOffsetReg, dataSizeReg);
+            iCursor = generateRSInstruction(cg, TR::InstOpCode::SRAG, node, dataAddrOffsetReg, dataAddrOffsetReg, 63);
+            iCursor = generateRSInstruction(cg, TR::InstOpCode::SLLG, node, dataAddrOffsetReg, dataAddrOffsetReg, 3);
+            iCursor = generateRREInstruction(cg, TR::InstOpCode::LNGR, node, dataAddrOffsetReg, dataAddrOffsetReg);
+
+            dataAddrMR = generateS390MemoryReference(resReg, dataAddrOffsetReg, TR::Compiler->om.discontiguousArrayHeaderSizeInBytes(), cg);
+            dataAddrSlotMR = generateS390MemoryReference(resReg, dataAddrOffsetReg, fej9->getOffsetOfDiscontiguousDataAddrField(), cg);
             }
          else if (NULL == dataSizeReg && node->getFirstChild()->getOpCode().isLoadConst() && node->getFirstChild()->getInt() == 0)
             {
@@ -9866,13 +9860,13 @@ J9::Z::TreeEvaluator::VMnewEvaluator(TR::Node * node, TR::CodeGenerator * cg)
             dataAddrSlotMR = generateS390MemoryReference(resReg, fej9->getOffsetOfContiguousDataAddrField(), cg);
             }
 
-         iCursor = generateRXInstruction(cg, TR::InstOpCode::AGF, node, temp1Reg, dataAddrMR, iCursor);
+         iCursor = generateRXInstruction(cg, TR::InstOpCode::LAY, node, temp1Reg, dataAddrMR, iCursor);
          iCursor = generateRXInstruction(cg, TR::InstOpCode::STG, node, temp1Reg, dataAddrSlotMR, iCursor);
 
-         if (NULL != discontiguousDataAddrOffsetReg)
+         if (NULL != dataAddrOffsetReg)
             {
-            conditions->addPostCondition(discontiguousDataAddrOffsetReg, TR::RealRegister::AssignAny);
-            cg->stopUsingRegister(discontiguousDataAddrOffsetReg);
+            conditions->addPostCondition(dataAddrOffsetReg, TR::RealRegister::AssignAny);
+            cg->stopUsingRegister(dataAddrOffsetReg);
             }
 #endif /* TR_TARGET_64BIT */
          // Write Arraylet Pointer
