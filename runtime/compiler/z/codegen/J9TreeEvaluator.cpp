@@ -9383,33 +9383,15 @@ genInitArrayHeader(TR::Node * node, TR::Instruction *& iCursor, bool isVariableL
          && false
 #endif /* J9VM_OPT_NEW_OBJECT_HASH */
 #endif /* FLAGS_IN_CLASS_SLOT */
-      && !isVariableLen
       )
       {
       canUseIIHF = true;
       }
    genInitObjectHeader(node, iCursor, classAddress, classReg, resReg, zeroReg, temp1Reg, litPoolBaseReg, conditions, cg, eNumReg, canUseIIHF);
 
-   // TODO: Can we update IIHF path to write size to correct offset for 0 size arrays?
    // Store the array size
-   if (isVariableLen)
+   if (canUseIIHF)
       {
-
-      TR_ASSERT_FATAL_WITH_NODE(node, (fej9->getOffsetOfDiscontiguousArraySizeField() - fej9->getOffsetOfContiguousArraySizeField()) == 4, "Size slot offset for discontiguous array is expected to be 4 bytes more than size slot offset for contiguous array.\n");
-
-      iCursor = generateRREInstruction(cg, TR::InstOpCode::LNGR, node, temp1Reg, dataSizeReg);
-      iCursor = generateRSInstruction(cg, TR::InstOpCode::SRAG, node, temp1Reg, temp1Reg, 63);
-      iCursor = generateRSInstruction(cg, TR::InstOpCode::SLLG, node, temp1Reg, temp1Reg, 2);
-      iCursor = generateRREInstruction(cg, TR::InstOpCode::LNGR, node, temp1Reg, temp1Reg); // if dataSizeReg > 0, we'll have -4 here
-
-      iCursor = generateRXInstruction(cg, TR::InstOpCode::ST, node, eNumReg,
-                generateS390MemoryReference(resReg, temp1Reg, fej9->getOffsetOfDiscontiguousArraySizeField(), cg), iCursor);
-      }
-   else if (canUseIIHF)
-      {
-      /* IIHF: The second operand is placed in bit positions of thefirst operand.
-       * The remainder of the first operandremains unchanged.
-       */
       iCursor = generateRXInstruction(cg, TR::InstOpCode::STG, node, eNumReg,
                       generateS390MemoryReference(resReg, TR::Compiler->om.offsetOfObjectVftField(), cg), iCursor);
       }
