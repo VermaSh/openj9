@@ -9829,6 +9829,11 @@ J9::Z::TreeEvaluator::VMnewEvaluator(TR::Node * node, TR::CodeGenerator * cg)
          TR::MemoryReference *dataAddrMR = NULL;
          TR::MemoryReference *dataAddrSlotMR = NULL;
 
+         static const bool disableCase1 = feGetEnv("SVERMA_disableCase1") != NULL;
+         static const bool disableCase1Seq = feGetEnv("SVERMA_disableCase1Seq") != NULL;
+         static const bool disableCase2 = feGetEnv("SVERMA_disableCase2") != NULL;
+         static const bool disableCase3 = feGetEnv("SVERMA_disableCase3") != NULL;
+
          if (TR::Compiler->om.compressObjectReferences() && isVariableLen)
             {
             /* We need to check enumReg at runtime to determine correct offset of dataAddr field.
@@ -9841,21 +9846,40 @@ J9::Z::TreeEvaluator::VMnewEvaluator(TR::Node * node, TR::CodeGenerator * cg)
             TR_ASSERT_FATAL_WITH_NODE(node, (fej9->getOffsetOfDiscontiguousDataAddrField() - fej9->getOffsetOfContiguousDataAddrField()) == 8, "DataAddr field offset for discontiguous arrays is expected to be 8 bytes more than dataAddr field offset for contiguous arrays. But was %d bytes for discontigous and %d bytes for contiguous.\n", fej9->getOffsetOfDiscontiguousDataAddrField(), fej9->getOffsetOfContiguousDataAddrField());
 
             dataAddrOffsetReg = cg->allocateRegister();
-            iCursor = generateRREInstruction(cg, TR::InstOpCode::LNGR, node, dataAddrOffsetReg, enumReg);
-            iCursor = generateRSInstruction(cg, TR::InstOpCode::SRAG, node, dataAddrOffsetReg, dataAddrOffsetReg, 63);
-            iCursor = generateRSInstruction(cg, TR::InstOpCode::SLLG, node, dataAddrOffsetReg, dataAddrOffsetReg, 3);
-            iCursor = generateRREInstruction(cg, TR::InstOpCode::LNGR, node, dataAddrOffsetReg, dataAddrOffsetReg);
+            if (!disableCase1Seq) {
+               // Negate array length. if 0, negative will also be 0
+               iCursor = generateRREInstruction(cg, TR::InstOpCode::LNGR, node, dataAddrOffsetReg, enumReg, iCursor);
+               // Shift the negated array length by 63 bits, leaving us with the sign bit at the right most location
+               // We need to do this to clear the register of any other garbage
+               iCursor = generateRSInstruction(cg, TR::InstOpCode::SRAG, node, dataAddrOffsetReg, dataAddrOffsetReg, 63, iCursor);
+               // Shift the sign bit left by 3 giving us 8 or 0
+               iCursor = generateRSInstruction(cg, TR::InstOpCode::SLLG, node, dataAddrOffsetReg, dataAddrOffsetReg, 3, iCursor);
+               // Negate the register, giving us -8 or 0
+               iCursor = generateRREInstruction(cg, TR::InstOpCode::LNGR, node, dataAddrOffsetReg, dataAddrOffsetReg, iCursor);
+            }
+            else
+               traceMsg(comp, "case 1 seq disabled.\n");
 
-            dataAddrMR = generateS390MemoryReference(resReg, dataAddrOffsetReg, TR::Compiler->om.discontiguousArrayHeaderSizeInBytes(), cg);
-            dataAddrSlotMR = generateS390MemoryReference(resReg, dataAddrOffsetReg, fej9->getOffsetOfDiscontiguousDataAddrField(), cg);
+            if (!disableCase1) {
+               dataAddrMR = generateS390MemoryReference(resReg, dataAddrOffsetReg, TR::Compiler->om.discontiguousArrayHeaderSizeInBytes(), cg);
+               dataAddrSlotMR = generateS390MemoryReference(resReg, dataAddrOffsetReg, fej9->getOffsetOfDiscontiguousDataAddrField(), cg);
+            }
+            else
+               traceMsg(comp, "case 1 disabled.\n");
+
             }
          else if (!isVariableLen && node->getFirstChild()->getOpCode().isLoadConst() && node->getFirstChild()->getInt() == 0)
             {
             if (comp->getOption(TR_TraceCG))
                traceMsg(comp, "Node (%p): Dealing with zero size fixed length array.\n", node);
 
-            dataAddrMR = generateS390MemoryReference(resReg, TR::Compiler->om.discontiguousArrayHeaderSizeInBytes(), cg);
-            dataAddrSlotMR = generateS390MemoryReference(resReg, fej9->getOffsetOfDiscontiguousDataAddrField(), cg);
+            if (!disableCase2) {
+               dataAddrMR = generateS390MemoryReference(resReg, TR::Compiler->om.discontiguousArrayHeaderSizeInBytes(), cg);
+               dataAddrSlotMR = generateS390MemoryReference(resReg, fej9->getOffsetOfDiscontiguousDataAddrField(), cg);
+            }
+            else
+               traceMsg(comp, "case 2 disabled.\n");
+
             }
          else
             {
@@ -9865,12 +9889,22 @@ J9::Z::TreeEvaluator::VMnewEvaluator(TR::Node * node, TR::CodeGenerator * cg)
             if (!TR::Compiler->om.compressObjectReferences())
                TR_ASSERT_FATAL_WITH_NODE(node, fej9->getOffsetOfDiscontiguousDataAddrField() == fej9->getOffsetOfContiguousDataAddrField(), "When using full refs, dataAddr field offset is expected to be same for both discontiguous and contiguous arrays. But was %d bytes for discontiguous and %d bytes for contiguous.\n", fej9->getOffsetOfDiscontiguousDataAddrField(), fej9->getOffsetOfContiguousDataAddrField());
 
-            dataAddrMR = generateS390MemoryReference(resReg, TR::Compiler->om.contiguousArrayHeaderSizeInBytes(), cg);
-            dataAddrSlotMR = generateS390MemoryReference(resReg, fej9->getOffsetOfContiguousDataAddrField(), cg);
+            if (!disableCase3) {
+               dataAddrMR = generateS390MemoryReference(resReg, TR::Compiler->om.contiguousArrayHeaderSizeInBytes(), cg);
+               dataAddrSlotMR = generateS390MemoryReference(resReg, fej9->getOffsetOfContiguousDataAddrField(), cg);
+            }
+            else
+               traceMsg(comp, "case 3 disabled.\n");
+
             }
 
-         iCursor = generateRXInstruction(cg, TR::InstOpCode::LAY, node, temp1Reg, dataAddrMR, iCursor);
-         iCursor = generateRXInstruction(cg, TR::InstOpCode::STG, node, temp1Reg, dataAddrSlotMR, iCursor);
+         if (dataAddrSlotMR != NULL)
+            {
+            iCursor = generateRXInstruction(cg, TR::InstOpCode::LAY, node, temp1Reg, dataAddrMR, iCursor);
+            iCursor = generateRXInstruction(cg, TR::InstOpCode::STG, node, temp1Reg, dataAddrSlotMR, iCursor);
+            }
+         else
+            traceMsg(comp, "DataAddr slot wasn't updated.\n");
 
          if (NULL != dataAddrOffsetReg)
             {
