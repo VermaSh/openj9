@@ -9418,7 +9418,7 @@ J9::Z::TreeEvaluator::VMnewEvaluator(TR::Node * node, TR::CodeGenerator * cg)
    TR::Register *zeroReg               = NULL;
    TR::Register *litPoolBaseReg        = NULL;
    TR::Register *enumReg               = NULL;
-   TR::Register *copyReg               = NULL;
+   TR::Register *enumCopyReg           = NULL;
    TR::Register *classRegAOT           = NULL;
    TR::Register *temp1Reg              = NULL;
    TR::Register *callResult            = NULL;
@@ -9553,10 +9553,9 @@ J9::Z::TreeEvaluator::VMnewEvaluator(TR::Node * node, TR::CodeGenerator * cg)
          enumReg = cg->evaluate(firstChild);
          if (!cg->canClobberNodesRegister(firstChild))
             {
-            copyReg = cg->allocateRegister();
-            TR::InstOpCode::Mnemonic loadOpCode = (firstChild->getType().isInt64()) ? TR::InstOpCode::LGR : TR::InstOpCode::LR;
-            iCursor = generateRRInstruction(cg, TR::InstOpCode::getLoadRegOpCode(), node, copyReg, enumReg, iCursor);
-            enumReg = copyReg;
+            enumCopyReg = cg->allocateRegister();
+            iCursor = generateRRInstruction(cg, TR::InstOpCode::getLoadRegOpCode(), node, enumCopyReg, enumReg, iCursor);
+            // enumReg = enumCopyReg; // Both registes have the same value
             }
          }
 
@@ -9574,6 +9573,11 @@ J9::Z::TreeEvaluator::VMnewEvaluator(TR::Node * node, TR::CodeGenerator * cg)
          {
          conditions->addPostCondition(enumReg, TR::RealRegister::AssignAny);
          traceMsg(comp,"enumReg = %s\n", enumReg->getRegisterName(comp));
+         }
+      if (enumCopyReg)
+         {
+         conditions->addPostCondition(enumCopyReg, TR::RealRegister::AssignAny);
+         traceMsg(comp,"enumCopyReg = %s\n", enumCopyReg->getRegisterName(comp));
          }
       conditions->addPostCondition(resReg, TR::RealRegister::AssignAny);
       traceMsg(comp, "classReg = %s , resReg = %s \n", classReg->getRegisterName(comp), resReg->getRegisterName(comp));
@@ -9848,7 +9852,7 @@ J9::Z::TreeEvaluator::VMnewEvaluator(TR::Node * node, TR::CodeGenerator * cg)
             dataAddrOffsetReg = cg->allocateRegister();
             if (!disableCase1Seq) {
                // Negate array length. if 0, negative will also be 0
-               iCursor = generateRREInstruction(cg, TR::InstOpCode::LNGR, node, dataAddrOffsetReg, enumReg, iCursor);
+               iCursor = generateRREInstruction(cg, TR::InstOpCode::LNGR, node, dataAddrOffsetReg, enumCopyReg, iCursor);
                // Shift the negated array length by 63 bits, leaving us with the sign bit at the right most location
                // We need to do this to clear the register of any other garbage
                iCursor = generateRSInstruction(cg, TR::InstOpCode::SRAG, node, dataAddrOffsetReg, dataAddrOffsetReg, 63, iCursor);
@@ -10051,8 +10055,8 @@ J9::Z::TreeEvaluator::VMnewEvaluator(TR::Node * node, TR::CodeGenerator * cg)
          cg->stopUsingRegister(copyEnumReg);
       if (enumReg)
          cg->stopUsingRegister(enumReg);
-      if (copyReg)
-         cg->stopUsingRegister(copyReg);
+      if (enumCopyReg)
+         cg->stopUsingRegister(enumCopyReg);
       srm->stopUsingRegisters();
       node->setRegister(resReg);
       return resReg;
