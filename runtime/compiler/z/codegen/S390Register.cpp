@@ -719,7 +719,7 @@ int32_t TR_PseudoRegister::getRangeStart(int32_t startDigit, int32_t endDigit)
    TR_ASSERT(endDigit >= startDigit,"invalid range for getRangeStart\n");
    TR_ASSERT(startDigit>=-1,"invalid startDigit %d for getRangeStart\n",startDigit); // -1 is the sign code, 0 is the first digit, 1 is the second digit...
 
-   int32_t symDigits = getSymbolDigits();
+   int32_t symDigits = getSymbolDigits(); // BCD percision - packed (byteLength*2) - 1;, zoned is length - 1
 
    TR_ASSERT(endDigit<=symDigits,"endDigit > symDigits (%d > %d) for addRangeOfZeroDigits\n",endDigit,symDigits); // ...symDigits-1 is the last digit
    if (comp()->cg()->traceBCDCodeGen())
@@ -742,6 +742,22 @@ int32_t TR_PseudoRegister::getRangeStart(int32_t startDigit, int32_t endDigit)
    TR_ASSERT(startDigit>=-1,"startDigit < -1 (%d) for addRangeOfZeroDigits\n",startDigit); // -1 is the sign code, 0 is the first digit, 1 is the second digit...
    TR_ASSERT(endDigit<=symDigits,"endDigit > symDigits (%d > %d) for addRangeOfZeroDigits\n",endDigit,symDigits); // -1 is the sign code, 0 is the first digit, 1 is the second digit...
 
++0 +1 +2 +3 +4 +5  range (+2->+4)
+      x  x  x     sign_code  
+5  4  3  2  1  0   input bytes (1->3)
+     3 - 3
+   /* End digit is right aligned, meaning it would be to the left of startDigit
+    * 
+    */
+   size = 3 - 1 = 2
+   endDigit = 3, startDigit = 1
+   startRange = size - endDigit = -1
+   size = end - start
+   start = end - size
+   // endDigit is rigth aligned
+   // rangeStart is left aligned, so
+   // rangeStart = 2
+   // symDigits = size*2 -1 = 3
    int32_t rangeStart = symDigits - endDigit;
    TR_ASSERT(rangeStart >= 0,"symbol size is smaller than requested range\n");
    if (comp()->cg()->traceBCDCodeGen())
@@ -756,6 +772,9 @@ int32_t TR_PseudoRegister::getRangeEnd(int32_t rangeStart, int32_t startDigit, i
    TR_ASSERT(endDigit >= startDigit,"invalid range for getRangeStart\n");
    TR_ASSERT(startDigit>=-1,"invalid startDigit %d for addRangeOfZeroDigits\n",startDigit); // -1 is the sign code, 0 is the first digit, 1 is the second digit...
    int32_t rangeSize = endDigit-startDigit;
+   // Looks like rangeEnd is indeed larger value so
+   // it would be close to the right side of the memory reference.
+   // Now the question is, how does that help us with left aligned zero digits?
    int32_t rangeEnd = rangeStart+rangeSize;
    if (comp()->cg()->traceBCDCodeGen())
       traceMsg(comp(),"\t\tgetRangeEnd %s returning %d\n",comp()->cg()->getDebug()->getName(this),rangeEnd);
@@ -763,6 +782,12 @@ int32_t TR_PseudoRegister::getRangeEnd(int32_t rangeStart, int32_t startDigit, i
    return rangeEnd;
    }
 
+/**
+ * @brief Determins digits from left to be cleared.
+ *
+ * @param startDigit right aligned index
+ * @param endDigit   right aligned index
+ */
 int32_t TR_PseudoRegister::getDigitsToClear(int32_t startDigit, int32_t endDigit)
    {
    TR_ASSERT(getKind() == TR_SSR,"only valid for TR_SSR registers\n");
@@ -778,24 +803,59 @@ int32_t TR_PseudoRegister::getDigitsToClear(int32_t startDigit, int32_t endDigit
             getLiveSymbolSize(),TR::DataType::getSizeFromBCDPrecision(getDataType(), endDigit),endDigit-startDigit);
       return endDigit-startDigit;
       }
-   int32_t rangeStart = getRangeStart(startDigit, endDigit);
-   int32_t rangeEnd = getRangeEnd(rangeStart, startDigit, endDigit);
+   int32_t rangeStart = getRangeStart(startDigit, endDigit); // left aligned range start
+   int32_t rangeEnd = getRangeEnd(rangeStart, startDigit, endDigit); // left aligned range end
+   // Is leftAlignedZeroDigits a index or an offset??
+   // Looks to be a index, only when looking at the object as left aligned instead of right aligned.
    int32_t leftAlignedZeroDigits = getLeftAlignedZeroDigits();
    int32_t rangeSize = endDigit-startDigit;
    int32_t digitsToClear = 0;
    if (comp()->cg()->traceBCDCodeGen())
       traceMsg(comp(),"\t\trangeStart %d, rangeEnd %d, leftAlignedZeroDigits = %d\n",rangeStart,rangeEnd,leftAlignedZeroDigits);
+   // _ _ _ _ range_end _ _ _ _ range_start
+   // _ _ _ _ digit_start _ _ _ _ digit_end
+   /* if rangeEnd is greater than leftAlignedZeroDigits, then
+    * we 
+    *
+    */
+   /* This is confusing because I thought rangeEnd is supposed to be left aligned
+    * and so we should really be comparing rangeStart instead of rangeEnd.
+    *
+    * Not anymore! So leftAlignedZeroDigits is just a integer value, count. By
+    * changing right aligned start and end to left aligned range, we can use
+    * leftAlignedZeroDigits as the index of last non zero digit/byte.
+    *
+    * if leftAlignedZeroDigits is greater than rangeEnd everything is already zero
+    * we don't need to do anything.
+    */
    if (rangeEnd > leftAlignedZeroDigits) // does the endDigit of range extend beyond the leftmost cleared digits (if so, then some digits will have to be cleared)
       {
+      /* if the endDigit of range extend beyond the leftmost cleared digits
+       * we have written some vlues past the leftAlignedZeroDigits and as a result,
+       * we need to clear those values.
+       */
       if (comp()->cg()->traceBCDCodeGen())
          traceMsg(comp(),"\t\tsetting digitsToClear to %d (rangeSize) because rangeEnd %d > leftAlignedZeroDigits %d\n",
             rangeSize,rangeEnd,leftAlignedZeroDigits);
+      // Clear the entire length
       digitsToClear = rangeSize;              // the max digits to clear, may be adjusted on an overlap
+      /* TODO: When would this condition evaluate true?
+       * This would evaluate true if we have written some stuff into
+       * what was supposed to be cleared area. So we
+       *
+       */
       if (rangeStart < leftAlignedZeroDigits) // is the startDigit of range is within the cleared range (i.e. an overlap)
          {
          if (comp()->cg()->traceBCDCodeGen())
             traceMsg(comp(),"\t\tadjusting digitsToClear %d -> %d due to an overlap (rangeStart %d < leftAlignedZeroDigits %d)\n",
                digitsToClear,digitsToClear-(leftAlignedZeroDigits-rangeStart),rangeStart,leftAlignedZeroDigits);
+         // TODO: so are we to clear digits part of the overlap or to only clear digits that are out of the range.
+         // rangeSize = 3 - 1 = 2
+         // digitsToClear = rangeSize - (leftAlignedZeroDigits - rangeStart)
+         //               = 2         - overlap_size
+         // It looks like digitsToClear returns digits, from left, which are not
+         // part of the overlap. Which means that digitsToClear will
+         // actually be part of the range which needs to be cleared.
          digitsToClear -= (leftAlignedZeroDigits-rangeStart);
          }
       else if (comp()->cg()->traceBCDCodeGen())
@@ -849,6 +909,7 @@ int32_t TR_PseudoRegister::getByteOffsetFromLeftForClear(int32_t startDigit, int
       {
       if (comp()->cg()->traceBCDCodeGen())
          traceMsg(comp(),"\t\tsetting digitOffset to %d (== leftAlignedZeroDigits) as leftAlignedZeroDigits %d > rangeStart %d (an overlap)\n",leftAlignedZeroDigits,leftAlignedZeroDigits,rangeStart);
+      // Since there is an overlap we'll start clearing after the last known zero index.
       digitOffset = leftAlignedZeroDigits;   // cleared digits overlaps range so only clear from leftAlignedZeroDigits
       }
    else
@@ -857,6 +918,10 @@ int32_t TR_PseudoRegister::getByteOffsetFromLeftForClear(int32_t startDigit, int
       // left aligned zero digits so offset=0 is returned
       if (comp()->cg()->traceBCDCodeGen())
          traceMsg(comp(),"\t\tsetting digitOffset to 0 as leftAlignedZeroDigits %d <= rangeStart %d (disjoint)\n",leftAlignedZeroDigits,rangeStart);
+      // TODO: What does setting digitOffset = 0 accomplish??
+      //       shouldn't having disjoint sets mean that we don't need to clear anything??
+      // I think what it means by no overlap is that we don't need to adjust digitsToClear as no digits within
+      // the to be cleared range are already zero.
       digitOffset = 0;
       }
 
@@ -931,6 +996,13 @@ void TR_PseudoRegister::addRangeOfZeroBytes(int32_t startByte, int32_t endByte) 
    addRangeOfZeroDigits(startDigit, endDigit);
    }
 
+/**
+ * @brief Updates _leftAlignedZeroDigits. Useful when we have just cleared
+ * some digits and we might have overlaped with endDigit(rangeStart).
+ * 
+ * @param startDigit right aligned offset.
+ * @param endDigit   rigth aligned offset.
+ */
 void TR_PseudoRegister::removeRangeOfZeroDigits(int32_t startDigit, int32_t endDigit)
    {
    if (startDigit == endDigit) return;
@@ -947,11 +1019,27 @@ void TR_PseudoRegister::removeRangeOfZeroDigits(int32_t startDigit, int32_t endD
    if (comp()->cg()->traceBCDCodeGen())
       traceMsg(comp(),"\t\trangeStart %d, rangeEnd %d, leftAlignedZeroDigits = %d\n",rangeStart,rangeEnd,leftAlignedZeroDigits);
 
+   /* Notes
+    * rangeStart is left aligned index.
+    * leftAlignedZeroDigits is left aligned index of last zero element.
+    * We just update leftAlignedZeroDigits to be new index, since current
+    * index overlaps +1 with rangeStart.
+    * 
+    * leftAlignedZeroDigits = 2, rangeStart = 1
+    * This probably means that leftAlignedZeroDigits needs to be updated
+    * leftAlignedZeroDigits-rangeStart = 1, 
+    * leftAlignedZeroDigits - leftAlignedZeroDigits + rangeStart
+    */
    if (rangeStart < leftAlignedZeroDigits)
       {
+      // There is an overlap between the cleared out area and the area with values.
       if (comp()->cg()->traceBCDCodeGen())
          traceMsg(comp(),"\t\tsetting leftAlignedZeroDigits to %d (leftAlignedZeroDigits %d - rangeStart %d) because rangeStart < leftAlignedZeroDigits\n",
             leftAlignedZeroDigits - (leftAlignedZeroDigits-rangeStart),leftAlignedZeroDigits,rangeStart);
+      // TODO: shouldn't this just be rangeStart??
+      //       is leftAlignedZeroDigits expected to be just rangeStart or does rangeStart - 1??
+      // TODO: What does this mean for the bigger picture, are we essentially clearing the flag
+      //       so that it can be updated later on?
       setLeftAlignedZeroDigits(leftAlignedZeroDigits - (leftAlignedZeroDigits-rangeStart));
       }
    else if (comp()->cg()->traceBCDCodeGen())

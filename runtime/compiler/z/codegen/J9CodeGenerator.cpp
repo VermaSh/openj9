@@ -2196,6 +2196,7 @@ J9::Z::CodeGenerator::widenBCDValueIfNeeded(TR::Node *node, TR_PseudoRegister *r
       }
    }
 
+// TODO: So, is this called to ensure that the digits we assume to be 0 are indeed zero?
 void
 J9::Z::CodeGenerator::genZeroLeftMostDigitsIfNeeded(TR::Node *node, TR_PseudoRegister *reg, int32_t endByte, int32_t digitsToClear, TR::MemoryReference *targetMR, bool widenOnLeft)
    {
