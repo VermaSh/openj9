@@ -2267,32 +2267,17 @@ TR_J9ByteCodeIlGenerator::calculateIndexFromOffsetInContiguousArray(int32_t widt
 void
 TR_J9ByteCodeIlGenerator::createContiguousArrayView(TR::Node* arrayBase)
    {
-   traceMsg(comp(), "walker.cpp:createContiguousArrayView: entering method\n");
+
+   traceMsg(comp(), "walker.cpp:createContiguousArrayView: entering method");
    /* Create the contiguous array view node  i.e., header + dataAddr field offset */
    TR::Node *dataAddrFieldOffset = TR::Node::create(TR::lconst, 0);
    // TR::Compiler->om.isDiscontiguousArray(comp,arrayBase->getAddress()); // for discontiguous arrays
    dataAddrFieldOffset->setConstValue(fej9()->getOffsetOfContiguousDataAddrField());
    TR::Node *dataAddrFieldAddress = TR::Node::create(TR::aladd, 2, arrayBase, dataAddrFieldOffset);
-   TR::Node *firstArrayElementAddress = TR::Node::create(TR::aloadi, 1, dataAddrFieldAddress);
-
-   traceMsg(comp(), "1. arrayBase: hasPinningArrayPointer: %d, isArrayRef: %d\n",
-      arrayBase->getOpCode().hasPinningArrayPointer(),
-      arrayBase->getOpCode().isArrayRef());
-
-   traceMsg(comp(), "1. dataAddrFieldAddress: hasPinningArrayPointer: %d, isArrayRef: %d\n",
-      dataAddrFieldAddress->getOpCode().hasPinningArrayPointer(),
-      dataAddrFieldAddress->getOpCode().isArrayRef());
-
-   traceMsg(comp(), "1. firstArrayElementAddress: hasPinningArrayPointer: %d, isArrayRef: %d\n",
-      firstArrayElementAddress->getOpCode().hasPinningArrayPointer(),
-      firstArrayElementAddress->getOpCode().isArrayRef());
+   TR::Node *firstArrayElementAddress = TR::Node::create(TR::aload, 1, dataAddrFieldAddress);
 
    /* Mark node as an internal pointer */
    firstArrayElementAddress->setIsInternalPointer(true);
-
-   traceMsg(comp(), "1.1 firstArrayElementAddress: hasPinningArrayPointer: %d, isArrayRef: %d\n",
-      firstArrayElementAddress->getOpCode().hasPinningArrayPointer(),
-      firstArrayElementAddress->getOpCode().isArrayRef());
 
    /* create symbol for the array object reference (header pointer) */
    TR::SymbolReference *arrayBaseSymRef = symRefTab()->createTemporary(_methodSymbol, TR::Address);
@@ -2303,10 +2288,8 @@ TR_J9ByteCodeIlGenerator::createContiguousArrayView(TR::Node* arrayBase)
    TR::Node *arrStore = TR::Node::createStore(arrayBaseSymRef, arrayBase);
    genTreeTop(arrStore);
 
-   TR::AutomaticSymbol *ret = NULL;
-   traceMsg(comp(), "firstArrayElementAddress->setPinningArrayPointer() == arrayBaseSymRef->getSymbol()->castToAutoSymbol(): %d\n", ret == arrayBaseSymRef->getSymbol()->castToAutoSymbol());
    /* Mark this symbol as a pinning array pointer */
-   ret = firstArrayElementAddress->setPinningArrayPointer(arrayBaseSymRef->getSymbol()->castToAutoSymbol());
+   firstArrayElementAddress->setPinningArrayPointer(arrayBaseSymRef->getSymbol()->castToAutoSymbol());
    genTreeTop(firstArrayElementAddress);
 
    traceMsg(comp(), "firstArrayElementAddress->setPinningArrayPointer() == arrayBaseSymRef->getSymbol()->castToAutoSymbol(): %d\n", ret == arrayBaseSymRef->getSymbol()->castToAutoSymbol());
@@ -2314,29 +2297,11 @@ TR_J9ByteCodeIlGenerator::createContiguousArrayView(TR::Node* arrayBase)
    /* cache the contiguous array view node for future use */
    _memRegionMap[arrayBase] = firstArrayElementAddress;
 
-   traceMsg(comp(), "2. arrayBase: hasPinningArrayPointer: %d, isArrayRef: %d\n",
-      arrayBase->getOpCode().hasPinningArrayPointer(),
-      arrayBase->getOpCode().isArrayRef());
-
-   traceMsg(comp(), "2. dataAddrFieldAddress: hasPinningArrayPointer: %d, isArrayRef: %d\n",
-      dataAddrFieldAddress->getOpCode().hasPinningArrayPointer(),
-      dataAddrFieldAddress->getOpCode().isArrayRef());
-
-   traceMsg(comp(), "2. firstArrayElementAddress: hasPinningArrayPointer: %d, isArrayRef: %d\n",
-      firstArrayElementAddress->getOpCode().hasPinningArrayPointer(),
-      firstArrayElementAddress->getOpCode().isArrayRef());
-
-   /* Mark node as an internal pointer */
-   firstArrayElementAddress->setIsInternalPointer(true);
-
-   traceMsg(comp(), "2.1 firstArrayElementAddress: hasPinningArrayPointer: %d, isArrayRef: %d\n",
-      firstArrayElementAddress->getOpCode().hasPinningArrayPointer(),
-      firstArrayElementAddress->getOpCode().isArrayRef());
-
    TR_ASSERT_FATAL(firstArrayElementAddress->getPinningArrayPointer() != NULL, "Pinning array pointer not found");
-   TR_ASSERT(firstArrayElementAddress->isInternalPointer(), "It is not an internal pointer");
+   TR_ASSERT_FATAL(firstArrayElementAddress->isInternalPointer(), "It is not an internal pointer");
 
-   traceMsg(comp(), "walker.cpp:createContiguousArrayView: leaving method\n");
+   traceMsg(comp(), "walker.cpp:createContiguousArrayView: leaving method");
+
    }
 #endif /* TR_TARGET_64BIT */
 
