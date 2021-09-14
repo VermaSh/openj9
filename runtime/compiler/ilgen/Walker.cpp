@@ -38,6 +38,7 @@
 #include "exceptions/FSDFailure.hpp"
 #include "exceptions/RuntimeFailure.hpp"
 #include "optimizer/TransformUtil.hpp"
+#include "il/AutomaticSymbol.hpp"
 #include "il/Node.hpp"
 #include "il/Node_inlines.hpp"
 #include "il/TreeTop.hpp"
@@ -117,6 +118,8 @@ static void printStack(TR::Compilation *comp, TR_Stack<TR::Node*> *stack, const 
    else
       {
       TR_BitVector nodesAlreadyPrinted(comp->getNodeCount(), comp->trMemory(), stackAlloc, growable);
+      if (comp->getDebug() == NULL)
+         return;
       comp->getDebug()->saveNodeChecklist(nodesAlreadyPrinted);
       char buf[30];
       traceMsg(comp, "   /--- %s ------------------------", message);
@@ -605,7 +608,7 @@ TR::Block * TR_J9ByteCodeIlGenerator::walker(TR::Block * prevBlock)
          // be commoned, but this overall clarity seems to favour the terser format.
          //
          //comp()->getDebug()->restoreNodeChecklist(beforeTreesInserted);
-         printStack(comp(), _stack, "stack after");
+         // printStack(comp(), _stack, "stack after");
 
          traceMsg(comp(), "  ============================================================\n");
 
@@ -2156,10 +2159,12 @@ TR_J9ByteCodeIlGenerator::genArrayBoundsCheck(TR::Node * offset, int32_t width)
 void
 TR_J9ByteCodeIlGenerator::calculateElementAddressInContiguousArray(int32_t width, int32_t headerSize)
    {
+   traceMsg(comp(), "In calculateElementAddressInContiguousArray\n");
    const bool isForArrayAccess = true;
    int32_t shift = TR::TransformUtil::convertWidthToShift(width);
    if (shift)
       {
+      traceMsg(comp(), "shift > 0 (i.e., is true)\n");
       loadConstant(TR::iconst, shift);
       // generate a TR::aladd instead if required
       if (comp()->target().is64Bit())
@@ -2177,6 +2182,7 @@ TR_J9ByteCodeIlGenerator::calculateElementAddressInContiguousArray(int32_t width
       {
       if (headerSize > 0)
          {
+         traceMsg(comp(), "64 bit and headerSize > 0\n");
          loadConstant(TR::lconst, (int64_t)headerSize);
          // shift could have been null here (if no scaling is done for the index
          // ...so check for that and introduce an i2l if required for the aladd
@@ -2247,6 +2253,49 @@ TR_J9ByteCodeIlGenerator::calculateIndexFromOffsetInContiguousArray(int32_t widt
       }
    }
 
+/**
+ * Method to create the contiguous-array-view for arrays in Gencon.
+ * Effectively, the method takes in a pointer to the array header adds the size
+ * of the header (to get a pointer to the first data element).
+ * To avoid GC problems, we mark the pointer to the first data element as an
+ * 'internal pointer' and set the array base pointer as a pinning array pointer.
+ * We also mark these pointers as special so they cannot be reused
+ *
+ * parameter: arrayBase -> Node referencing the array object (array header)
+ */
+void
+TR_J9ByteCodeIlGenerator::createContiguousArrayView(TR::Node* arrayBase)
+   {
+
+   // dataAddr field is only available on 64 bit targets
+   if (!comp()->target().is64Bit())
+      return;
+
+   /* Create the contiguous array view node  i.e., header + header_size */
+   TR::Node * loadConstNode = TR::Node::create(TR::lconst, 0);
+   // TR::Compiler->om.isDiscontiguousArray(comp,arrayBase->getAddress()); // for discontiguous arrays
+   loadConstNode->setConstValue(fej9()->getOffsetOfContiguousDataAddrField());
+   TR::Node * addNode = TR::Node::create(TR::aladd, 2, arrayBase, loadConstNode);
+
+   /* Mark node as an internal pointer */
+   addNode->setIsInternalPointer(true);
+
+   /* create symbol for the array object reference (header pointer) */
+   TR::SymbolReference *arrAddrSymRef = symRefTab()->createTemporary(_methodSymbol, TR::Address);
+
+   /* Mark these as non reusable */
+   arrAddrSymRef->setReuse(false);
+
+   TR::Node *arrStore = TR::Node::createStore(arrAddrSymRef, arrayBase);
+   genTreeTop(arrStore);
+
+   /* Mark this symbol as a pinning array pointer */
+   addNode->setPinningArrayPointer(arrAddrSymRef->getSymbol()->castToAutoSymbol());
+   genTreeTop(addNode);
+
+   /* cache the contiguous array view node for future use */
+   _memRegionMap[arrayBase] = addNode;
+   }
 
 // Helper to calculate the address of the element of an array
 // RTSJ: if we should be generating arraylets, access the spine
@@ -2336,9 +2385,55 @@ TR_J9ByteCodeIlGenerator::calculateArrayElementAddress(TR::DataType dataType, bo
       }
    else
       {
-      int32_t arrayHeaderSize = TR::Compiler->om.contiguousArrayHeaderSizeInBytes();
-      calculateElementAddressInContiguousArray(width, arrayHeaderSize);
-      _stack->top()->setIsInternalPointer(true);
+     /**
+      * Check for the following:
+      *     1. 64 bit?
+      *     2. Internal Pointers enabled?
+      *     3. Number of changes under limit?
+      *     4. Have we imposed a limit (-99 indicates unlimited changes)
+      * if any of the above checks fail we can not use the dataAddr field
+      * in the array header, thus revert to original implementation (spineCHKs)
+      */
+      if (!comp()->target().is64Bit()
+         || comp()->getOption(TR_DisableInternalPointers)
+         || (_arrayChanges > comp()->getOptions()->getZZArrayModificationCounter()
+            && comp()->getOptions()->getZZArrayModificationCounter() != -99))
+         {
+         traceMsg(comp(), "\n** Not making any more modifications as _arrayChanges=%d\n", _arrayChanges);
+
+         int32_t arrayHeaderSize = TR::Compiler->om.contiguousArrayHeaderSizeInBytes();
+         calculateElementAddressInContiguousArray(width, arrayHeaderSize);
+         // Wouldn't this fail too if internal pointers are disabled??
+         _stack->top()->setIsInternalPointer(true);
+         }
+      else
+         {
+         TR::Node *lshl = _stack->pop();
+         TR::Node *obj_ptr = _stack->pop();
+
+         // Use contiguous-array-view from the cache. Create a contiguous-array-view
+         // if not found in the cache.
+         if (_memRegionMap.find(obj_ptr) == _memRegionMap.end())
+            {
+            createContiguousArrayView(obj_ptr);
+            _arrayChanges++;
+            }
+
+         TR::Node* temp = _memRegionMap[obj_ptr];
+         if (temp->getPinningArrayPointer() != NULL)
+            traceMsg(comp(), "\n Pinning Array Pointer Found \n");
+         if (temp->isInternalPointer())
+            traceMsg(comp(), "\n It is an Internal Pointer \n");
+
+         TR::Node * addNode = TR::Node::create(TR::aladd, 2, temp, lshl);
+         _stack->push(addNode); 
+         _stack->top()->setIsInternalPointer(true);
+         _stack->top()->setPinningArrayPointer(temp->getPinningArrayPointer());
+
+         //if (comp()->getOption(TR_TraceILGen))
+         //    printStack(comp(), _stack, "stack after myOwnAddition");
+         traceMsg(comp(), "\n ============================================================\n");
+         }
       }
 
    push(nodeThatWasNullChecked);
@@ -2532,8 +2627,7 @@ TR_J9ByteCodeIlGenerator::genCompressedRefs(TR::Node * address, bool genTT, int3
    TR::Node *newAddress = TR::Node::createCompressedRefsAnchor(value);
    //traceMsg(comp(), "compressedRefs anchor %p generated\n", newAddress);
 
-   if (trace())
-      traceMsg(comp(), "IlGenerator: Generating compressedRefs anchor [%p] for node [%p]\n", newAddress, address);
+   traceMsg(comp(), "IlGenerator: Generating compressedRefs anchor [%p] for node [%p]\n", newAddress, address);
 
    if (!pEnv && genTT)
       {
@@ -2564,8 +2658,7 @@ TR_J9ByteCodeIlGenerator::genNullCheck(TR::Node * first)
                grandChild->getSymbolReference()->getSymbol() &&
                grandChild->getSymbolReference()->getSymbol()->getRecognizedField() == TR::Symbol::Java_lang_String_value)
          {
-         if (trace())
-            traceMsg(comp(), "Skipping NULLCHK (node %p) on String.value field : %s -> %s\n", grandChild, comp()->signature(), _methodSymbol->signature(trMemory()));
+         traceMsg(comp(), "Skipping NULLCHK (node %p) on String.value field : %s -> %s\n", grandChild, comp()->signature(), _methodSymbol->signature(trMemory()));
          }
       else
          {
@@ -6074,6 +6167,8 @@ TR_J9ByteCodeIlGenerator::loadArrayElement(TR::DataType dataType, TR::ILOpCodes 
       return;
       }
 
+   traceMsg(comp(), "In loadArrayElement\n");
+
    bool genSpineChecks = comp()->requiresSpineChecks();
 
    _suppressSpineChecks = false;
@@ -6830,6 +6925,36 @@ TR_J9ByteCodeIlGenerator::genNewArray(int32_t typeIndex)
    if (initNode)
       genTreeTop(initNode);
    push(node);
+
+  /**
+   * Check for the following:
+   *     1. 64 bit?
+   *     2. Internal Pointers enabled?
+   *     3. Number of changes under limit?
+   *     4. Have we imposed a limit (-99 indicates unlimited changes)
+   * if any of the above checks fail we can not use the dataAddr field
+   * in the array header, thus revert to original implementation (spineCHKs)
+   */
+   bool canCreateContiguousArrayView = true;
+   if (!comp()->target().is64Bit()
+      || comp()->getOption(TR_DisableInternalPointers) 
+      || (_arrayChanges > comp()->getOptions()->getZZArrayModificationCounter() 
+         && comp()->getOptions()->getZZArrayModificationCounter() != -99))
+      {
+      traceMsg(comp(), "\n** Not making any more modifications as _arrayChanges=%d\n", _arrayChanges);
+      canCreateContiguousArrayView = false;
+      }
+   /** 
+    * If we find the contiguous-array-view for this array, we 
+    * do not need to create a new one.
+    */
+   if (canCreateContiguousArrayView
+      && _memRegionMap.find(node) == _memRegionMap.end())
+      {
+      createContiguousArrayView(node);
+      _arrayChanges++;
+      }
+
    genFlush(0);
    }
 
@@ -6849,6 +6974,36 @@ TR_J9ByteCodeIlGenerator::genANewArray()
    _methodSymbol->setHasNews(true);
    genTreeTop(node);
    push(node);
+
+  /**
+   * Check for the following:
+   *     1. 64 bit?
+   *     2. Internal Pointers enabled?
+   *     3. Number of changes under limit?
+   *     4. Have we imposed a limit (-99 indicates unlimited changes)
+   * if any of the above checks fail we can not use the dataAddr field
+   * in the array header, thus revert to original implementation (spineCHKs)
+   */
+   bool canCreateContiguousArrayView = true;
+   if (!comp()->target().is64Bit()
+      || comp()->getOption(TR_DisableInternalPointers) 
+      || (_arrayChanges > comp()->getOptions()->getZZArrayModificationCounter() 
+         && comp()->getOptions()->getZZArrayModificationCounter() != -99))
+      {
+      traceMsg(comp(), "\n** Not making any more modifications as _arrayChanges=%d\n", _arrayChanges);
+      canCreateContiguousArrayView = false;
+      }
+   /** 
+    * If we find the contiguous-array-view for this array, we 
+    * do not need to create a new one.
+    */
+   if (canCreateContiguousArrayView
+      && _memRegionMap.find(node) == _memRegionMap.end())
+      {
+      createContiguousArrayView(node);
+      _arrayChanges++;
+      }
+
    genFlush(0);
    }
 
@@ -6876,6 +7031,35 @@ TR_J9ByteCodeIlGenerator::genMultiANewArray(int32_t dims)
 
    genTreeTop(node);
    push(node);
+
+  /**
+   * Check for the following:
+   *     1. 64 bit?
+   *     2. Internal Pointers enabled?
+   *     3. Number of changes under limit?
+   *     4. Have we imposed a limit (-99 indicates unlimited changes)
+   * if any of the above checks fail we can not use the dataAddr field
+   * in the array header, thus revert to original implementation (spineCHKs)
+   */
+   bool canCreateContiguousArrayView = true;
+   if (!comp()->target().is64Bit()
+      || comp()->getOption(TR_DisableInternalPointers) 
+      || (_arrayChanges > comp()->getOptions()->getZZArrayModificationCounter() 
+         && comp()->getOptions()->getZZArrayModificationCounter() != -99))
+      {
+      traceMsg(comp(), "\n** Not making any more modifications as _arrayChanges=%d\n", _arrayChanges);
+      canCreateContiguousArrayView = false;
+      }
+   /** 
+    * If we find the contiguous-array-view for this array, we 
+    * do not need to create a new one.
+    */
+   if (canCreateContiguousArrayView
+      && _memRegionMap.find(node) == _memRegionMap.end())
+      {
+      createContiguousArrayView(node);
+      _arrayChanges++;
+      }
    }
 
 //----------------------------------------------
@@ -7570,6 +7754,7 @@ TR_J9ByteCodeIlGenerator::storeArrayElement(TR::DataType dataType, TR::ILOpCodes
       {
       if (_stack->top()->getOpCode().isSpineCheck())
          {
+         traceMsg(comp(), "Walker: There was a spinecheck!");
          checkNode = pop();
          usedArrayBaseAddress = true;
          }

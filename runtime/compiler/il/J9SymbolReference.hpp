@@ -52,14 +52,14 @@ class OMR_EXTENSIBLE SymbolReference : public OMR::SymbolReferenceConnector
 public:
 
    SymbolReference(TR::SymbolReferenceTable * symRefTab) :
-      OMR::SymbolReferenceConnector(symRefTab) {}
+      OMR::SymbolReferenceConnector(symRefTab) { _reuse = true; }
 
    SymbolReference(TR::SymbolReferenceTable * symRefTab,
                    TR::Symbol * symbol,
                    intptr_t offset = 0) :
       OMR::SymbolReferenceConnector(symRefTab,
                                     symbol,
-                                    offset) {}
+                                    offset) { _reuse = true; }
 
    SymbolReference(TR::SymbolReferenceTable * symRefTab,
                    int32_t refNumber,
@@ -68,7 +68,7 @@ public:
       OMR::SymbolReferenceConnector(symRefTab,
                                     refNumber,
                                     ps,
-                                    offset) {}
+                                    offset) { _reuse = true; }
 
    SymbolReference(TR::SymbolReferenceTable *symRefTab,
                    TR::SymbolReferenceTable::CommonNonhelperSymbol number,
@@ -93,7 +93,7 @@ public:
       OMR::SymbolReferenceConnector(symRefTab,
                                     sr,
                                     offset,
-                                    knownObjectIndex) {}
+                                    knownObjectIndex) { _reuse = true; }
 
    uint32_t getCPIndexForVM();
 
@@ -111,6 +111,9 @@ public:
     */
    const char *getTypeSignature(int32_t & len, TR_AllocationKind = stackAlloc, bool *isFixed = NULL);
 
+   void setReuse(bool b);
+   bool canReuse();
+
 protected:
 
    SymbolReference(TR::SymbolReferenceTable * symRefTab,
@@ -120,10 +123,17 @@ protected:
       OMR::SymbolReferenceConnector(symRefTab,
                                     symbol,
                                     offset,
-                                    name) {}
+                                    name) { _reuse = true; }
+
+private:
+   /**
+    * We don't want contiguous-array-view internal pointer symbols
+    * to be reused. Other internal pointer symbols can be reused. 
+    * This variable tracks whether a symbol can or cannot be reused.
+    */
+   bool _reuse;
 
    };
-
 
 char * prependNumParensToSig(const char *, int32_t & len, int32_t,  TR_AllocationKind = stackAlloc);
 

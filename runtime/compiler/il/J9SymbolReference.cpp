@@ -69,10 +69,24 @@ SymbolReference::SymbolReference(
       }
 
    symRefTab->checkImmutable(self());
+   _reuse = true;
    }
 
 
 static char * dataTypeToSig[] = {0,"B","Z","C","S","I","J","F","D",0,0,0};
+
+/* Set a symbol as reusable or not */
+void
+SymbolReference::setReuse(bool b)
+  {
+  _reuse = b;
+  }
+
+bool
+SymbolReference::canReuse()
+  {
+  return _reuse;
+  }
 
 /**
  * This method is used when _cpIndex is to be used for resolution.
