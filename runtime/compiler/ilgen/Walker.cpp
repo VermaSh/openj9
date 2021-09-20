@@ -2268,40 +2268,47 @@ void
 TR_J9ByteCodeIlGenerator::createContiguousArrayView(TR::Node* arrayBase)
    {
 
-   traceMsg(comp(), "walker.cpp:createContiguousArrayView: entering method");
+   traceMsg(comp(), "walker.cpp:createContiguousArrayView: entering method.\n");
    /* Create the contiguous array view node  i.e., header + dataAddr field offset */
    TR::Node *dataAddrFieldOffset = TR::Node::create(TR::lconst, 0);
    // TR::Compiler->om.isDiscontiguousArray(comp,arrayBase->getAddress()); // for discontiguous arrays
    dataAddrFieldOffset->setConstValue(fej9()->getOffsetOfContiguousDataAddrField());
    TR::Node *dataAddrFieldAddress = TR::Node::create(TR::aladd, 2, arrayBase, dataAddrFieldOffset);
-   TR::Node *firstArrayElementAddress = TR::Node::create(TR::aload, 1, dataAddrFieldAddress);
 
    /* Mark node as an internal pointer */
-   firstArrayElementAddress->setIsInternalPointer(true);
+   TR::SymbolReference *firstdataElementSymRef = symRefTab()->createTemporary(_methodSymbol, TR::Address, true);
+   firstdataElementSymRef->setReuse(false);
+   // Or use createLoad(...) + addChildren(...)
+   TR::Node *firstArrayElementAddress = TR::Node::createWithSymRef(TR::aload, 1, dataAddrFieldAddress, 0, firstdataElementSymRef);
 
-   /* create symbol for the array object reference (header pointer) */
+   /* create a non reusable symbol for the array object reference (header pointer) */
    TR::SymbolReference *arrayBaseSymRef = symRefTab()->createTemporary(_methodSymbol, TR::Address);
-
-   /* Mark these as non reusable */
    arrayBaseSymRef->setReuse(false);
+
+   TR::AutomaticSymbol *internalPointer = firstdataElementSymRef->getSymbol()->castToInternalPointerAutoSymbol();
+   TR::AutomaticSymbol *pinningArrayPointer = arrayBaseSymRef->getSymbol()->castToAutoSymbol();
+   /* Set arrayBaseSymRef as pinning array pointer */
+   if (internalPointer->isInternalPointer())
+      {
+      internalPointer->setPinningArrayPointer(pinningArrayPointer->castToInternalPointerAutoSymbol());
+      }
+   else
+      {
+      printf("createContiguousArrayView(...): Internal pointer not set.\n");
+      }
+
+   TR_ASSERT_FATAL(internalPointer->getPinningArrayPointer() != NULL, "Pinning array pointer not found");
+   TR_ASSERT_FATAL(internalPointer->isInternalPointer(), "It is not an internal pointer");
 
    TR::Node *arrStore = TR::Node::createStore(arrayBaseSymRef, arrayBase);
    genTreeTop(arrStore);
 
-   /* Mark this symbol as a pinning array pointer */
-   firstArrayElementAddress->setPinningArrayPointer(arrayBaseSymRef->getSymbol()->castToAutoSymbol());
    genTreeTop(firstArrayElementAddress);
-
-   traceMsg(comp(), "firstArrayElementAddress->setPinningArrayPointer() == arrayBaseSymRef->getSymbol()->castToAutoSymbol(): %d\n", ret == arrayBaseSymRef->getSymbol()->castToAutoSymbol());
 
    /* cache the contiguous array view node for future use */
    _memRegionMap[arrayBase] = firstArrayElementAddress;
 
-   TR_ASSERT_FATAL(firstArrayElementAddress->getPinningArrayPointer() != NULL, "Pinning array pointer not found");
-   TR_ASSERT_FATAL(firstArrayElementAddress->isInternalPointer(), "It is not an internal pointer");
-
-   traceMsg(comp(), "walker.cpp:createContiguousArrayView: leaving method");
-
+   traceMsg(comp(), "walker.cpp:createContiguousArrayView: leaving method.\n");
    }
 #endif /* TR_TARGET_64BIT */
 
@@ -2429,17 +2436,14 @@ TR_J9ByteCodeIlGenerator::calculateArrayElementAddress(TR::DataType dataType, bo
             }
 
          TR::Node *firstArrayElementAddress = _memRegionMap[arrayBaseAddress];
-         TR_ASSERT_FATAL(firstArrayElementAddress->getPinningArrayPointer() != NULL, "Pinning array pointer not found");
-         TR_ASSERT_FATAL(firstArrayElementAddress->isInternalPointer(), "It is not an internal pointer");
-         if (firstArrayElementAddress->getPinningArrayPointer() != NULL)
-            traceMsg(comp(), "\n Pinning Array Pointer Found \n");
-         if (firstArrayElementAddress->isInternalPointer())
-            traceMsg(comp(), "\n It is an Internal Pointer \n");
+         TR::AutomaticSymbol *internalPointer = firstArrayElementAddress->getSymbol()->castToInternalPointerAutoSymbol();
+         TR_ASSERT_FATAL(internalPointer->getPinningArrayPointer() != NULL, "Pinning array pointer not found");
+         TR_ASSERT_FATAL(internalPointer->isInternalPointer(), "It is not an internal pointer");
 
          TR::Node * arrayElement = TR::Node::create(TR::aladd, 2, firstArrayElementAddress, index);
+         arrayElement->setIsInternalPointer(true);
+         arrayElement->setPinningArrayPointer(internalPointer->getPinningArrayPointer());
          _stack->push(arrayElement);
-         _stack->top()->setIsInternalPointer(true);
-         _stack->top()->setPinningArrayPointer(firstArrayElementAddress->getPinningArrayPointer());
 
          //if (comp()->getOption(TR_TraceILGen))
          //    printStack(comp(), _stack, "stack after myOwnAddition");
