@@ -2305,8 +2305,7 @@ TR_J9ByteCodeIlGenerator::createContiguousArrayView(TR::Node* arrayBase)
 
    genTreeTop(firstArrayElementAddress);
 
-   /* cache the contiguous array view node for future use */
-   _memRegionMap[arrayBase] = firstArrayElementAddress;
+   _stack->push(firstArrayElementAddress);
 
    traceMsg(comp(), "walker.cpp:createContiguousArrayView: leaving method.\n");
    }
@@ -2426,16 +2425,11 @@ TR_J9ByteCodeIlGenerator::calculateArrayElementAddress(TR::DataType dataType, bo
          TR::Node *index = _stack->pop();
          TR::Node *arrayBaseAddress = _stack->pop();
 
-         // Use contiguous-array-view from the cache. Create a contiguous-array-view
-         // if not found in the cache.
-         if (_memRegionMap.find(arrayBaseAddress) == _memRegionMap.end())
-            {
-            traceMsg(comp(), "Walker.cpp:calculateArrayElementAddress: contiguous-array-view was not found\n");
-            createContiguousArrayView(arrayBaseAddress);
-            _arrayChanges++;
-            }
+         traceMsg(comp(), "Walker.cpp:calculateArrayElementAddress: creating contiguous-array-view.\n");
+         createContiguousArrayView(arrayBaseAddress);
+         _arrayChanges++;
 
-         TR::Node *firstArrayElementAddress = _memRegionMap[arrayBaseAddress];
+         TR::Node *firstArrayElementAddress = _stack->pop();
          TR::AutomaticSymbol *internalPointer = firstArrayElementAddress->getSymbol()->castToInternalPointerAutoSymbol();
          TR_ASSERT_FATAL(internalPointer->getPinningArrayPointer() != NULL, "Pinning array pointer not found");
          TR_ASSERT_FATAL(internalPointer->isInternalPointer(), "It is not an internal pointer");
@@ -6942,37 +6936,6 @@ TR_J9ByteCodeIlGenerator::genNewArray(int32_t typeIndex)
    if (initNode)
       genTreeTop(initNode);
    push(node);
-
-#if defined(TR_TARGET_64BIT)
-  /**
-   * Check for the following:
-   *     1. 64 bit?
-   *     2. Internal Pointers enabled?
-   *     3. Number of changes under limit?
-   *     4. Have we imposed a limit (-99 indicates unlimited changes)
-   * if any of the above checks fail we can not use the dataAddr field
-   * in the array header, thus revert to original implementation (spineCHKs)
-   */
-   bool canCreateContiguousArrayView = true;
-   if (comp()->getOption(TR_DisableInternalPointers) 
-      || (_arrayChanges > comp()->getOptions()->getZZArrayModificationCounter() 
-         && comp()->getOptions()->getZZArrayModificationCounter() != -99))
-      {
-      traceMsg(comp(), "\n** Not making any more modifications as _arrayChanges=%d\n", _arrayChanges);
-      canCreateContiguousArrayView = false;
-      }
-   /** 
-    * If we find the contiguous-array-view for this array, we 
-    * do not need to create a new one.
-    */
-   if (canCreateContiguousArrayView
-      && _memRegionMap.find(node) == _memRegionMap.end())
-      {
-      createContiguousArrayView(node);
-      _arrayChanges++;
-      }
-#endif /* TR_TARGET_64BIT */
-
    genFlush(0);
    }
 
@@ -6992,37 +6955,6 @@ TR_J9ByteCodeIlGenerator::genANewArray()
    _methodSymbol->setHasNews(true);
    genTreeTop(node);
    push(node);
-
-#if defined(TR_TARGET_64BIT)
-  /**
-   * Check for the following:
-   *     1. 64 bit?
-   *     2. Internal Pointers enabled?
-   *     3. Number of changes under limit?
-   *     4. Have we imposed a limit (-99 indicates unlimited changes)
-   * if any of the above checks fail we can not use the dataAddr field
-   * in the array header, thus revert to original implementation (spineCHKs)
-   */
-   bool canCreateContiguousArrayView = true;
-   if (comp()->getOption(TR_DisableInternalPointers) 
-      || (_arrayChanges > comp()->getOptions()->getZZArrayModificationCounter() 
-         && comp()->getOptions()->getZZArrayModificationCounter() != -99))
-      {
-      traceMsg(comp(), "\n** Not making any more modifications as _arrayChanges=%d\n", _arrayChanges);
-      canCreateContiguousArrayView = false;
-      }
-   /** 
-    * If we find the contiguous-array-view for this array, we 
-    * do not need to create a new one.
-    */
-   if (canCreateContiguousArrayView
-      && _memRegionMap.find(node) == _memRegionMap.end())
-      {
-      createContiguousArrayView(node);
-      _arrayChanges++;
-      }
-#endif /* TR_TARGET_64BIT */
-
    genFlush(0);
    }
 
@@ -7050,36 +6982,6 @@ TR_J9ByteCodeIlGenerator::genMultiANewArray(int32_t dims)
 
    genTreeTop(node);
    push(node);
-
-#if defined(TR_TARGET_64BIT)
-  /**
-   * Check for the following:
-   *     1. 64 bit?
-   *     2. Internal Pointers enabled?
-   *     3. Number of changes under limit?
-   *     4. Have we imposed a limit (-99 indicates unlimited changes)
-   * if any of the above checks fail we can not use the dataAddr field
-   * in the array header, thus revert to original implementation (spineCHKs)
-   */
-   bool canCreateContiguousArrayView = true;
-   if (comp()->getOption(TR_DisableInternalPointers) 
-      || (_arrayChanges > comp()->getOptions()->getZZArrayModificationCounter() 
-         && comp()->getOptions()->getZZArrayModificationCounter() != -99))
-      {
-      traceMsg(comp(), "\n** Not making any more modifications as _arrayChanges=%d\n", _arrayChanges);
-      canCreateContiguousArrayView = false;
-      }
-   /** 
-    * If we find the contiguous-array-view for this array, we 
-    * do not need to create a new one.
-    */
-   if (canCreateContiguousArrayView
-      && _memRegionMap.find(node) == _memRegionMap.end())
-      {
-      createContiguousArrayView(node);
-      _arrayChanges++;
-      }
-#endif /* TR_TARGET_64BIT */
    }
 
 //----------------------------------------------
