@@ -2287,6 +2287,9 @@ TR_J9ByteCodeIlGenerator::createContiguousArrayView(TR::Node* arrayBase)
 
    TR::AutomaticSymbol *internalPointer = firstdataElementSymRef->getSymbol()->castToInternalPointerAutoSymbol();
    TR::AutomaticSymbol *pinningArrayPointer = arrayBaseSymRef->getSymbol()->castToAutoSymbol();
+
+   printf("\n\n-----------------------------------\n");
+   printf("createContiguousArrayView(...): arrStore->isInternalPointer(): %d\n", pinningArrayPointer->isInternalPointer());
    /* Set arrayBaseSymRef as pinning array pointer */
    if (internalPointer->isInternalPointer())
       {
@@ -2429,8 +2432,15 @@ TR_J9ByteCodeIlGenerator::calculateArrayElementAddress(TR::DataType dataType, bo
          createContiguousArrayView(arrayBaseAddress);
          _arrayChanges++;
 
+         printf("Entering dataAddr changes section in calculateArrayElementAddress(...)\n");
          TR::Node *firstArrayElementAddress = _stack->pop();
          TR::AutomaticSymbol *internalPointer = firstArrayElementAddress->getSymbol()->castToInternalPointerAutoSymbol();
+
+         printf("calculateArrayElementAddress(...): arrayBaseAddress node: %p\n", arrayBaseAddress);
+         printf("calculateArrayElementAddress(...): firstArrayElementAddress node: %p\n", firstArrayElementAddress);
+         printf("calculateArrayElementAddress(...): internalPointer->isInternalPointer(): %d\n", internalPointer->isInternalPointer());
+         printf("calculateArrayElementAddress(...): internalPointer->getPinningArrayPointer(): %p\n", internalPointer->getPinningArrayPointer());
+
          TR_ASSERT_FATAL(internalPointer->getPinningArrayPointer() != NULL, "Pinning array pointer not found");
          TR_ASSERT_FATAL(internalPointer->isInternalPointer(), "It is not an internal pointer");
 
@@ -2438,6 +2448,7 @@ TR_J9ByteCodeIlGenerator::calculateArrayElementAddress(TR::DataType dataType, bo
          arrayElement->setIsInternalPointer(true);
          arrayElement->setPinningArrayPointer(internalPointer->getPinningArrayPointer());
          _stack->push(arrayElement);
+         printf("Exiting calculateArrayElementAddress(...)\n");
 
          //if (comp()->getOption(TR_TraceILGen))
          //    printStack(comp(), _stack, "stack after myOwnAddition");
