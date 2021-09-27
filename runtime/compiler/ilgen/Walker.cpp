@@ -2278,7 +2278,6 @@ TR_J9ByteCodeIlGenerator::createContiguousArrayView(TR::Node* arrayBase)
    /* Mark node as an internal pointer */
    TR::SymbolReference *firstdataElementSymRef = symRefTab()->createTemporary(_methodSymbol, TR::Address, true);
    firstdataElementSymRef->setReuse(false);
-   // Or use createLoad(...) + addChildren(...)
    TR::Node *firstArrayElementAddress = TR::Node::createWithSymRef(TR::aload, 1, dataAddrFieldAddress, 0, firstdataElementSymRef);
 
    /* create a non reusable symbol for the array object reference (header pointer) */
@@ -2289,11 +2288,12 @@ TR_J9ByteCodeIlGenerator::createContiguousArrayView(TR::Node* arrayBase)
    TR::AutomaticSymbol *pinningArrayPointer = arrayBaseSymRef->getSymbol()->castToAutoSymbol();
 
    printf("\n\n-----------------------------------\n");
-   printf("createContiguousArrayView(...): arrStore->isInternalPointer(): %d\n", pinningArrayPointer->isInternalPointer());
+   printf("createContiguousArrayView(...): pinningArrayPointer->isInternalPointer(): %d\n", pinningArrayPointer->isInternalPointer());
    /* Set arrayBaseSymRef as pinning array pointer */
    if (internalPointer->isInternalPointer())
       {
       internalPointer->setPinningArrayPointer(pinningArrayPointer->castToInternalPointerAutoSymbol());
+      pinningArrayPointer->setPinningArrayPointer();
       }
    else
       {
@@ -2303,9 +2303,11 @@ TR_J9ByteCodeIlGenerator::createContiguousArrayView(TR::Node* arrayBase)
    TR_ASSERT_FATAL(internalPointer->getPinningArrayPointer() != NULL, "Pinning array pointer not found");
    TR_ASSERT_FATAL(internalPointer->isInternalPointer(), "It is not an internal pointer");
 
-   TR::Node *arrStore = TR::Node::createStore(arrayBaseSymRef, arrayBase);
-   genTreeTop(arrStore);
+   TR::Node *pinningArrayPointerStore = TR::Node::createStore(arrayBaseSymRef, arrayBase);
+   genTreeTop(pinningArrayPointerStore);
 
+   TR::Node *internalPointerStore = TR::Node::createStore(firstdataElementSymRef, dataAddrFieldAddress);
+   genTreeTop(internalPointerStore);
    genTreeTop(firstArrayElementAddress);
 
    _stack->push(firstArrayElementAddress);
