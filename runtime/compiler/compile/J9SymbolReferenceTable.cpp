@@ -1277,6 +1277,20 @@ J9::SymbolReferenceTable::findOrCreateHeaderFlagsSymbolRef()
 
 
 TR::SymbolReference *
+J9::SymbolReferenceTable::findOrCreateContiguousArrayDataAddrSymbolRef()
+   {
+   if (!element(contiguousArrayDataAddrSymbol))
+      {
+      TR::Symbol * sym;
+
+      sym = TR::Symbol::createShadow(trHeapMemory(), TR::Address);
+      element(contiguousArrayDataAddrSymbol) = new (trHeapMemory()) TR::SymbolReference(self(), contiguousArrayDataAddrSymbol, sym);
+      element(contiguousArrayDataAddrSymbol)->setOffset(fe()->getOffsetOfContiguousDataAddrField());
+      }
+   return element(contiguousArrayDataAddrSymbol);
+   }
+
+TR::SymbolReference *
 J9::SymbolReferenceTable::findOrCreateDiscontiguousArraySizeSymbolRef()
    {
    if (!element(discontiguousArraySizeSymbol))
