@@ -2278,7 +2278,7 @@ TR_J9ByteCodeIlGenerator::createContiguousArrayView(TR::Node* arrayBase)
    /* Mark node as an internal pointer */
    TR::SymbolReference *firstdataElementSymRef = symRefTab()->createTemporary(_methodSymbol, TR::Address, true);
    firstdataElementSymRef->setReuse(false);
-   TR::Node *firstArrayElementAddress = TR::Node::create(TR::iloadi, 1, dataAddrFieldAddress);
+   TR::Node *firstArrayElementAddress = TR::Node::create(TR::aloadi, 1, dataAddrFieldAddress);
 
    /* create a non reusable symbol for the array object reference (header pointer) */
    TR::SymbolReference *arrayBaseSymRef = symRefTab()->createTemporary(_methodSymbol, TR::Address);
@@ -2446,7 +2446,7 @@ TR_J9ByteCodeIlGenerator::calculateArrayElementAddress(TR::DataType dataType, bo
          TR_ASSERT_FATAL(internalPointer->isInternalPointer(), "It is not an internal pointer");
 
          TR::Node * arrayElement = TR::Node::create(TR::aladd, 2, firstArrayElementAddress, index);
-         arrayElement->setIsInternalPointer(true);
+         arrayElement->setIsInternalPointer(true); // TODO: Do we need to mark the node not resuable?
          arrayElement->setPinningArrayPointer(internalPointer->getPinningArrayPointer());
          _stack->push(arrayElement);
          printf("Exiting calculateArrayElementAddress(...)\n");
