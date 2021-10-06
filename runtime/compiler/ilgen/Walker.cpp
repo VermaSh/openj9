@@ -2278,7 +2278,7 @@ TR_J9ByteCodeIlGenerator::createContiguousArrayView(TR::Node* arrayBase)
    /* Mark node as an internal pointer */
    TR::SymbolReference *firstdataElementSymRef = symRefTab()->createTemporary(_methodSymbol, TR::Address, true);
    firstdataElementSymRef->setReuse(false);
-   TR::Node *firstArrayElementAddress = TR::Node::createWithSymRef(TR::aload, 1, dataAddrFieldAddress, 0, firstdataElementSymRef);
+   TR::Node *firstArrayElementAddress = TR::Node::create(TR::iloadi, 1, dataAddrFieldAddress);
 
    /* create a non reusable symbol for the array object reference (header pointer) */
    TR::SymbolReference *arrayBaseSymRef = symRefTab()->createTemporary(_methodSymbol, TR::Address);
@@ -2306,11 +2306,10 @@ TR_J9ByteCodeIlGenerator::createContiguousArrayView(TR::Node* arrayBase)
    TR::Node *pinningArrayPointerStore = TR::Node::createStore(arrayBaseSymRef, arrayBase);
    genTreeTop(pinningArrayPointerStore);
 
-   TR::Node *internalPointerStore = TR::Node::createStore(firstdataElementSymRef, dataAddrFieldAddress);
+   TR::Node *internalPointerStore = TR::Node::createStore(firstdataElementSymRef, firstArrayElementAddress);
    genTreeTop(internalPointerStore);
-   genTreeTop(firstArrayElementAddress);
 
-   _stack->push(firstArrayElementAddress);
+   _stack->push(internalPointerStore);
 
    traceMsg(comp(), "walker.cpp:createContiguousArrayView: leaving method.\n");
    }
