@@ -2435,17 +2435,6 @@ TR_J9ByteCodeIlGenerator::calculateArrayElementAddress(TR::DataType dataType, bo
 
          printf("Entering dataAddr changes section in calculateArrayElementAddress(...)\n");
          TR::Node *firstArrayElementAddress = _stack->pop();
-
-         // Revert the stack to what it was prior to generating contiguous array view
-         _stack->push(arrayBaseAddress);
-         _stack->push(index);
-
-         int32_t arrayHeaderSize = TR::Compiler->om.contiguousArrayHeaderSizeInBytes();
-         calculateElementAddressInContiguousArray(width, arrayHeaderSize);
-         // Wouldn't this fail too if internal pointers are disabled??
-         _stack->top()->setIsInternalPointer(true);
-
-/*
          TR::AutomaticSymbol *internalPointer = firstArrayElementAddress->getSymbol()->castToInternalPointerAutoSymbol();
 
          printf("calculateArrayElementAddress(...): arrayBaseAddress node: %p\n", arrayBaseAddress);
@@ -2465,7 +2454,6 @@ TR_J9ByteCodeIlGenerator::calculateArrayElementAddress(TR::DataType dataType, bo
          //if (comp()->getOption(TR_TraceILGen))
          //    printStack(comp(), _stack, "stack after myOwnAddition");
          traceMsg(comp(), "\n ============================================================\n");
-*/
          }
 #endif /* TR_TARGET_64BIT */
       }
