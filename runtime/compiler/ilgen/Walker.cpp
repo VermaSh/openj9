@@ -2267,49 +2267,47 @@ TR_J9ByteCodeIlGenerator::calculateIndexFromOffsetInContiguousArray(int32_t widt
 void
 TR_J9ByteCodeIlGenerator::createContiguousArrayView(TR::Node* arrayBase)
    {
-
+   // Trees:
+   // astore <internal pointer>
+   //   aloadi <generic int shadow pointer +8>
+   //     ==> arrayBase
+   // iload
+   //   ==> astore
    traceMsg(comp(), "walker.cpp:createContiguousArrayView: entering method.\n");
-   /* Create the contiguous array view node  i.e., header + dataAddr field offset */
-   TR::Node *dataAddrFieldOffset = TR::Node::create(TR::lconst, 0);
-   // TR::Compiler->om.isDiscontiguousArray(comp,arrayBase->getAddress()); // for discontiguous arrays
-   dataAddrFieldOffset->setConstValue(fej9()->getOffsetOfContiguousDataAddrField());
-   TR::Node *dataAddrFieldAddress = TR::Node::create(TR::aladd, 2, arrayBase, dataAddrFieldOffset);
+   /* Create the contiguous array view node */
+   TR::SymbolReference *dataAddrFieldOffset = symRefTab()->findOrCreateGenericIntShadowSymbolReference(fej9()->getOffsetOfContiguousDataAddrField());
+   TR::Node *firstArrayElementAddress = TR::Node::createWithSymRef(TR::aloadi, 1, arrayBase, 0, dataAddrFieldOffset);
 
-   /* Mark node as an internal pointer */
    TR::SymbolReference *firstdataElementSymRef = symRefTab()->createTemporary(_methodSymbol, TR::Address, true);
    firstdataElementSymRef->setReuse(false);
-   TR::Node *firstArrayElementAddress = TR::Node::create(TR::aloadi, 1, dataAddrFieldAddress);
+   TR::Node *internalPointerStore = TR::Node::createStore(firstdataElementSymRef, firstArrayElementAddress);
 
    /* create a non reusable symbol for the array object reference (header pointer) */
    TR::SymbolReference *arrayBaseSymRef = symRefTab()->createTemporary(_methodSymbol, TR::Address);
    arrayBaseSymRef->setReuse(false);
+   TR::Node *pinningArrayPointerStore = TR::Node::createStore(arrayBaseSymRef, arrayBase);
 
-   TR::AutomaticSymbol *internalPointer = firstdataElementSymRef->getSymbol()->castToInternalPointerAutoSymbol();
    TR::AutomaticSymbol *pinningArrayPointer = arrayBaseSymRef->getSymbol()->castToAutoSymbol();
+   TR::AutomaticSymbol *internalPointer = firstdataElementSymRef->getSymbol()->castToInternalPointerAutoSymbol();
 
    printf("\n\n-----------------------------------\n");
    printf("createContiguousArrayView(...): pinningArrayPointer->isInternalPointer(): %d\n", pinningArrayPointer->isInternalPointer());
-   /* Set arrayBaseSymRef as pinning array pointer */
-   if (internalPointer->isInternalPointer())
+   if (internalPointer->isInternalPointer()) // TODO: do we need this check?
       {
       internalPointer->setPinningArrayPointer(pinningArrayPointer->castToInternalPointerAutoSymbol());
       pinningArrayPointer->setPinningArrayPointer();
-      }
-   else
-      {
-      printf("createContiguousArrayView(...): Internal pointer not set.\n");
       }
 
    TR_ASSERT_FATAL(internalPointer->getPinningArrayPointer() != NULL, "Pinning array pointer not found");
    TR_ASSERT_FATAL(internalPointer->isInternalPointer(), "It is not an internal pointer");
 
-   TR::Node *pinningArrayPointerStore = TR::Node::createStore(arrayBaseSymRef, arrayBase);
-   genTreeTop(pinningArrayPointerStore);
+   TR::Node *firstArrayElementAddressld = TR::Node::createWithSymRef(TR::aload, 0, firstdataElementSymRef);
 
-   TR::Node *internalPointerStore = TR::Node::createStore(firstdataElementSymRef, firstArrayElementAddress);
    genTreeTop(internalPointerStore);
+   genTreeTop(pinningArrayPointerStore);
+   genTreeTop(firstArrayElementAddressld);
 
-   _stack->push(internalPointerStore);
+   _stack->push(firstArrayElementAddressld);
 
    traceMsg(comp(), "walker.cpp:createContiguousArrayView: leaving method.\n");
    }
