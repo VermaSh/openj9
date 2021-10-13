@@ -2213,6 +2213,32 @@ TR_J9ByteCodeIlGenerator::calculateElementAddressInContiguousArray(int32_t width
       }
    }
 
+#if defined(TR_TARGET_64BIT)
+void
+TR_J9ByteCodeIlGenerator::calculateElementAddressInContiguousArray(int32_t width)
+   {
+   traceMsg(comp(), "In calculateElementAddressInContiguousArray(int32_t)\n");
+   const bool isForArrayAccess = true;
+   int32_t shift = TR::TransformUtil::convertWidthToShift(width);
+
+   // we must enter with stack = ...arraybase,index,firstArrayElement<===
+   swap();
+   // stack is now ...firstArrayElement,index<===
+   genUnary(TR::i2l, isForArrayAccess);
+
+   if (shift)
+      {
+      traceMsg(comp(), "shift > 0 (i.e., is true)\n");
+      loadConstant(TR::iconst, shift);
+      // stack is now ...firstArrayElement,index,shift<===
+      genBinary(TR::lshl);
+      }
+
+   // stack is now ...firstArrayElement,shift/index<===
+   genBinary(TR::aladd);
+   }
+#endif /* TR_TARGET_64BIT */
+
 // Helper to calculate the index of the array element in a contiguous array
 // Stack: ..., offset for array element index
 // width is the width of each array element in bytes
@@ -2265,7 +2291,7 @@ TR_J9ByteCodeIlGenerator::calculateIndexFromOffsetInContiguousArray(int32_t widt
  * parameter: arrayBase -> Node referencing the array object (array header)
  */
 void
-TR_J9ByteCodeIlGenerator::createContiguousArrayView(TR::Node* arrayBase)
+TR_J9ByteCodeIlGenerator::createContiguousArrayView()
    {
    // Trees:
    // astore <internal pointer>
@@ -2273,16 +2299,22 @@ TR_J9ByteCodeIlGenerator::createContiguousArrayView(TR::Node* arrayBase)
    //     ==> arrayBase
    // iload
    //   ==> astore
+   TR::Node* index = pop();
+   TR::Node* arrayBase = pop();
+   push(arrayBase);
+   push(index);
+
    traceMsg(comp(), "walker.cpp:createContiguousArrayView: entering method.\n");
-   /* Create the contiguous array view node */
+   // Load address of first array element from dataAddr field
    TR::SymbolReference *dataAddrFieldOffset = symRefTab()->findOrCreateGenericIntShadowSymbolReference(fej9()->getOffsetOfContiguousDataAddrField());
    TR::Node *firstArrayElementAddress = TR::Node::createWithSymRef(TR::aloadi, 1, arrayBase, 0, dataAddrFieldOffset);
 
+   // Store the first array element address into an internal pointer
    TR::SymbolReference *firstdataElementSymRef = symRefTab()->createTemporary(_methodSymbol, TR::Address, true);
    firstdataElementSymRef->setReuse(false);
    TR::Node *internalPointerStore = TR::Node::createStore(firstdataElementSymRef, firstArrayElementAddress);
 
-   /* create a non reusable symbol for the array object reference (header pointer) */
+   // Create a store for pinning array pointer
    TR::SymbolReference *arrayBaseSymRef = symRefTab()->createTemporary(_methodSymbol, TR::Address);
    arrayBaseSymRef->setReuse(false);
    TR::Node *pinningArrayPointerStore = TR::Node::createStore(arrayBaseSymRef, arrayBase);
@@ -2292,6 +2324,7 @@ TR_J9ByteCodeIlGenerator::createContiguousArrayView(TR::Node* arrayBase)
 
    printf("\n\n-----------------------------------\n");
    printf("createContiguousArrayView(...): pinningArrayPointer->isInternalPointer(): %d\n", pinningArrayPointer->isInternalPointer());
+   // Set pinning array pointer
    if (internalPointer->isInternalPointer()) // TODO: do we need this check?
       {
       internalPointer->setPinningArrayPointer(pinningArrayPointer->castToInternalPointerAutoSymbol());
@@ -2301,13 +2334,15 @@ TR_J9ByteCodeIlGenerator::createContiguousArrayView(TR::Node* arrayBase)
    TR_ASSERT_FATAL(internalPointer->getPinningArrayPointer() != NULL, "Pinning array pointer not found");
    TR_ASSERT_FATAL(internalPointer->isInternalPointer(), "It is not an internal pointer");
 
+   // Load first array element address from the internal pointer
    TR::Node *firstArrayElementAddressld = TR::Node::createWithSymRef(TR::aload, 0, firstdataElementSymRef);
 
    genTreeTop(internalPointerStore);
    genTreeTop(pinningArrayPointerStore);
    genTreeTop(firstArrayElementAddressld);
 
-   _stack->push(firstArrayElementAddressld);
+   push(firstArrayElementAddressld);
+   // Stack is now ...,aryRef,index,firstArrayElementAddressld<===
 
    traceMsg(comp(), "walker.cpp:createContiguousArrayView: leaving method.\n");
    }
@@ -2424,33 +2459,19 @@ TR_J9ByteCodeIlGenerator::calculateArrayElementAddress(TR::DataType dataType, bo
 #if defined(TR_TARGET_64BIT)
       else
          {
-         TR::Node *index = _stack->pop();
-         TR::Node *arrayBaseAddress = _stack->pop();
-
-         traceMsg(comp(), "Walker.cpp:calculateArrayElementAddress: creating contiguous-array-view.\n");
-         createContiguousArrayView(arrayBaseAddress);
-         _arrayChanges++;
-
          printf("Entering dataAddr changes section in calculateArrayElementAddress(...)\n");
-         TR::Node *firstArrayElementAddress = _stack->pop();
-         TR::AutomaticSymbol *internalPointer = firstArrayElementAddress->getSymbol()->castToInternalPointerAutoSymbol();
+         traceMsg(comp(), "Walker.cpp:calculateArrayElementAddress: creating contiguous-array-view.\n");
 
-         printf("calculateArrayElementAddress(...): arrayBaseAddress node: %p\n", arrayBaseAddress);
-         printf("calculateArrayElementAddress(...): firstArrayElementAddress node: %p\n", firstArrayElementAddress);
-         printf("calculateArrayElementAddress(...): internalPointer->isInternalPointer(): %d\n", internalPointer->isInternalPointer());
-         printf("calculateArrayElementAddress(...): internalPointer->getPinningArrayPointer(): %p\n", internalPointer->getPinningArrayPointer());
+         // needs array base address to be on top
+         createContiguousArrayView();
+         _arrayChanges++;
+         // expects stack to be ..., arraybase, index, first array element <===
+         calculateElementAddressInContiguousArray(width);
+         // stack is now ...arraybase,desired array element <===
+         _arrayChanges++;
+         _stack->top()->setIsInternalPointer(true);
 
-         TR_ASSERT_FATAL(internalPointer->getPinningArrayPointer() != NULL, "Pinning array pointer not found");
-         TR_ASSERT_FATAL(internalPointer->isInternalPointer(), "It is not an internal pointer");
-
-         TR::Node * arrayElement = TR::Node::create(TR::aladd, 2, firstArrayElementAddress, index);
-         arrayElement->setIsInternalPointer(true); // TODO: Do we need to mark the node not resuable?
-         arrayElement->setPinningArrayPointer(internalPointer->getPinningArrayPointer());
-         _stack->push(arrayElement);
          printf("Exiting calculateArrayElementAddress(...)\n");
-
-         //if (comp()->getOption(TR_TraceILGen))
-         //    printStack(comp(), _stack, "stack after myOwnAddition");
          traceMsg(comp(), "\n ============================================================\n");
          }
 #endif /* TR_TARGET_64BIT */
