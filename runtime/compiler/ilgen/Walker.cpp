@@ -2436,6 +2436,7 @@ TR_J9ByteCodeIlGenerator::calculateArrayElementAddress(TR::DataType dataType, bo
       }
    else
       {
+      static bool dontUseDataAddrField = (feGetEnv("TR_DontUseDataAddrField") != NULL);
      /**
       * Check for the following:
       *     1. 64 bit?
@@ -2445,7 +2446,8 @@ TR_J9ByteCodeIlGenerator::calculateArrayElementAddress(TR::DataType dataType, bo
       * if any of the above checks fail we can not use the dataAddr field
       * in the array header, thus revert to original implementation (spineCHKs)
       */
-      if (comp()->getOption(TR_DisableInternalPointers)
+      if (dontUseDataAddrField
+         && comp()->getOption(TR_DisableInternalPointers)
          || (_arrayChanges > comp()->getOptions()->getZZArrayModificationCounter()
             && comp()->getOptions()->getZZArrayModificationCounter() != -99))
          {
