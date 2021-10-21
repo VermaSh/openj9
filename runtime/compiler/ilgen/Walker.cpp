@@ -2472,6 +2472,9 @@ TR_J9ByteCodeIlGenerator::calculateArrayElementAddress(TR::DataType dataType, bo
          // stack is now ...arraybase,desired array element <===
          _arrayChanges++;
          _stack->top()->setIsInternalPointer(true);
+         swap();
+         pop();
+         // stack is now ...,firstArrayElement+index/shift<===
 
          printf("Exiting calculateArrayElementAddress(...)\n");
          traceMsg(comp(), "\n ============================================================\n");
