@@ -2169,15 +2169,17 @@ TR_J9ByteCodeIlGenerator::calculateElementAddressInContiguousArray(int32_t width
       // generate a TR::aladd instead if required
       if (comp()->target().is64Bit())
          {
-         // stack is now ...index,shift<===
+         // stack is now ...aryRef,index,shift<===
          TR::Node *second = pop();
          genUnary(TR::i2l, isForArrayAccess);
          push(second);
          genBinary(TR::lshl);
+         // stack is now ...aryRef,index+shift<===
          }
       else
          genBinary(TR::ishl);
       }
+   // stack is now ...aryRef,index+shift<===
    if (comp()->target().is64Bit())
       {
       if (headerSize > 0)
@@ -2186,21 +2188,23 @@ TR_J9ByteCodeIlGenerator::calculateElementAddressInContiguousArray(int32_t width
          loadConstant(TR::lconst, (int64_t)headerSize);
          // shift could have been null here (if no scaling is done for the index
          // ...so check for that and introduce an i2l if required for the aladd
-         // stack now is ....index,loadConst<===
+         // stack now is ....aryRef,index,loadConst<===
          if (!shift)
             {
             TR::Node *second = pop();
             genUnary(TR::i2l, isForArrayAccess);
             push(second);
             }
+         // stack now is ....aryRef,index,loadConst<===
          genBinary(TR::ladd);
+         // stack now is ....aryRef,index+loadConst<===
          }
       else if ((headerSize == 0) && (!shift))
          {
          genUnary(TR::i2l, isForArrayAccess);
          }
-
       genBinary(TR::aladd);
+      // stack now is ....aryRef+index+loadConst<===
       }
    else
       {
@@ -2221,20 +2225,19 @@ TR_J9ByteCodeIlGenerator::calculateElementAddressInContiguousArray(int32_t width
    const bool isForArrayAccess = true;
    int32_t shift = TR::TransformUtil::convertWidthToShift(width);
 
-   // we must enter with stack = ...arraybase,index,firstArrayElement<===
+   // stack is now ...,index,firstArrayElement<===
    swap();
-   // stack is now ...firstArrayElement,index<===
    genUnary(TR::i2l, isForArrayAccess);
 
    if (shift)
       {
       traceMsg(comp(), "shift > 0 (i.e., is true)\n");
       loadConstant(TR::iconst, shift);
-      // stack is now ...firstArrayElement,index,shift<===
+      // stack is now ...,aryRef,firstArrayElement,index,shift<===
       genBinary(TR::lshl);
       }
 
-   // stack is now ...firstArrayElement,shift/index<===
+   // stack is now ...,firstArrayElement,shift/index<===
    genBinary(TR::aladd);
    }
 #endif /* TR_TARGET_64BIT */
@@ -2299,10 +2302,9 @@ TR_J9ByteCodeIlGenerator::createContiguousArrayView()
    //     ==> arrayBase
    // iload
    //   ==> astore
-   TR::Node* index = pop();
+
+   // Stack is now ...,index,aryRef<===
    TR::Node* arrayBase = pop();
-   push(arrayBase);
-   push(index);
 
    traceMsg(comp(), "walker.cpp:createContiguousArrayView: entering method.\n");
    // Load address of first array element from dataAddr field
@@ -2340,7 +2342,7 @@ TR_J9ByteCodeIlGenerator::createContiguousArrayView()
    genTreeTop(firstArrayElementAddressld);
 
    push(firstArrayElementAddressld);
-   // Stack is now ...,aryRef,index,firstArrayElementAddressld<===
+   // Stack is now ...,index,firstArrayElementAddressld<===
 
    traceMsg(comp(), "walker.cpp:createContiguousArrayView: leaving method.\n");
    }
@@ -2461,17 +2463,16 @@ TR_J9ByteCodeIlGenerator::calculateArrayElementAddress(TR::DataType dataType, bo
          {
          traceMsg(comp(), "Walker.cpp:calculateArrayElementAddress: creating contiguous-array-view.\n");
 
+         // Stack is now ...,aryRef,index<===
+         swap();
          // needs array base address to be on top
          createContiguousArrayView();
          _arrayChanges++;
-         // expects stack to be ..., arraybase, index, first array element <===
+         // stack is now ...,index,firstArrayElement<===
          calculateElementAddressInContiguousArray(width);
-         // stack is now ...arraybase,desired array element <===
+         // stack is now ...,firstArrayElement+index/shift<===
          _arrayChanges++;
          _stack->top()->setIsInternalPointer(true);
-         swap();
-         pop();
-         // stack is now ...,firstArrayElement+index/shift<===
 
          traceMsg(comp(), "\n ============================================================\n");
          }
@@ -7647,6 +7648,7 @@ TR_J9ByteCodeIlGenerator::storeAuto(TR::DataType type, int32_t slot, bool isAdju
 void
 TR_J9ByteCodeIlGenerator::storeArrayElement(TR::DataType dataType, TR::ILOpCodes nodeop, bool checks)
    {
+   traceMsg(comp(), "In storeArrayElement\n");
    TR::Node * value = pop();
 
    handlePendingPushSaveSideEffects(value);
@@ -7682,6 +7684,8 @@ TR_J9ByteCodeIlGenerator::storeArrayElement(TR::DataType dataType, TR::ILOpCodes
 
    calculateArrayElementAddress(dataType, true);
 
+   // TODO: The node variable names don't look right. arrayBaseAddress is actually
+   //       the second item on the stack.
    TR::Node * arrayBaseAddress = pop();
    bool usedArrayBaseAddress = false;
    TR::Node * elementAddress = pop();
