@@ -2322,8 +2322,6 @@ TR_J9ByteCodeIlGenerator::createContiguousArrayView()
    TR::AutomaticSymbol *pinningArrayPointer = arrayBaseSymRef->getSymbol()->castToAutoSymbol();
    TR::AutomaticSymbol *internalPointer = firstdataElementSymRef->getSymbol()->castToInternalPointerAutoSymbol();
 
-   printf("\n\n-----------------------------------\n");
-   printf("createContiguousArrayView(...): pinningArrayPointer->isInternalPointer(): %d\n", pinningArrayPointer->isInternalPointer());
    // Set pinning array pointer
    if (internalPointer->isInternalPointer()) // TODO: do we need this check?
       {
@@ -2461,7 +2459,6 @@ TR_J9ByteCodeIlGenerator::calculateArrayElementAddress(TR::DataType dataType, bo
 #if defined(TR_TARGET_64BIT)
       else
          {
-         printf("Entering dataAddr changes section in calculateArrayElementAddress(...)\n");
          traceMsg(comp(), "Walker.cpp:calculateArrayElementAddress: creating contiguous-array-view.\n");
 
          // needs array base address to be on top
@@ -2476,7 +2473,6 @@ TR_J9ByteCodeIlGenerator::calculateArrayElementAddress(TR::DataType dataType, bo
          pop();
          // stack is now ...,firstArrayElement+index/shift<===
 
-         printf("Exiting calculateArrayElementAddress(...)\n");
          traceMsg(comp(), "\n ============================================================\n");
          }
 #endif /* TR_TARGET_64BIT */
