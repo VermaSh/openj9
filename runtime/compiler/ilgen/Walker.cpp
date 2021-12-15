@@ -2312,33 +2312,33 @@ TR_J9ByteCodeIlGenerator::createContiguousArrayView()
    TR::Node *firstArrayElementAddress = TR::Node::createWithSymRef(TR::aloadi, 1, arrayBase, 0, dataAddrFieldOffset);
 
    // Store the first array element address into an internal pointer
-   TR::SymbolReference *firstdataElementSymRef = symRefTab()->createTemporary(_methodSymbol, TR::Address, true);
-   firstdataElementSymRef->setReuse(false);
+   TR::SymbolReference *firstdataElementSymRef = symRefTab()->createTemporary(_methodSymbol, TR::Address); // true);
+   // firstdataElementSymRef->setReuse(false); // We can reuse these sym refs as they are no longer internal pointers
    TR::Node *internalPointerStore = TR::Node::createStore(firstdataElementSymRef, firstArrayElementAddress);
 
    // Create a store for pinning array pointer
    TR::SymbolReference *arrayBaseSymRef = symRefTab()->createTemporary(_methodSymbol, TR::Address);
-   arrayBaseSymRef->setReuse(false);
-   TR::Node *pinningArrayPointerStore = TR::Node::createStore(arrayBaseSymRef, arrayBase);
+   // arrayBaseSymRef->setReuse(false); // We can reuse these sym refs as they are no longer internal pointers
+   // TR::Node *pinningArrayPointerStore = TR::Node::createStore(arrayBaseSymRef, arrayBase);
 
-   TR::AutomaticSymbol *pinningArrayPointer = arrayBaseSymRef->getSymbol()->castToAutoSymbol();
-   TR::AutomaticSymbol *internalPointer = firstdataElementSymRef->getSymbol()->castToInternalPointerAutoSymbol();
+   // TR::AutomaticSymbol *pinningArrayPointer = arrayBaseSymRef->getSymbol()->castToAutoSymbol();
+   // TR::AutomaticSymbol *internalPointer = firstdataElementSymRef->getSymbol()->castToInternalPointerAutoSymbol();
 
    // Set pinning array pointer
-   if (internalPointer->isInternalPointer()) // TODO: do we need this check?
-      {
-      internalPointer->setPinningArrayPointer(pinningArrayPointer->castToInternalPointerAutoSymbol());
-      pinningArrayPointer->setPinningArrayPointer();
-      }
+   // if (internalPointer->isInternalPointer()) // TODO: do we need this check?
+   //    {
+   //    internalPointer->setPinningArrayPointer(pinningArrayPointer->castToInternalPointerAutoSymbol());
+   //    pinningArrayPointer->setPinningArrayPointer();
+   //    }
 
-   TR_ASSERT_FATAL(internalPointer->getPinningArrayPointer() != NULL, "Pinning array pointer not found");
-   TR_ASSERT_FATAL(internalPointer->isInternalPointer(), "It is not an internal pointer");
+   // TR_ASSERT_FATAL(internalPointer->getPinningArrayPointer() != NULL, "Pinning array pointer not found");
+   // TR_ASSERT_FATAL(internalPointer->isInternalPointer(), "It is not an internal pointer");
 
    // Load first array element address from the internal pointer
    TR::Node *firstArrayElementAddressld = TR::Node::createWithSymRef(TR::aload, 0, firstdataElementSymRef);
 
    genTreeTop(internalPointerStore);
-   genTreeTop(pinningArrayPointerStore);
+   // genTreeTop(pinningArrayPointerStore);
    genTreeTop(firstArrayElementAddressld);
 
    push(firstArrayElementAddressld);
