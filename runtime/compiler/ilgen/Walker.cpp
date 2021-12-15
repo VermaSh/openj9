@@ -2437,17 +2437,17 @@ TR_J9ByteCodeIlGenerator::calculateArrayElementAddress(TR::DataType dataType, bo
    else
       {
       static bool dontUseDataAddrField = (feGetEnv("TR_DontUseDataAddrField") != NULL);
-     /**
-      * Check for the following:
-      *     1. 64 bit?
-      *     2. Internal Pointers enabled?
-      *     3. Number of changes under limit?
-      *     4. Have we imposed a limit (-99 indicates unlimited changes)
-      * if any of the above checks fail we can not use the dataAddr field
-      * in the array header, thus revert to original implementation (spineCHKs)
-      */
-      if (dontUseDataAddrField
-         && comp()->getOption(TR_DisableInternalPointers)
+      /**
+       * Check for the following:
+       *     1. 64 bit?
+       *     2. Internal Pointers enabled?
+       *     3. Number of changes under limit?
+       *     4. Have we imposed a limit (-99 indicates unlimited changes)
+       * if any of the above checks fail we can not use the dataAddr field
+       * in the array header, thus revert to original implementation (spineCHKs)
+       */
+      if ((dontUseDataAddrField
+            && comp()->getOption(TR_DisableInternalPointers))
          || (_arrayChanges > comp()->getOptions()->getZZArrayModificationCounter()
             && comp()->getOptions()->getZZArrayModificationCounter() != -99))
          {
@@ -2455,8 +2455,6 @@ TR_J9ByteCodeIlGenerator::calculateArrayElementAddress(TR::DataType dataType, bo
 
          int32_t arrayHeaderSize = TR::Compiler->om.contiguousArrayHeaderSizeInBytes();
          calculateElementAddressInContiguousArray(width, arrayHeaderSize);
-         // Wouldn't this fail too if internal pointers are disabled??
-         _stack->top()->setIsInternalPointer(true);
          }
 #if defined(TR_TARGET_64BIT)
       else
@@ -2467,16 +2465,16 @@ TR_J9ByteCodeIlGenerator::calculateArrayElementAddress(TR::DataType dataType, bo
          swap();
          // needs array base address to be on top
          createContiguousArrayView();
-         _arrayChanges++;
          // stack is now ...,index,firstArrayElement<===
          calculateElementAddressInContiguousArray(width);
          // stack is now ...,firstArrayElement+index/shift<===
          _arrayChanges++;
-         _stack->top()->setIsInternalPointer(true);
 
          traceMsg(comp(), "\n ============================================================\n");
          }
 #endif /* TR_TARGET_64BIT */
+
+      _stack->top()->setIsInternalPointer(true);
       }
 
    push(nodeThatWasNullChecked);
