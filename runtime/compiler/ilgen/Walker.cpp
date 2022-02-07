@@ -2317,7 +2317,7 @@ TR_J9ByteCodeIlGenerator::createContiguousArrayView()
    TR::Node *internalPointerStore = TR::Node::createStore(firstdataElementSymRef, firstArrayElementAddress);
 
    // Create a store for pinning array pointer
-   TR::SymbolReference *arrayBaseSymRef = symRefTab()->createTemporary(_methodSymbol, TR::Address);
+   // TR::SymbolReference *arrayBaseSymRef = symRefTab()->createTemporary(_methodSymbol, TR::Address);
    // arrayBaseSymRef->setReuse(false); // We can reuse these sym refs as they are no longer internal pointers
    // TR::Node *pinningArrayPointerStore = TR::Node::createStore(arrayBaseSymRef, arrayBase);
 
