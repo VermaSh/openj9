@@ -8006,12 +8006,8 @@ J9::X86::TreeEvaluator::VMnewEvaluator(
                "But was %d bytes for discontigous and %d bytes for contiguous array.\n",
                fej9->getOffsetOfDiscontiguousDataAddrField(), fej9->getOffsetOfContiguousDataAddrField());
 
-         discontiguousDataAddrOffsetReg = cg->allocateRegister();
-         generateRegRegInstruction(TR::InstOpCode::XORRegReg(), node, discontiguousDataAddrOffsetReg, discontiguousDataAddrOffsetReg, cg);
-         generateRegImmInstruction(TR::InstOpCode::CMPRegImm4(), node, sizeReg, 1, cg);
-         generateRegImmInstruction(TR::InstOpCode::ADCRegImm4(), node, discontiguousDataAddrOffsetReg, 0, cg);
-         dataAddrMR = generateX86MemoryReference(targetReg, discontiguousDataAddrOffsetReg, 3, TR::Compiler->om.contiguousArrayHeaderSizeInBytes(), cg);
-         dataAddrSlotMR = generateX86MemoryReference(targetReg, discontiguousDataAddrOffsetReg, 3, fej9->getOffsetOfContiguousDataAddrField(), cg);
+         TR::MemoryReference *sizeSlotMR = generateX86MemoryReference(targetReg, fej9->getOffsetOfContiguousArraySizeField(), cg);
+         generateMemRegInstruction(TR::InstOpCode::SMemReg(), node, sizeSlotMR, sizeReg, cg);
          }
       else if (NULL == sizeReg && node->getFirstChild()->getOpCode().isLoadConst() && node->getFirstChild()->getInt() == 0)
          {
@@ -8020,6 +8016,10 @@ J9::X86::TreeEvaluator::VMnewEvaluator(
 
          dataAddrMR = generateX86MemoryReference(targetReg, TR::Compiler->om.discontiguousArrayHeaderSizeInBytes(), cg);
          dataAddrSlotMR = generateX86MemoryReference(targetReg, fej9->getOffsetOfDiscontiguousDataAddrField(), cg);
+
+         // write first data element address to dataAddr slot
+         generateRegMemInstruction(TR::InstOpCode::LEARegMem(), node, tempReg, dataAddrMR, cg);
+         generateMemRegInstruction(TR::InstOpCode::SMemReg(), node, dataAddrSlotMR, tempReg, cg);
          }
       else
          {
@@ -8042,11 +8042,11 @@ J9::X86::TreeEvaluator::VMnewEvaluator(
 
          dataAddrMR = generateX86MemoryReference(targetReg, TR::Compiler->om.contiguousArrayHeaderSizeInBytes(), cg);
          dataAddrSlotMR = generateX86MemoryReference(targetReg, fej9->getOffsetOfContiguousDataAddrField(), cg);
-         }
 
-      // write first data element address to dataAddr slot
-      generateRegMemInstruction(TR::InstOpCode::LEARegMem(), node, tempReg, dataAddrMR, cg);
-      generateMemRegInstruction(TR::InstOpCode::SMemReg(), node, dataAddrSlotMR, tempReg, cg);
+         // write first data element address to dataAddr slot
+         generateRegMemInstruction(TR::InstOpCode::LEARegMem(), node, tempReg, dataAddrMR, cg);
+         generateMemRegInstruction(TR::InstOpCode::SMemReg(), node, dataAddrSlotMR, tempReg, cg);
+         }
       }
 #endif /* TR_TARGET_64BIT */
 
