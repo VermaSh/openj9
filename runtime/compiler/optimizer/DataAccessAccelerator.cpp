@@ -2590,6 +2590,7 @@ bool TR_DataAccessAccelerator::generatePD2UD(TR::TreeTop* treeTop, TR::Node* cal
                                                                                  "DAA/rejected/%s",
                                                                                  isPD2UD ? "pd2ud" : "pd2ed"));
 
+      printf("Failure reason: %s", failMsg);
       return printInliningStatus(false, callNode, failMsg);
       }
 
