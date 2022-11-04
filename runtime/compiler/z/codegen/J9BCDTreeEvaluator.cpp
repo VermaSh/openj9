@@ -3512,9 +3512,8 @@ J9::Z::TreeEvaluator::pdloadVectorEvaluatorHelper(TR::Node *node, TR::CodeGenera
    traceMsg(cg->comp(), "pdload Vector Evaluator, node=%p %d\n", node, __LINE__);
 
    TR::Register* vTargetReg = vTargetReg = cg->allocateRegister(TR_VRF);
-   TR::Node* addressNode = node->getFirstChild();
 
-   // No need to evaluate the address node of the pdloadi.
+   // No need to evaluate the address node (first child) of the pdloadi.
    // generateVSIInstruction() API will call separateIndexRegister() to separate the index
    // register by emitting an LA instruction. If there's a need for large displacement adjustment,
    // LAY will be emitted instead.
@@ -3542,8 +3541,12 @@ J9::Z::TreeEvaluator::pdloadVectorEvaluatorHelper(TR::Node *node, TR::CodeGenera
       }
    generateVSIInstruction(cg, TR::InstOpCode::VLRL, node, vTargetReg, sourceMR, indexFromTheRight);
 
+   // pdload can't have any children so decReferenceCount
+   // should only be called when dealing with pdloadi.
+   if (node->getOpCodeValue() == TR::pdloadi)
+      cg->decReferenceCount(node->getFirstChild());
+
    node->setRegister(vTargetReg);
-   cg->decReferenceCount(addressNode);
    return vTargetReg;
    }
 
