@@ -6418,7 +6418,10 @@ J9::Z::TreeEvaluator::zdstoreiVectorEvaluatorHelper(TR::Node *node, TR::CodeGene
    TR_ASSERT_FATAL_WITH_NODE(pdloadiNode, (pdValueReg->getKind() == TR_FPR || pdValueReg->getKind() == TR_VRF),
             "vectorized zdstore is expecting the packed decimal to be in a vector register.");
 
-   // No need to evaluate the address node of the zdstorei.
+   // TODO: is this revelant here?
+   // No need to evaluate the address node (first child) of the zdstorei.
+   // TR::MemoryReference::create(...) will call populateMemoryReference(...)
+   // to evaluate address node.
    // generateVSIInstruction() API will call separateIndexRegister() to separate the index
    // register by emitting an LA instruction. If there's a need for large displacement adjustment,
    // LAY will be emitted instead.
@@ -6447,14 +6450,12 @@ J9::Z::TreeEvaluator::zdstoreiVectorEvaluatorHelper(TR::Node *node, TR::CodeGene
 
    pd2zdSignFixup(node, targetMR, cg, false);
 
-   // This would have been decremented in pd2zdVectorEvaluatorHelper
-   // but since we skip that evaluator we decrement it here.
+   // for (int32_t i = 0; i < node->getNumChildren(); ++i)
+   //    {
+   //    cg->decReferenceCount(node->getChild(i));
+   //    }
    cg->decReferenceCount(pdloadiNode);
-
-   for (int32_t i = 0; i < node->getNumChildren(); ++i)
-      {
-      cg->decReferenceCount(node->getChild(i));
-      }
+   cg->decReferenceCount(pd2zdNode);
 
    cg->stopUsingRegister(zonedDecimalHigh);
    cg->stopUsingRegister(zonedDecimalLow);
