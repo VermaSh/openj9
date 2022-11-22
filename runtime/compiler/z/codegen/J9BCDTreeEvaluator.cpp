@@ -3514,11 +3514,12 @@ J9::Z::TreeEvaluator::pdloadVectorEvaluatorHelper(TR::Node *node, TR::CodeGenera
    TR::Register* vTargetReg = vTargetReg = cg->allocateRegister(TR_VRF);
 
    // No need to evaluate the address node (first child) of the pdloadi.
+   // TR::MemoryReference::create(...) will call populateMemoryReference(...)
+   // to evaluate address node.
    // generateVSIInstruction() API will call separateIndexRegister() to separate the index
    // register by emitting an LA instruction. If there's a need for large displacement adjustment,
    // LAY will be emitted instead.
-   // TR::MemoryReference* sourceMR = TR::MemoryReference::create(cg, node);
-   TR::MemoryReference* sourceMR = new (cg->trHeapMemory()) TR::MemoryReference(node, TRUE, cg);
+   TR::MemoryReference* sourceMR = TR::MemoryReference::create(cg, node);
 
    // Index of the first byte to load, counting from the right ranging from 0-15.
    uint8_t indexFromTheRight = TR_VECTOR_REGISTER_SIZE - 1;
