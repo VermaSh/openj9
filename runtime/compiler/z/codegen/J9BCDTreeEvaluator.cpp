@@ -3517,7 +3517,8 @@ J9::Z::TreeEvaluator::pdloadVectorEvaluatorHelper(TR::Node *node, TR::CodeGenera
    // generateVSIInstruction() API will call separateIndexRegister() to separate the index
    // register by emitting an LA instruction. If there's a need for large displacement adjustment,
    // LAY will be emitted instead.
-   TR::MemoryReference* sourceMR = TR::MemoryReference::create(cg, node);
+   // TR::MemoryReference* sourceMR = TR::MemoryReference::create(cg, node);
+   TR::MemoryReference* sourceMR = new (cg->trHeapMemory()) TR::MemoryReference(node, TRUE, cg);
 
    // Index of the first byte to load, counting from the right ranging from 0-15.
    uint8_t indexFromTheRight = TR_VECTOR_REGISTER_SIZE - 1;
