@@ -4574,11 +4574,13 @@ J9::Z::TreeEvaluator::pdstoreVectorEvaluatorHelper(TR::Node *node, TR::CodeGener
       traceMsg(comp,"generating VSTRL for pdstore node->size = %d.\n", node->getSize());
       }
 
-   // No need to evaluate the address node of the pdstorei.
+   // No need to evaluate the address node (first child) of the pdstorei.
+   // TR::MemoryReference::create(...) will call populateMemoryReference(...)
+   // to evaluate address node.
    // generateVSIInstruction() API will call separateIndexRegister() to separate the index
    // register by emitting an LA instruction. If there's a need for large displacement adjustment,
    // LAY will be emitted instead.
-   TR::MemoryReference * targetMR = TR::MemoryReference::create(cg, node);;
+   TR::MemoryReference * targetMR = TR::MemoryReference::create(cg, node);
 
    // 0 we store 1 byte, 15 we store 16 bytes
    uint8_t lengthToStore = TR_VECTOR_REGISTER_SIZE - 1;
@@ -4593,7 +4595,9 @@ J9::Z::TreeEvaluator::pdstoreVectorEvaluatorHelper(TR::Node *node, TR::CodeGener
 
    generateVSIInstruction(cg, TR::InstOpCode::VSTRL, node, pdValueReg, targetMR, lengthToStore);
    cg->decReferenceCount(valueChild);
-   cg->decReferenceCount(addressNode);
+
+   if (node->getOpCodeValue() == TR::pdstorei)
+      cg->decReferenceCount(node->getFirstChild());
 
    traceMsg(comp, "DAA: Exiting pdstoreVectorEvaluator %d\n", __LINE__);
    return NULL;
