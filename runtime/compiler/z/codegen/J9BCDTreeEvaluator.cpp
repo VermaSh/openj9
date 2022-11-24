@@ -3515,7 +3515,7 @@ J9::Z::TreeEvaluator::pdloadVectorEvaluatorHelper(TR::Node *node, TR::CodeGenera
 
    // No need to evaluate the address node (first child) of the pdloadi.
    // TR::MemoryReference::create(...) will call populateMemoryReference(...)
-   // to evaluate address node.
+   // to evaluate address node and decrement reference count of address node.
    // generateVSIInstruction() API will call separateIndexRegister() to separate the index
    // register by emitting an LA instruction. If there's a need for large displacement adjustment,
    // LAY will be emitted instead.
@@ -3545,8 +3545,9 @@ J9::Z::TreeEvaluator::pdloadVectorEvaluatorHelper(TR::Node *node, TR::CodeGenera
 
    // pdload can't have any children so decReferenceCount
    // should only be called when dealing with pdloadi.
-   if (node->getOpCodeValue() == TR::pdloadi)
-      cg->decReferenceCount(node->getFirstChild());
+   //
+   // if (node->getOpCodeValue() == TR::pdloadi)
+   //    cg->decReferenceCount(node->getFirstChild());
 
    node->setRegister(vTargetReg);
    return vTargetReg;
