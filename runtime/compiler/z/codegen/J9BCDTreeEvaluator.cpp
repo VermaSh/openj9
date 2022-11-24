@@ -4597,8 +4597,8 @@ J9::Z::TreeEvaluator::pdstoreVectorEvaluatorHelper(TR::Node *node, TR::CodeGener
    generateVSIInstruction(cg, TR::InstOpCode::VSTRL, node, pdValueReg, targetMR, lengthToStore);
    cg->decReferenceCount(valueChild);
 
-   if (node->getOpCodeValue() == TR::pdstorei)
-      cg->decReferenceCount(node->getFirstChild());
+   // if (node->getOpCodeValue() == TR::pdstorei)
+   //    cg->decReferenceCount(node->getFirstChild());
 
    traceMsg(comp, "DAA: Exiting pdstoreVectorEvaluator %d\n", __LINE__);
    return NULL;
