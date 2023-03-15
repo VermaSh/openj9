@@ -1560,7 +1560,7 @@ public final class PackedDecimal {
 
         if (destinationPrecision < 1 || sourcePrecision < 1 || shiftAmount < 0) {
             throw new IllegalArgumentException(
-                    "Invalid Precisions or shift amount");
+                    "Invalid Precisions (dest: " + destinationPrecision + ", source: " + sourcePrecision + ") or shift amount (:" + shiftAmount + ")");
         }
         
         if(checkPackedDecimal_(source, sourceOffset, sourcePrecision, true, false) != 0) {
