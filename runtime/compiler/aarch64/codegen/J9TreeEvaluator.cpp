@@ -6027,7 +6027,9 @@ J9::ARM64::CodeGenerator::inlineDirectCall(TR::Node *node, TR::Register *&result
             if (!methodSymbol->isNative())
                break;
 
-            if ((node->isUnsafeGetPutCASCallOnNonArray() || !TR::Compiler->om.canGenerateArraylets()) && node->isSafeForCGToFastPathUnsafeCall())
+            // When dealing with array object; don't inline if arraylets or off heap is enabled
+            if (node->isSafeForCGToFastPathUnsafeCall()
+               && (node->isUnsafeGetPutCASCallOnNonArray() || (!TR::Compiler->om.canGenerateArraylets() && !TR::Compiler->om.isOffHeapAllocationEnabled())))
                {
                resultReg = VMinlineCompareAndSwap(node, cg, false);
                return true;
@@ -6041,7 +6043,9 @@ J9::ARM64::CodeGenerator::inlineDirectCall(TR::Node *node, TR::Register *&result
             if (!methodSymbol->isNative())
                break;
 
-            if ((node->isUnsafeGetPutCASCallOnNonArray() || !TR::Compiler->om.canGenerateArraylets()) && node->isSafeForCGToFastPathUnsafeCall())
+            // When dealing with array object; don't inline if arraylets or off heap is enabled
+            if (node->isSafeForCGToFastPathUnsafeCall()
+               && (node->isUnsafeGetPutCASCallOnNonArray() || (!TR::Compiler->om.canGenerateArraylets() && !TR::Compiler->om.isOffHeapAllocationEnabled())))
                {
                resultReg = VMinlineCompareAndSwap(node, cg, true);
                return true;
@@ -6054,7 +6058,9 @@ J9::ARM64::CodeGenerator::inlineDirectCall(TR::Node *node, TR::Register *&result
             if (!methodSymbol->isNative())
                break;
 
-            if ((node->isUnsafeGetPutCASCallOnNonArray() || !TR::Compiler->om.canGenerateArraylets()) && node->isSafeForCGToFastPathUnsafeCall())
+            // When dealing with array object; don't inline if arraylets or off heap is enabled
+            if (node->isSafeForCGToFastPathUnsafeCall()
+               && (node->isUnsafeGetPutCASCallOnNonArray() || (!TR::Compiler->om.canGenerateArraylets() && !TR::Compiler->om.isOffHeapAllocationEnabled())))
                {
                resultReg = VMinlineCompareAndSwapObject(node, cg);
                return true;
