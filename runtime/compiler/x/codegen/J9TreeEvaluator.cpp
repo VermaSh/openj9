@@ -9537,10 +9537,8 @@ static TR::Register* inlineIntrinsicIndexOf(TR::Node* node, TR::CodeGenerator* c
 static TR::Register* inlineCompareAndSwapObjectNative(TR::Node* node, TR::CodeGenerator* cg)
    {
    TR::Compilation *comp = cg->comp();
-   TR_J9VMBase *fej9 = comp->fej9();
 
-   // TODO: create codegen api like arrayCopy?
-   TR_ASSERT_FATAL((!TR::Compiler->om.canGenerateArraylets() && !TR::Compiler->om.isOffHeapAllocationEnabled()) || node->isUnsafeGetPutCASCallOnNonArray(), "This evaluator does not support arraylets and off heap.");
+   TR_ASSERT(!TR::Compiler->om.canGenerateArraylets() || node->isUnsafeGetPutCASCallOnNonArray(), "This evaluator does not support arraylets.");
 
    cg->recursivelyDecReferenceCount(node->getChild(0)); // The Unsafe
    TR::Node* objectNode   = node->getChild(1);
@@ -9548,30 +9546,34 @@ static TR::Register* inlineCompareAndSwapObjectNative(TR::Node* node, TR::CodeGe
    TR::Node* oldValueNode = node->getChild(3);
    TR::Node* newValueNode = node->getChild(4);
 
-   TR::Register* object           = cg->evaluate(objectNode);
-   // evaluation of offset is determined by if we are dealing with an array operation or not
-   TR::Register* offset           = NULL;
-   TR::Register* oldValue         = cg->evaluate(oldValueNode);
-   TR::Register* newValue         = cg->evaluate(newValueNode);
-   TR::Register* result           = cg->allocateRegister();
-   TR::Register* EAX              = cg->allocateRegister();
-   TR::Register* tmp              = cg->allocateRegister();
-   TR::Register* firstDataElement = NULL;
+   TR::Register* object              = cg->evaluate(objectNode);
+   TR::Register* offset              = cg->evaluate(offsetNode);
+   TR::Register* oldValue            = cg->evaluate(oldValueNode);
+   TR::Register* newValue            = cg->evaluate(newValueNode);
+   TR::Register* result              = cg->allocateRegister();
+   TR::Register* EAX                 = cg->allocateRegister();
+   TR::Register* tmp                 = cg->allocateRegister();
+   TR::Register* objectSourceAddress = object;
 
-   // TODO: see notes in inlineCompareAndSwapNative for teaching the evaluator about dataAddr field
    bool use64BitClasses = comp->target().is64Bit() && !comp->useCompressedPointers();
-
-   TR::MemoryReference *objectFieldMR = NULL;
-      {
-      offset = cg->evaluate(offsetNode);
-      objectFieldMR = generateX86MemoryReference(object, offset, 0, cg);
-      }
 
    if (comp->target().is32Bit())
       {
       // Assume that the offset is positive and not pathologically large (i.e., > 2^31).
       offset = offset->getLowOrder();
       }
+
+   int displacement = 0;
+   if (node->isUnsafeGetPutCASCallOnNonArray() && TR::Compiler->om.isOffHeapAllocationEnabled())
+      {
+      displacement = -TR::Compiler->om.contiguousArrayHeaderSizeInBytes();
+      objectSourceAddress = cg->allocateRegister();
+
+      // Load address of the first element.
+      TR::MemoryReference *dataAddrSlotMR = generateX86MemoryReference(object, comp->fej9()->getOffsetOfContiguousDataAddrField(), cg);
+      generateRegMemInstruction(TR::InstOpCode::LRegMem(), node, objectSourceAddress, dataAddrSlotMR, cg);
+      }
+   TR::MemoryReference *objectFieldMR = generateX86MemoryReference(objectSourceAddress, offset, 0, displacement, cg);
 
 #if defined(OMR_GC_CONCURRENT_SCAVENGER)
    switch (TR::Compiler->om.readBarrierType())
@@ -9650,8 +9652,11 @@ static TR::Register* inlineCompareAndSwapObjectNative(TR::Node* node, TR::CodeGe
    // a write barrier even if the store never actually happened.
    TR::TreeEvaluator::VMwrtbarWithoutStoreEvaluator(node, objectNode, newValueNode, NULL, cg->generateScratchRegisterManager(), cg);
 
-   if (firstDataElement)
-      cg->stopUsingRegister(firstDataElement);
+   if (objectSourceAddress != object)
+      {
+      deps->addPostCondition(objectSourceAddress, TR::RealRegister::NoReg, cg);
+      cg->stopUsingRegister(objectSourceAddress);
+      }
 
    cg->stopUsingRegister(tmp);
    cg->stopUsingRegister(EAX);
@@ -9682,11 +9687,11 @@ inlineCompareAndSwapNative(
    TR::Node *oldValueChild = node->getChild(3);
    TR::Node *newValueChild = node->getChild(4);
    TR::Compilation *comp = cg->comp();
-   TR_J9VMBase *fej9 = (TR_J9VMBase *)(comp->fe());
+   TR_J9VMBase *fej9 = comp->fej9();
 
    TR::InstOpCode::Mnemonic op;
 
-   if ((TR::Compiler->om.canGenerateArraylets() || TR::Compiler->om.isOffHeapAllocationEnabled()) && !node->isUnsafeGetPutCASCallOnNonArray())
+   if (TR::Compiler->om.canGenerateArraylets() && !node->isUnsafeGetPutCASCallOnNonArray())
       return false;
 
    static char *disableCASInlining = feGetEnv("TR_DisableCASInlining");
@@ -9753,22 +9758,28 @@ inlineCompareAndSwapNative(
 
    TR::MemoryReference *mr;
 
-   /* TODO: Check if off heap is enabled
-    * If Off heap is enabled:
-    *    check if object is of type array
-    *      For reference: VMHelpers::objectIsArray(J9VMThread *currentThread, j9object_t object)
-    *      For reference: aarch64/J9TreeEvaluator::genInstanceOfOrCheckCastObjectArrayTest(...)
-    *    Array object:
-    *       load dataAddr field into a reg
-    *       subtract arrayheader size from offsetReg
-    *    else:
-    *       leave everything as it is
-    */
+   TR_X86ScratchRegisterManager *scratchRegisterManager = cg->generateScratchRegisterManager();
+   int displacement = 0;
+   TR::Register *startAddressReg = objectReg;
+   if (TR::Compiler->om.isOffHeapAllocationEnabled() && !node->isUnsafeGetPutCASCallOnNonArray())
+      {
+      // scratchRegisterManager = cg->generateScratchRegisterManager();
+      startAddressReg = scratchRegisterManager->findOrCreateScratchRegister();
+
+      // load address of the first element
+      TR::MemoryReference *dataAddrSlotMR = generateX86MemoryReference(objectReg, fej9->getOffsetOfContiguousDataAddrField(), cg);
+      generateRegMemInstruction(TR::InstOpCode::LRegMem(), node, startAddressReg, dataAddrSlotMR, cg);
+
+      // Remove array header size from offset
+      generateX86MemoryReference(startAddressReg, offsetReg, 0, displacement, cg);
+      displacement = -TR::Compiler->om.contiguousArrayHeaderSizeInBytes();
+      }
 
    if (offsetReg)
-      mr = generateX86MemoryReference(objectReg, offsetReg, 0, cg);
+      mr = generateX86MemoryReference(startAddressReg, offsetReg, 0, displacement, cg);
    else
-      mr = generateX86MemoryReference(objectReg, offset, cg);
+      mr = generateX86MemoryReference(startAddressReg, offset + displacement, cg);
+
 
    bool bumpedRefCount = false;
    TR::Node *translatedNode = newValueChild;
@@ -9814,7 +9825,9 @@ inlineCompareAndSwapNative(
 
    if (comp->getOptions()->realTimeGC() && isObject)
       {
-      scratchRegisterManagerForRealTime = cg->generateScratchRegisterManager();
+      // sverma: temporarily setting these two equal to test out the fix
+      scratchRegisterManagerForRealTime = scratchRegisterManager;
+      // scratchRegisterManagerForRealTime = cg->generateScratchRegisterManager();
 
       // If reference is unresolved, need to resolve it right here before the barrier starts
       // Otherwise, we could get stopped during the resolution and that could invalidate any tests we would have performend
@@ -9922,7 +9935,9 @@ inlineCompareAndSwapNative(
       //
       // A branch
       //
-      TR_X86ScratchRegisterManager *scratchRegisterManager = cg->generateScratchRegisterManager();
+      // TR_X86ScratchRegisterManager *scratchRegisterManager = cg->generateScratchRegisterManager();
+      if (!scratchRegisterManager)
+         scratchRegisterManager = cg->generateScratchRegisterManager();
 
       TR::TreeEvaluator::VMwrtbarWithoutStoreEvaluator(
          node,
@@ -9932,6 +9947,10 @@ inlineCompareAndSwapNative(
          scratchRegisterManager,
          cg);
       }
+
+   if (startAddressReg && startAddressReg != objectReg)
+      scratchRegisterManager->reclaimScratchRegister(startAddressReg);
+   scratchRegisterManager->stopUsingRegisters();
 
    node->setRegister(resultReg);
 
