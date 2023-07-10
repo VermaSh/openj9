@@ -299,7 +299,7 @@ public abstract class GCArrayletObjectModelBase extends GCArrayObjectModel
 	 * @throws NoSuchFieldException if the indexable object dataAddr field does not exist on the build that generated the core file
 	 * @return true if the data address of arrayPtr is valid, false otherwise
 	 */
-	public abstract boolean hasCorrectDataAddrPointer(J9IndexableObjectPointer arrayPtr) throws CorruptDataException, NoSuchFieldException;
+	public abstract boolean hasCorrectDataAddrPointer(J9IndexableObjectPointer arrayPtr) throws CorruptDataException;
 
 	@Override
 	public UDATA getHashcodeOffset(J9IndexableObjectPointer array) throws CorruptDataException
@@ -325,6 +325,68 @@ public abstract class GCArrayletObjectModelBase extends GCArrayObjectModel
 	public boolean isInlineContiguousArraylet(J9IndexableObjectPointer array) throws CorruptDataException
 	{
 		return getArrayLayout(array) == GC_ArrayletObjectModelBase$ArrayLayout.InlineContiguous;
+	}
+
+	/**
+	 * Determine if the arraylet data of arrayPtr is adjacent to its header.
+	 *
+	 * @param arrayPtr array object
+	 * @throws CorruptDataException If there's a problem accessing the indexable object dataAddr field
+	 * @return true if the arrayPtr has its data adjacent to its header
+	 */
+	public boolean isArrayletDataAdjacentToHeader(J9IndexableObjectPointer array) throws CorruptDataException
+	{
+		UDATA dataSizeInBytes = getDataSizeInBytes(array);
+		return isArrayletDataAdjacentToHeader(dataSizeInBytes);
+	}
+
+	/**
+	 * Determine if the arraylet data of arrayPtr is adjacent to its header.
+	 *
+	 * @param arrayPtr array object
+	 * @throws CorruptDataException if there's a problem accessing the indexable object dataAddr field
+	 * @return true if the arrayPtr has its data adjacent to its header
+	 */
+	public boolean isArrayletDataAdjacentToHeader(UDATA dataSizeInBytes)  throws CorruptDataException
+	{
+		MM_GCExtensionsPointer extensions = GCBase.getExtensions();
+		UDATA minimumSpineSizeAfterGrowing = new UDATA(ObjectModel.getObjectAlignmentInBytes());
+
+		return largestDesirableArraySpineSize.eq(UDATA.MAX) ||
+        dataSizeInBytes.lte(largestDesirableArraySpineSize
+							.sub(minimumSpineSizeAfterGrowing)
+							.sub(J9IndexableObjectHelper.contiguousHeaderSize()));
+	}
+
+	/**
+	 * Check if the given indexable object is double mapped.
+	 *
+	 * @param address indexable object to check if it is double mapped
+	 * @throws CorruptDataException if there's a problem accessing card table heap fields
+	 * @return true if the given indexable object is double mapped
+	 */
+	public boolean isIndexableObjectDoubleMapped(VoidPointer indexableDataAddr, UDATA dataSizeInBytes) throws CorruptDataException
+	{
+		boolean isObjectWithinHeap = isAddressWithinHeap(indexableDataAddr);
+		return !isObjectWithinHeap && dataSizeInBytes.gte(arrayletLeafSize);
+	}
+
+	/**
+	 * Check if the given address is within the heap.
+	 *
+	 * @param address Address to check if it is within the heap
+	 * @throws CorruptDataException if there's a problem accessing card table heap fields
+	 * @return true if the given address is within the heap
+	 */
+	public boolean isAddressWithinHeap(VoidPointer address) throws CorruptDataException
+	{
+		MM_GCExtensionsPointer extensions = GCBase.getExtensions();
+
+		UDATA heapAddr = UDATA.cast(address);
+		UDATA heapBase = UDATA.cast(extensions.cardTable()._heapBase());
+		UDATA heapTop = UDATA.cast(extensions.cardTable()._heapAlloc());
+
+		return heapAddr.gte(heapBase) && heapAddr.lte(heapTop);
 	}
 
 	/**
