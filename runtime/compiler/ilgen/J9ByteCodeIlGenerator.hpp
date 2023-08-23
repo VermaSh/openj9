@@ -82,11 +82,11 @@ public:
    }
    virtual TR::ResolvedMethodSymbol *methodSymbol() const { return _methodSymbol;}
 
-   /* A debugging tool that tracks how many arrays we would like to enable
-    * the contiguous-array-view optimization for. This can help us in situations
-    * where we want to figure out which specific array is causing an issue.
-    */
-   static int32_t _arrayChanges;
+   // /* A debugging tool that tracks how many arrays we would like to enable
+   //  * the contiguous-array-view optimization for. This can help us in situations
+   //  * where we want to figure out which specific array is causing an issue.
+   //  */
+   // static int32_t _arrayChanges;
 private:
 
    bool trace(){ return comp()->getOption(TR_TraceBC) || comp()->getOption(TR_TraceILGen); }
