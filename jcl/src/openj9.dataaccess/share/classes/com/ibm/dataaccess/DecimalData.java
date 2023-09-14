@@ -90,6 +90,13 @@ public final class DecimalData
      */
     public static final int EBCDIC_SIGN_SEPARATE_LEADING = 4;
 
+    enum ExternalDecimalSignLocation   {
+        EMBEDDED_TRAILING,
+        EMBEDDED_LEADING,
+        SEPARATE_TRAILING,
+        SEPARATE_LEADING
+    }
+
     /**
      * Unicode Decimal data format where each digit is a Unicode character, there is no sign.
      */
@@ -105,6 +112,11 @@ public final class DecimalData
      */
     public static final int UNICODE_SIGN_SEPARATE_TRAILING = 7;
 
+    enum UnicodeSignLocation   {
+        SEPARATE_LEADING,
+        SEPARATE_TRAILING
+    }
+
     /**
      * External Decimal format for positive separate sign
      */
@@ -114,6 +126,11 @@ public final class DecimalData
      * External Decimal format for negative separate sign
      */
     private static final byte EBCDIC_SIGN_NEGATIVE = 0x60;
+
+    enum ExternalDecimalSign    {
+        POSITIVE ((byte) 0x4E),
+        NEGATIVE ((byte) 0x60)
+    }
 
     /**
      * External Decimal High Nibble Mask
@@ -137,12 +154,17 @@ public final class DecimalData
     private static byte[] PD2EDTranslationTable;
     private static byte[] ED2UDTranslationTable;
 
+    enum UNICODE_SIGN    {
+        positive ("+"),
+        negative ("-"),
+        zero ("0")
+    }
     private static char UNICODE_SIGN_MINUS = '-';
     private static char UNICODE_SIGN_PLUS = '+';
     private static char UNICODE_ZERO = '0';
     
     private static final boolean JIT_INTRINSICS_ENABLED = false;
-    
+
     static {
         PD2EDTranslationTable = new byte[512];
         ED2UDTranslationTable = new byte[256];
@@ -369,8 +391,8 @@ public final class DecimalData
      *             if <code>decimalType</code> or <code>precision</code> is invalid
      */
     public static void convertIntegerToExternalDecimal(int integerValue,
-            byte[] externalDecimal, int offset, int precision,
-            boolean checkOverflow, int decimalType) {
+            byte[] externalDecimal, int offset, in t precision,
+            boolean checkOverflow, DecimalData.ExternalDecimalSignLocation decimalType) {
         if ((offset < 0)
                 || (offset + CommonData.getExternalByteCounts(precision, decimalType) > externalDecimal.length))
             throw new ArrayIndexOutOfBoundsException("Array access index out of bounds. "
@@ -387,12 +409,12 @@ public final class DecimalData
     }
 
     private static void convertIntegerToExternalDecimal_(int integerValue, byte[] externalDecimal, int offset,
-            int precision, boolean checkOverflow, int decimalType) {
+            int precision, boolean checkOverflow, DecimalData.ExternalDecimalSignLocation decimalType) {
         int i;
         byte zoneVal = EXTERNAL_HIGH_MASK;
     
         int externalSignOffset = offset;
-        if (decimalType == EBCDIC_SIGN_SEPARATE_LEADING)
+        if (decimalType == ExternalDecimalSignLocation.SEPARATE_LEADING)
             offset++;
         int end = offset + precision - 1;
     
@@ -422,9 +444,9 @@ public final class DecimalData
         }
     
         switch (decimalType) {
-        case EBCDIC_SIGN_EMBEDDED_TRAILING:
-        case EBCDIC_SIGN_EMBEDDED_LEADING:
-            if (decimalType == EBCDIC_SIGN_EMBEDDED_TRAILING) {
+        case ExternalDecimalSignLocation.EMBEDDED_TRAILING:
+        case ExternalDecimalSignLocation.EMBEDDED_LEADING:
+            if (decimalType == ExternalDecimalSignLocation.EMBEDDED_TRAILING) {
             	externalSignOffset += precision - 1;
             }
             byte sign;
@@ -435,15 +457,15 @@ public final class DecimalData
             }
             externalDecimal[externalSignOffset] = (byte) ((externalDecimal[externalSignOffset] & CommonData.LOWER_NIBBLE_MASK) | sign);
             break;
-        case EBCDIC_SIGN_SEPARATE_TRAILING:
-        case EBCDIC_SIGN_SEPARATE_LEADING:
-            if (decimalType == EBCDIC_SIGN_SEPARATE_TRAILING) {
+        case ExternalDecimalSignLocation.SEPARATE_TRAILING:
+        case ExternalDecimalSignLocation.SEPARATE_LEADING:
+            if (decimalType == ExternalDecimalSignLocation.SEPARATE_TRAILING) {
                 externalSignOffset += precision;
             }
             if (integerValue >= 0)
-                externalDecimal[externalSignOffset] = EBCDIC_SIGN_POSITIVE;
+                externalDecimal[externalSignOffset] = ExternalDecimalSign.POSITIVE;
             else
-                externalDecimal[externalSignOffset] = EBCDIC_SIGN_NEGATIVE;
+                externalDecimal[externalSignOffset] = ExternalDecimalSign.NEGATIVE;
             break;
         }
     }
@@ -669,7 +691,7 @@ public final class DecimalData
      *             if the <code>decimalType</code> or <code>precision</code> is invalid
      */
     public static void convertLongToExternalDecimal(long longValue, byte[] externalDecimal, int offset, int precision,
-            boolean checkOverflow, int decimalType) {
+            boolean checkOverflow, DecimalData.ExternalDecimalSignLocation decimalType) {
         if ((offset < 0)
                 || (offset + CommonData.getExternalByteCounts(precision, decimalType) > externalDecimal.length))
             throw new ArrayIndexOutOfBoundsException("Array access index out of bounds. "
@@ -686,12 +708,12 @@ public final class DecimalData
     }
 
     private static void convertLongToExternalDecimal_(long longValue, byte[] externalDecimal, int offset,
-            int precision, boolean checkOverflow, int decimalType) {
+            int precision, boolean checkOverflow, DecimalData.ExternalDecimalSignLocation decimalType) {
         int i;
         byte zoneVal = EXTERNAL_HIGH_MASK;
     
         int externalSignOffset = offset;
-        if (decimalType == EBCDIC_SIGN_SEPARATE_LEADING)
+        if (decimalType == ExternalDecimalSignLocation.SEPARATE_LEADING)
             offset++;
         int end = offset + precision - 1;
     
@@ -721,9 +743,9 @@ public final class DecimalData
         }
     
         switch (decimalType) {
-        case EBCDIC_SIGN_EMBEDDED_TRAILING:
-        case EBCDIC_SIGN_EMBEDDED_LEADING:
-            if (decimalType == EBCDIC_SIGN_EMBEDDED_TRAILING) {
+        case ExternalDecimalSignLocation.EMBEDDED_TRAILING:
+        case ExternalDecimalSignLocation.EMBEDDED_LEADING:
+            if (decimalType == ExternalDecimalSignLocation.EMBEDDED_TRAILING) {
                 externalSignOffset += precision - 1;
             }
             byte sign;
@@ -734,15 +756,15 @@ public final class DecimalData
             }
             externalDecimal[externalSignOffset] = (byte) ((externalDecimal[externalSignOffset] & CommonData.LOWER_NIBBLE_MASK) | sign);
             break;
-        case EBCDIC_SIGN_SEPARATE_TRAILING:
-        case EBCDIC_SIGN_SEPARATE_LEADING:
-            if (decimalType == EBCDIC_SIGN_SEPARATE_TRAILING) {
+        case ExternalDecimalSignLocation.SEPARATE_TRAILING:
+        case ExternalDecimalSignLocation.SEPARATE_LEADING:
+            if (decimalType == ExternalDecimalSignLocation.SEPARATE_TRAILING) {
                 externalSignOffset += precision;
             }
             if (longValue >= 0)
-                externalDecimal[externalSignOffset] = EBCDIC_SIGN_POSITIVE;
+                externalDecimal[externalSignOffset] = ExternalDecimalSign.POSITIVE;
             else
-                externalDecimal[externalSignOffset] = EBCDIC_SIGN_NEGATIVE;
+                externalDecimal[externalSignOffset] = ExternalDecimalSign.NEGATIVE;
             break;
         }
     }
@@ -778,7 +800,7 @@ public final class DecimalData
      */
     public static void convertLongToUnicodeDecimal(long longValue,
             char[] unicodeDecimal, int offset, int precision,
-            boolean checkOverflow, int decimalType) {
+            boolean checkOverflow, DecimalData.UnicodeSignLocation decimalType) {
         int size = decimalType == DecimalData.UNICODE_UNSIGNED ? precision : precision + 1;
         if ((offset + size > unicodeDecimal.length) || (offset < 0))
             throw new ArrayIndexOutOfBoundsException("Array access index out of bounds. " +
@@ -1069,7 +1091,7 @@ public final class DecimalData
      */
     public static void convertPackedDecimalToExternalDecimal(
             byte[] packedDecimal, int packedOffset, byte[] externalDecimal,
-            int externalOffset, int precision, int decimalType) {
+            int externalOffset, int precision, DecimalData.ExternalDecimalSignLocation decimalType) {
         if ((packedOffset + ((precision/ 2) + 1) > packedDecimal.length) || (packedOffset < 0))
             throw new ArrayIndexOutOfBoundsException("Array access index out of bounds. " +
                      "convertPackedDecimalToExternalDecimal is trying to access packedDecimal[" + packedOffset + "] to packedDecimal[" + (packedOffset + (precision/ 2)) + "], " +
@@ -1085,7 +1107,7 @@ public final class DecimalData
 
     private static void convertPackedDecimalToExternalDecimal_(
             byte[] packedDecimal, int packedOffset, byte[] externalDecimal,
-            int externalOffset, int precision, int decimalType) {
+            int externalOffset, int precision, DecimalData.ExternalDecimalSignLocation decimalType) {
     
         if (decimalType < EXTERNAL_DECIMAL_MIN
                 || decimalType > EXTERNAL_DECIMAL_MAX)
@@ -1094,7 +1116,7 @@ public final class DecimalData
             throw new IllegalArgumentException("negative precision");
     
         int externalSignOffset = externalOffset;
-        if (decimalType == EBCDIC_SIGN_SEPARATE_LEADING)
+        if (decimalType == ExternalDecimalSignLocation.SEPARATE_LEADING)
             externalOffset++;
     
         int end = packedOffset + precision / 2;
@@ -1121,25 +1143,25 @@ public final class DecimalData
         byte sign = (byte)(CommonData.getSign(packedDecimal[end] & CommonData.LOWER_NIBBLE_MASK) << 4);
     
         switch (decimalType) {
-        case EBCDIC_SIGN_SEPARATE_LEADING:
+        case ExternalDecimalSignLocation.SEPARATE_LEADING:
             if (sign == (byte) 0xC0)
-                externalDecimal[externalSignOffset] = EBCDIC_SIGN_POSITIVE;
+                externalDecimal[externalSignOffset] = ExternalDecimalSign.POSITIVE;
             else
-                externalDecimal[externalSignOffset] = EBCDIC_SIGN_NEGATIVE;
+                externalDecimal[externalSignOffset] = ExternalDecimalSign.NEGATIVE;
             break;
-        case EBCDIC_SIGN_EMBEDDED_LEADING:
+        case ExternalDecimalSignLocation.EMBEDDED_LEADING:
             externalDecimal[externalSignOffset] = (byte) ((externalDecimal[externalSignOffset] & CommonData.LOWER_NIBBLE_MASK) | sign);
             break;
-        case EBCDIC_SIGN_EMBEDDED_TRAILING:
+        case ExternalDecimalSignLocation.EMBEDDED_TRAILING:
             externalSignOffset += precision - 1;
             externalDecimal[externalSignOffset] = (byte) ((externalDecimal[externalSignOffset] & CommonData.LOWER_NIBBLE_MASK) | sign);
             break;
-        case EBCDIC_SIGN_SEPARATE_TRAILING:
+        case ExternalDecimalSignLocation.SEPARATE_TRAILING:
             externalSignOffset += precision;
             if (sign == (byte) 0xC0)
-                externalDecimal[externalSignOffset] = EBCDIC_SIGN_POSITIVE;
+                externalDecimal[externalSignOffset] = ExternalDecimalSign.POSITIVE;
             else
-                externalDecimal[externalSignOffset] = EBCDIC_SIGN_NEGATIVE;
+                externalDecimal[externalSignOffset] = ExternalDecimalSign.NEGATIVE;
             break;
         default:
             //unreachable code
@@ -1175,7 +1197,7 @@ public final class DecimalData
      */
     public static void convertPackedDecimalToUnicodeDecimal(
             byte[] packedDecimal, int packedOffset, char[] unicodeDecimal,
-            int unicodeOffset, int precision, int decimalType) {
+            int unicodeOffset, int precision, DecimalData.UnicodeSignLocation decimalType) {
         int size = decimalType == DecimalData.UNICODE_UNSIGNED ? precision  : precision + 1;
         if ((unicodeOffset + size > unicodeDecimal.length) || (unicodeOffset < 0))
             throw new ArrayIndexOutOfBoundsException("Array access index out of bounds. " +
@@ -1192,7 +1214,7 @@ public final class DecimalData
 
     private static void convertPackedDecimalToUnicodeDecimal_(
             byte[] packedDecimal, int packedOffset, char[] unicodeDecimal,
-            int unicodeOffset, int precision, int decimalType) {
+            int unicodeOffset, int precision, DecimalData.UnicodeSignLocation decimalType) {
     
         if (precision <= 0)
             throw new IllegalArgumentException("negative precision");
@@ -1362,7 +1384,7 @@ public final class DecimalData
      *             if <code>precision</code> or <code>decimalType</code> is invalid
      */
     public static int convertExternalDecimalToInteger(byte[] externalDecimal,
-            int offset, int precision, boolean checkOverflow, int decimalType) {
+            int offset, int precision, boolean checkOverflow, DecimalData.ExternalDecimalSignLocation decimalType) {
         if ((offset + CommonData.getExternalByteCounts(precision, decimalType) > externalDecimal.length) || (offset < 0))
          throw new ArrayIndexOutOfBoundsException("Array access index out of bounds. " +
                "convertExternalDecimalToInteger is trying to access externalDecimal[" + offset + "] to externalDecimal[" + (offset + CommonData.getExternalByteCounts(precision, decimalType) - 1) + "], " +
@@ -1381,14 +1403,14 @@ public final class DecimalData
     }
 
     private static int convertExternalDecimalToInteger_(byte[] externalDecimal,
-                int offset, int precision, boolean checkOverflow, int decimalType) {
+                int offset, int precision, boolean checkOverflow, DecimalData.ExternalDecimalSignLocation decimalType) {
         int end = (offset + CommonData.getExternalByteCounts(precision, decimalType) - 1);
         boolean isNegative = isExternalDecimalSignNegative(externalDecimal, offset, precision, decimalType);
 
 
-        if (decimalType == EBCDIC_SIGN_SEPARATE_TRAILING) {
+        if (decimalType == ExternalDecimalSignLocation.SEPARATE_TRAILING) {
             end--;
-        } else if (decimalType == EBCDIC_SIGN_SEPARATE_LEADING) {
+        } else if (decimalType == ExternalDecimalSignLocation.SEPARATE_LEADING) {
             offset++;
         }
 
@@ -1500,7 +1522,7 @@ public final class DecimalData
      *             if <code>precision</code> or <code>decimalType</code> is invalid
      */
     public static long convertExternalDecimalToLong(byte[] externalDecimal,
-            int offset, int precision, boolean checkOverflow, int decimalType) {
+            int offset, int precision, boolean checkOverflow, DecimalData.ExternalDecimalSignLocation decimalType) {
         if ((offset + CommonData.getExternalByteCounts(precision, decimalType) > externalDecimal.length) || (offset < 0))
          throw new ArrayIndexOutOfBoundsException("Array access index out of bounds. " +
                "convertExternalDecimalToLong is trying to access externalDecimal[" + offset + "] to externalDecimal[" + (offset + CommonData.getExternalByteCounts(precision, decimalType) - 1) + "], " +
@@ -1519,13 +1541,13 @@ public final class DecimalData
     }
 
     private static long convertExternalDecimalToLong_(byte[] externalDecimal,
-                int offset, int precision, boolean checkOverflow, int decimalType) {
+                int offset, int precision, boolean checkOverflow, DecimalData.ExternalDecimalSignLocation decimalType) {
         int end = (offset + CommonData.getExternalByteCounts(precision, decimalType) - 1);
         boolean isNegative = isExternalDecimalSignNegative(externalDecimal, offset, precision, decimalType);
 
-        if (decimalType == EBCDIC_SIGN_SEPARATE_TRAILING) {
+        if (decimalType == ExternalDecimalSignLocation.SEPARATE_TRAILING) {
             end--;
-        } else if (decimalType == EBCDIC_SIGN_SEPARATE_LEADING) {
+        } else if (decimalType == ExternalDecimalSignLocation.SEPARATE_LEADING) {
             offset++;
         }
 
@@ -1629,7 +1651,7 @@ public final class DecimalData
      */
     public static void convertExternalDecimalToPackedDecimal(
             byte[] externalDecimal, int externalOffset, byte[] packedDecimal,
-            int packedOffset, int precision, int decimalType) {
+            int packedOffset, int precision, DecimalData.ExternalDecimalSignLocation decimalType) {
         if ((externalOffset + CommonData.getExternalByteCounts(precision, decimalType) > externalDecimal.length) || (externalOffset < 0))
             throw new ArrayIndexOutOfBoundsException("Array access index out of bounds. " +
                  "convertExternalDecimalToPackedDecimal is trying to access externalDecimal[" + externalOffset + "] to externalDecimal[" + (externalOffset + CommonData.getExternalByteCounts(precision, decimalType) - 1) + "], " +
@@ -1646,7 +1668,7 @@ public final class DecimalData
 
     private static void convertExternalDecimalToPackedDecimal_(
             byte[] externalDecimal, int externalOffset, byte[] packedDecimal,
-            int packedOffset, int precision, int decimalType) {
+            int packedOffset, int precision, DecimalData.ExternalDecimalSignLocation decimalType) {
     
         boolean isNegative = isExternalDecimalSignNegative(externalDecimal, externalOffset, precision, decimalType);
         
@@ -1659,7 +1681,7 @@ public final class DecimalData
         int end = packedOffset + precision / 2;
     
         // deal with sign leading
-        if (decimalType == EBCDIC_SIGN_SEPARATE_LEADING) {
+        if (decimalType == ExternalDecimalSignLocation.SEPARATE_LEADING) {
             externalOffset++;
         }
     
@@ -1719,7 +1741,7 @@ public final class DecimalData
      */
     public static BigInteger convertExternalDecimalToBigInteger(
             byte[] externalDecimal, int offset, int precision,
-            boolean checkOverflow, int decimalType) {
+            boolean checkOverflow, DecimalData.ExternalDecimalSignLocation decimalType) {
         byte[] packedDecimal = new byte[precision / 2 + 1];
         convertExternalDecimalToPackedDecimal(externalDecimal, offset,
                 packedDecimal, 0, precision, decimalType);
@@ -1769,7 +1791,7 @@ public final class DecimalData
      */
     public static BigDecimal convertExternalDecimalToBigDecimal(
             byte[] externalDecimal, int offset, int precision, int scale,
-            boolean checkOverflow, int decimalType) {
+            boolean checkOverflow, DecimalData.ExternalDecimalSignLocation decimalType) {
         if (precision <= 9) {
             return BigDecimal.valueOf(
                     convertExternalDecimalToInteger(externalDecimal, offset, precision,
@@ -1793,32 +1815,32 @@ public final class DecimalData
     }
 
     private static boolean isExternalDecimalSignNegative(byte[] externalDecimal, int externalOffset, 
-                                                         int precision, int decimalType)
+                                                         int precision, DecimalData.ExternalDecimalSignLocation decimalType)
     {
         byte signByte = 0;
         switch (decimalType)
         {
-        case EBCDIC_SIGN_EMBEDDED_LEADING:
+        case ExternalDecimalSignLocation.EMBEDDED_LEADING:
             signByte = (byte) (externalDecimal[externalOffset] & EXTERNAL_HIGH_MASK); 
             if (signByte == CommonData.EXTERNAL_EMBEDDED_SIGN_MINUS ||
                 signByte == CommonData.EXTERNAL_EMBEDDED_SIGN_MINUS_ALTERNATE_B)
                 return true;
             break;
             
-        case EBCDIC_SIGN_EMBEDDED_TRAILING:
+        case ExternalDecimalSignLocation.EMBEDDED_TRAILING:
             signByte = (byte)(externalDecimal[externalOffset + precision - 1] & EXTERNAL_HIGH_MASK); 
             if (signByte == CommonData.EXTERNAL_EMBEDDED_SIGN_MINUS ||
                 signByte == CommonData.EXTERNAL_EMBEDDED_SIGN_MINUS_ALTERNATE_B)
                 return true;
             break;
             
-        case EBCDIC_SIGN_SEPARATE_LEADING:
+        case ExternalDecimalSignLocation.SEPARATE_LEADING:
             signByte = externalDecimal[externalOffset]; 
             if (signByte == CommonData.EXTERNAL_SIGN_MINUS)
                 return true;
             break;
             
-        case EBCDIC_SIGN_SEPARATE_TRAILING:
+        case ExternalDecimalSignLocation.SEPARATE_TRAILING:
             signByte = externalDecimal[externalOffset + precision];
             if (signByte == CommonData.EXTERNAL_SIGN_MINUS)
                return true;
@@ -2086,7 +2108,7 @@ public final class DecimalData
      */
     public static void convertUnicodeDecimalToPackedDecimal(
             char[] unicodeDecimal, int unicodeOffset, byte[] packedDecimal,
-            int packedOffset, int precision, int decimalType) {
+            int packedOffset, int precision, DecimalData.UnicodeSignLocation decimalType) {
         int size = decimalType == DecimalData.UNICODE_UNSIGNED ? precision : precision + 1;
         if ((unicodeOffset + size > unicodeDecimal.length) || (unicodeOffset < 0))
             throw new ArrayIndexOutOfBoundsException("Array access index out of bounds. " +
@@ -2103,7 +2125,7 @@ public final class DecimalData
     
     private static void convertUnicodeDecimalToPackedDecimal_(
             char[] unicodeDecimal, int unicodeOffset, byte[] packedDecimal,
-            int packedOffset, int precision, int decimalType) {
+            int packedOffset, int precision, DecimalData.UnicodeSignLocation decimalType) {
 
         if (precision <= 0)
             throw new IllegalArgumentException("invalid precision");
@@ -2186,7 +2208,7 @@ public final class DecimalData
      */
     public static BigInteger convertUnicodeDecimalToBigInteger(
             char[] unicodeDecimal, int offset, int precision,
-            boolean checkOverflow, int decimalType) {
+            boolean checkOverflow, DecimalData.UnicodeSignLocation decimalType) {
         byte[] packedDecimal = new byte[precision / 2 + 1];
         convertUnicodeDecimalToPackedDecimal(unicodeDecimal, offset,
                 packedDecimal, 0, precision, decimalType);
@@ -2236,7 +2258,7 @@ public final class DecimalData
      */
     public static BigDecimal convertUnicodeDecimalToBigDecimal(
             char[] unicodeDecimal, int offset, int precision, int scale,
-            boolean checkOverflow, int decimalType) {
+            boolean checkOverflow, DecimalData.UnicodeSignLocation decimalType) {
         byte[] packedDecimal = new byte[precision / 2 + 1];
         convertUnicodeDecimalToPackedDecimal(unicodeDecimal, offset,
                 packedDecimal, 0, precision, decimalType);
@@ -2315,7 +2337,7 @@ public final class DecimalData
      */
     public static void convertBigIntegerToExternalDecimal(
             BigInteger bigIntegerValue, byte[] externalDecimal, int offset,
-            int precision, boolean checkOverflow, int decimalType) {
+            int precision, boolean checkOverflow, DecimalData.ExternalDecimalSignLocation decimalType) {
         byte[] packedDecimal = new byte[precision / 2 + 1];
         convertBigDecimalToPackedDecimal(new BigDecimal(bigIntegerValue),
                 packedDecimal, 0, precision, checkOverflow);
@@ -2355,7 +2377,7 @@ public final class DecimalData
      */
     public static void convertBigIntegerToUnicodeDecimal(
             BigInteger bigIntegerValue, char[] unicodeDecimal, int offset,
-            int precision, boolean checkOverflow, int decimalType) {
+            int precision, boolean checkOverflow, DecimalData.UnicodeSignLocation decimalType) {
         byte[] packedDecimal = new byte[precision / 2 + 1];
         convertBigDecimalToPackedDecimal(new BigDecimal(bigIntegerValue),
                 packedDecimal, 0, precision, checkOverflow);
@@ -2443,7 +2465,7 @@ public final class DecimalData
      */
     public static void convertBigDecimalToExternalDecimal(
             BigDecimal bigDecimalValue, byte[] externalDecimal, int offset,
-            int precision, boolean checkOverflow, int decimalType) {
+            int precision, boolean checkOverflow, DecimalData.ExternalDecimalSignLocation decimalType) {
     	
     	int bdprec = bigDecimalValue.precision();
         if (bdprec <=9)
@@ -2498,7 +2520,7 @@ public final class DecimalData
      */
     public static void convertBigDecimalToUnicodeDecimal(
             BigDecimal bigDecimalValue, char[] unicodeDecimal, int offset,
-            int precision, boolean checkOverflow, int decimalType) {
+            int precision, boolean checkOverflow, DecimalData.UnicodeSignLocation decimalType) {
         byte[] packedDecimal = new byte[precision / 2 + 1];
         convertBigDecimalToPackedDecimal(bigDecimalValue, packedDecimal, 0,
                 precision, checkOverflow);

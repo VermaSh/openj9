@@ -77,15 +77,15 @@ class CommonData {
     /**
      * counts how many bytes are there in an external decimal.
      */
-    public static int getExternalByteCounts(int precision, int decimalType)
+    public static int getExternalByteCounts(int precision, DecimalData.ExternalDecimalSignLocation decimalType)
     {
         switch (decimalType)
         {
-        case DecimalData.EBCDIC_SIGN_EMBEDDED_TRAILING:
-        case DecimalData.EBCDIC_SIGN_EMBEDDED_LEADING:
+        case DecimalData.ExternalDecimalSignLocation.EMBEDDED_TRAILING:
+        case DecimalData.ExternalDecimalSignLocation.EMBEDDED_LEADING:
             return precision;
-        case DecimalData.EBCDIC_SIGN_SEPARATE_TRAILING:
-        case DecimalData.EBCDIC_SIGN_SEPARATE_LEADING:
+        case DecimalData.ExternalDecimalSignLocation.SEPARATE_TRAILING:
+        case DecimalData.ExternalDecimalSignLocation.SEPARATE_LEADING:
             return precision+1;
         default:
             throw new IllegalArgumentException("illegal decimalType.");
