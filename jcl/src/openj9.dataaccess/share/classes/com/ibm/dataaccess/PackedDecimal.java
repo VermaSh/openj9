@@ -145,6 +145,103 @@ public final class PackedDecimal {
         return returnCode;
     }
 
+    /**
+     * Checks the validity of a External Decimal, return code indicating the status of the External Decimal.
+     *
+     * @param byteArray
+     *            the source container array
+     * @param offset
+     *            starting offset of the External Decimal
+     * @param precision
+     *            precision of the External Decimal. Maximum valid precision is 253
+     * @param ignoreHighNibbleForEvenPrecision
+     *            if true, ignore to check if the top nibble (first 4 bits) of the input is an invalid sign value in the
+     *            case of even precision
+     * @param canOverwriteHighNibbleForEvenPrecision
+     *            if true, change the high nibble to a zero in case of even precision
+     * @return the condition code: 0 All digit codes and the sign valid 1 Sign invalid 2 At least one digit code invalid
+     *         3 Sign invalid and at least one digit code invalid
+     *
+     * @throws NullPointerException
+     *             if <code>byteArray</code> is null
+     * @throws ArrayIndexOutOfBoundsException
+     *             if an invalid array access occurs
+     */
+    public static int checkExternalDecimal(byte[] byteArray, int offset,
+            int precision, boolean ignoreHighNibbleForEvenPrecision,
+            boolean canOverwriteHighNibbleForEvenPrecision) {
+        // TODO: Should we expect the caller to know the sign type?
+        //  or should we do index check assuming that sign is separte
+        if ((offset + (CommonData.getExternalByteCounts(precision, sign_sepate)) > byteArray.length) || (offset < 0))
+            throw new ArrayIndexOutOfBoundsException("Array access index out of bounds. " +
+                "checkPackedDecimal is trying to access byteArray[" + offset + "] to byteArray[" + (offset + (precision / 2)) + "]" +
+                " but valid indices are from 0 to " + (byteArray.length - 1) + ".");
+
+        return checkExternalDecimal_(byteArray, offset, precision,
+                ignoreHighNibbleForEvenPrecision, canOverwriteHighNibbleForEvenPrecision);
+    }
+
+    public int checkExternalDecimal_(byte[] byteArray, int offset,
+            int precision, boolean ignoreHighNibbleForEvenPrecision,
+            boolean canOverwriteHighNibbleForEvenPrecision) {
+
+        if (precision < 1)
+            throw new IllegalArgumentException("Illegal Precision.");
+
+        int returnCode = 0;
+        int startIndex = offset;
+        int endIndex = startIndex + precision - 1;
+        boolean hasValidSign = false;
+        int signOffset = -1;
+        boolean isSignEmbedded = false;
+        if (byteArray[startIndex] ==  CommonData.EXTERNAL_SIGN_MINUS || byteArray[startIndex] == CommonData.EXTERNAL_SIGN_PLUS) {
+            // sign separate leading
+            hasValidSign = true;
+            signOffset = startIndex;
+        } else if (byteArray[endIndex] == CommonData.EXTERNAL_SIGN_MINUS || byteArray[endIndex] == CommonData.EXTERNAL_SIGN_PLUS) {
+            // sign separate trailing
+            hasValidSign = true;
+            signOffset = endIndex;
+        } else if ((byteArray[startIndex] & (byte)CommonData.HIGHER_NIBBLE_MASK & 0xFF) > 0x90 && (byteArray[startIndex] & (byte)CommonData.LOWER_NIBBLE_MASK) <= 0x09) {
+            // sign embedded leading
+            isSignEmbedded = true;
+            hasValidSign = true;
+            signOffset = startIndex;
+        } else if ((byteArray[endIndex] & (byte)CommonData.HIGHER_NIBBLE_MASK & 0xFF) > 0x90 && (byteArray[endIndex] & (byte)CommonData.LOWER_NIBBLE_MASK) <= 0x09) {
+            // sign embedded trailing
+            isSignEmbedded = true;
+            hasValidSign = true;
+            signOffset = endIndex;
+        }
+
+        // Kinda pointless because F will always match as a valid sign code
+        if (!hasValidSign) {
+            returnCode = 3;
+        }
+
+        // ordinary checking places here:
+        int i;
+        for (i = offset; byteArray[i] == (byte) 0x00; i++)
+        ;
+
+        for (; i < endIndex; i++)
+        {
+            if (i == signOffset) continue;
+            if ((byteArray[i] & (byte)CommonData.LOWER_NIBBLE_MASK) > 0x09 ||
+                (byteArray[i] & (byte)CommonData.HIGHER_NIBBLE_MASK & 0xF0) != 0xF0)
+            {
+                returnCode = 2;
+                break;
+            }
+        }
+
+        // Check sign nibble
+        if (returnCode == 0 && isSignEmbedded && (byteArray[signOffset] & (byte)CommonData.LOWER_NIBBLE_MASK) > 0x09) {
+            returnCode++;
+        }
+        return returnCode;
+    }
+
     // Assuming canOverwriteMostSignificantEvenNibble == false
     /**
      * Checks the validity of a Packed Decimal, return code indicating the status of the Packed Decimal. The most
