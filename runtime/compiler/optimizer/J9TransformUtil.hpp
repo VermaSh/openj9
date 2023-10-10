@@ -106,9 +106,9 @@ public:
          TR::Compilation *comp,
          TR::Node *object);
 
-#if defined(TR_TARGET_64BIT)
+#if defined(J9VM_GC_ENABLE_SPARSE_HEAP_ALLOCATION)
    static TR::Node *generateDataAddrLoadTrees(TR::Compilation *comp, TR::Node *arrayObject);
-#endif /* TR_TARGET_64BIT */
+#endif /* J9VM_GC_ENABLE_SPARSE_HEAP_ALLOCATION */
    static TR::Node *generateArrayAddressTrees(
       TR::Compilation *comp,
       TR::Node *arrayNode,
@@ -122,9 +122,6 @@ public:
       TR::Node *strideNode = NULL,
       int32_t elementSize = 0,
       bool useShiftOpCode = false);
-
-   static TR::Node *findArrayIndexNode(TR::Compilation *comp, TR::Node *loadNode);
-   static TR::Node *findArrayBaseNode(TR::Compilation *comp, TR::Node *loadNode);
 
    static bool transformDirectLoad(TR::Compilation *comp, TR::Node *node);
 
