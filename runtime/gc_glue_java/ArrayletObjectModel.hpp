@@ -1246,11 +1246,13 @@ public:
 	{
 		void *dataAddr = (void *)((uintptr_t)arrayPtr + contiguousIndexableHeaderSize());;
 #if defined(J9VM_ENV_DATA64)
-		if (isVirtualLargeObjectHeapEnabled()
-#if defined(J9VM_GC_ENABLE_DOUBLE_MAP)
-			|| isDoubleMappingEnabled()
-#endif /* defined(J9VM_GC_ENABLE_DOUBLE_MAP) */
-		) {
+		/* could be replaced with "if (_isIndexableDataAddrPresent) {"? */
+//		if (isVirtualLargeObjectHeapEnabled()
+//#if defined(J9VM_GC_ENABLE_DOUBLE_MAP)
+//			|| isDoubleMappingEnabled()
+//#endif /* defined(J9VM_GC_ENABLE_DOUBLE_MAP) */
+//		) {
+		if (_isIndexableDataAddrPresent) {
 			dataAddr = *dataAddrSlotForContiguous(arrayPtr);
 		}
 #endif /* defined(J9VM_ENV_DATA64) */
