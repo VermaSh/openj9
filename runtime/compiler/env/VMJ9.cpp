@@ -4044,8 +4044,7 @@ TR_J9VMBase::initializeLocalArrayHeader(TR::Compilation * comp, TR::Node * alloc
       // -----------------------------------------------------------------------------------
       // Initialize data address field
       // -----------------------------------------------------------------------------------
-      TR::SymbolReference *dataAddrFieldOffsetSymRef = comp->getSymRefTab()->findOrCreateGenericIntShadowSymbolReference(comp->fej9()->getOffsetOfContiguousDataAddrField());
-      // TR::SymbolReference *dataAddrFieldOffsetSymRef = comp->getSymRefTab()->findOrCreateContiguousArrayDataAddrFieldShadowSymRef();
+      TR::SymbolReference *dataAddrFieldOffsetSymRef = comp->getSymRefTab()->findOrCreateContiguousArrayDataAddrFieldShadowSymRef();
       TR::Node *headerSizeNode = TR::Node::lconst(allocationNode, TR::Compiler->om.contiguousArrayHeaderSizeInBytes());
       TR::Node *startOfDataNode = TR::Node::create(TR::aladd, 2, allocationNode, headerSizeNode);
 
