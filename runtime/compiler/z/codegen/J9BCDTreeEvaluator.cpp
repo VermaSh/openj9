@@ -1591,36 +1591,36 @@ J9::Z::TreeEvaluator::zd2pdVectorEvaluatorHelper(TR::Node * node, TR::CodeGenera
       {
       TR::MemoryReference * sourceMR = TR::MemoryReference::create(cg, node);
 
-      TR::MemoryReference *zonedDecimalMR = NULL;
+      TR::MemoryReference *zonedDecimalLowMR = NULL;
       TR::MemoryReference *zonedDecimalHighMR = NULL;
 
-      TR::Register *vZondedLowCeckReg = cg->allocateRegister(TR_VRF);
-      TR::Register *vZondedHighCeckReg = NULL;
+      TR::Register *vZondedLowReg = cg->allocateRegister(TR_VRF);
+      TR::Register *vZondedHighReg = NULL;
       uint8_t firstByteIndexToLoad;
 
       if (destPrecision <= TR_VECTOR_REGISTER_SIZE)
          {
-         zonedDecimalMR = generateS390MemoryReference(*sourceMR, 0, cg);
-         // zonedDecimalMR = generateS390LeftAlignedMemoryReference(child, sourceReg->getStorageReference(), cg, child->getDecimalPrecision());
+         zonedDecimalLowMR = generateS390MemoryReference(*sourceMR, 0, cg);
+         // zonedDecimalLowMR = generateS390LeftAlignedMemoryReference(child, sourceReg->getStorageReference(), cg, child->getDecimalPrecision());
          // firstByteIndexToLoad = TR_VECTOR_REGISTER_SIZE - precision;
          firstByteIndexToLoad = destPrecision;
-         generateVSIInstruction(cg, TR::InstOpCode::VLRL, node, vZondedLowCeckReg, zonedDecimalMR, firstByteIndexToLoad);
+         generateVSIInstruction(cg, TR::InstOpCode::VLRL, node, vZondedLowReg, zonedDecimalLowMR, firstByteIndexToLoad);
          }
       else
          {
          // firstByteIndexToLoad = decimalPrecision - TR_VECTOR_REGISTER_SIZE; // 0; // TR_VECTOR_REGISTER_SIZE;
-         // zonedDecimalMR->addToOffset(destPrecision - TR_VECTOR_REGISTER_SIZE);
+         // zonedDecimalLowMR->addToOffset(destPrecision - TR_VECTOR_REGISTER_SIZE);
          zonedDecimalLowMR = generateS390MemoryReference(*sourceMR, TR_VECTOR_REGISTER_SIZE - 1, cg);
          firstByteIndexToLoad = TR_VECTOR_REGISTER_SIZE;
-         generateVSIInstruction(cg, TR::InstOpCode::VLRL, node, vZondedLowCeckReg, zonedDecimalMR, firstByteIndexToLoad);
+         generateVSIInstruction(cg, TR::InstOpCode::VLRL, node, vZondedLowReg, zonedDecimalLowMR, firstByteIndexToLoad);
 
-         // vZondedHighCeckReg = cg->allocateRegister(TR_VRF);
+         // vZondedHighReg = cg->allocateRegister(TR_VRF);
          // zonedDecimalHighMR = generateS390LeftAlignedMemoryReference(child, sourceReg->getStorageReference(), cg, child->getDecimalPrecision());
          // firstByteIndexToLoad = destPrecision - TR_VECTOR_REGISTER_SIZE; // 2*TR_VECTOR_REGISTER_SIZE - destPrecision;
-         // generateVSIInstruction(cg, TR::InstOpCode::VLRL, node, vZondedHighCeckReg, zonedDecimalHighMR, firstByteIndexToLoad);
+         // generateVSIInstruction(cg, TR::InstOpCode::VLRL, node, vZondedHighReg, zonedDecimalHighMR, firstByteIndexToLoad);
          }
-      if (vZondedLowCeckReg) cg->stopUsingRegister(vZondedLowCeckReg);
-      if (vZondedHighCeckReg) cg->stopUsingRegister(vZondedHighCeckReg);
+      if (vZondedLowReg) cg->stopUsingRegister(vZondedLowReg);
+      if (vZondedHighReg) cg->stopUsingRegister(vZondedHighReg);
       }
 
    // generateVSIInstruction(cg, TR::InstOpCode::VPKZ, node, targetReg, sourceMR, destPrecision - 1);
