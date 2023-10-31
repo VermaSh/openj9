@@ -1599,23 +1599,19 @@ J9::Z::TreeEvaluator::zd2pdVectorEvaluatorHelper(TR::Node * node, TR::CodeGenera
       if (destPrecision <= TR_VECTOR_REGISTER_SIZE)
          {
          zonedDecimalLowMR = generateS390MemoryReference(*sourceMR, 0, cg);
-         // zonedDecimalLowMR = generateS390LeftAlignedMemoryReference(child, sourceReg->getStorageReference(), cg, child->getDecimalPrecision());
-         // firstByteIndexToLoad = TR_VECTOR_REGISTER_SIZE - precision;
-         firstByteIndexToLoad = destPrecision;
+         firstByteIndexToLoad = destPrecision - 1;
          generateVSIInstruction(cg, TR::InstOpCode::VLRL, node, vZondedLowReg, zonedDecimalLowMR, firstByteIndexToLoad);
          }
       else
          {
-         // firstByteIndexToLoad = decimalPrecision - TR_VECTOR_REGISTER_SIZE; // 0; // TR_VECTOR_REGISTER_SIZE;
-         // zonedDecimalLowMR->addToOffset(destPrecision - TR_VECTOR_REGISTER_SIZE);
-         zonedDecimalLowMR = generateS390MemoryReference(*sourceMR, TR_VECTOR_REGISTER_SIZE - 1, cg);
-         firstByteIndexToLoad = TR_VECTOR_REGISTER_SIZE;
+         zonedDecimalLowMR = generateS390MemoryReference(*sourceMR, destPrecision - TR_VECTOR_REGISTER_SIZE, cg);
+         firstByteIndexToLoad = TR_VECTOR_REGISTER_SIZE - 1;
          generateVSIInstruction(cg, TR::InstOpCode::VLRL, node, vZondedLowReg, zonedDecimalLowMR, firstByteIndexToLoad);
 
-         // vZondedHighReg = cg->allocateRegister(TR_VRF);
-         // zonedDecimalHighMR = generateS390LeftAlignedMemoryReference(child, sourceReg->getStorageReference(), cg, child->getDecimalPrecision());
-         // firstByteIndexToLoad = destPrecision - TR_VECTOR_REGISTER_SIZE; // 2*TR_VECTOR_REGISTER_SIZE - destPrecision;
-         // generateVSIInstruction(cg, TR::InstOpCode::VLRL, node, vZondedHighReg, zonedDecimalHighMR, firstByteIndexToLoad);
+         vZondedHighReg = cg->allocateRegister(TR_VRF);
+         zonedDecimalHighMR = generateS390MemoryReference(*sourceMR, 0, cg);
+         int32_t firstByteIndexToLoadHigh = destPrecision - TR_VECTOR_REGISTER_SIZE - 1;
+         generateVSIInstruction(cg, TR::InstOpCode::VLRL, node, vZondedHighReg, zonedDecimalHighMR, firstByteIndexToLoadHigh);
          }
       if (vZondedLowReg) cg->stopUsingRegister(vZondedLowReg);
       if (vZondedHighReg) cg->stopUsingRegister(vZondedHighReg);
