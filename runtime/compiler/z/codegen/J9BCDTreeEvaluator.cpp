@@ -1589,6 +1589,9 @@ J9::Z::TreeEvaluator::zd2pdVectorEvaluatorHelper(TR::Node * node, TR::CodeGenera
    static bool enableCheckZonedDecimal = feGetEnv("TR_enableCheckZonedDecimal");
    if (enableCheckZonedDecimal)
       {
+      TR::Register *chkResultReg  = cg->allocateRegister(TR_GPR);
+      generateRRInstruction(cg, comp->target().is64Bit() ? TR::InstOpCode::XGR : TR::InstOpCode::XR, node, chkResultReg, chkResultReg);
+
       TR::Register *vZondedLowReg = cg->allocateRegister(TR_VRF);
       TR::Register *vZondedHighReg = NULL;
       uint8_t firstByteIndexToLoad = destPrecision - 1;
@@ -1598,36 +1601,32 @@ J9::Z::TreeEvaluator::zd2pdVectorEvaluatorHelper(TR::Node * node, TR::CodeGenera
       if (destPrecision > TR_VECTOR_REGISTER_SIZE)
          {
          vZondedHighReg = cg->allocateRegister(TR_VRF);
-         zonedDecimalHighMR = zonedDecimalLowMR; // generateS390MemoryReference(*sourceMR, 0, cg);
-         firstByteIndexToLoad = firstByteIndexToLoad - TR_VECTOR_REGISTER_SIZE; // destPrecision - TR_VECTOR_REGISTER_SIZE - 1;
+         zonedDecimalHighMR = zonedDecimalLowMR;
+         firstByteIndexToLoad = firstByteIndexToLoad - TR_VECTOR_REGISTER_SIZE;
          generateVSIInstruction(cg, TR::InstOpCode::VLRL, node, vZondedHighReg, zonedDecimalHighMR, firstByteIndexToLoadHigh);
 
          zonedDecimalLowMR = generateS390MemoryReference(*sourceMR, destPrecision - TR_VECTOR_REGISTER_SIZE, cg);
          firstByteIndexToLoad = TR_VECTOR_REGISTER_SIZE - 1;
-         // generateVSIInstruction(cg, TR::InstOpCode::VLRL, node, vZondedLowReg, zonedDecimalLowMR, firstByteIndexToLoad);
          }
 
       generateVSIInstruction(cg, TR::InstOpCode::VLRL, node, vZondedLowReg, zonedDecimalLowMR, firstByteIndexToLoad);
 
-      // if (destPrecision <= TR_VECTOR_REGISTER_SIZE)
-      //    {
-      //    zonedDecimalLowMR = generateS390MemoryReference(*sourceMR, 0, cg);
-      //    firstByteIndexToLoad = destPrecision - 1;
-      //    generateVSIInstruction(cg, TR::InstOpCode::VLRL, node, vZondedLowReg, zonedDecimalLowMR, firstByteIndexToLoad);
-      //    }
-      // else
-      //    {
-      //    zonedDecimalLowMR = generateS390MemoryReference(*sourceMR, destPrecision - TR_VECTOR_REGISTER_SIZE, cg);
-      //    firstByteIndexToLoad = TR_VECTOR_REGISTER_SIZE - 1;
-      //    generateVSIInstruction(cg, TR::InstOpCode::VLRL, node, vZondedLowReg, zonedDecimalLowMR, firstByteIndexToLoad);
+      // Check zoned decimal digits
 
-      //    vZondedHighReg = cg->allocateRegister(TR_VRF);
-      //    zonedDecimalHighMR = generateS390MemoryReference(*sourceMR, 0, cg);
-      //    int32_t firstByteIndexToLoadHigh = destPrecision - TR_VECTOR_REGISTER_SIZE - 1;
-      //    generateVSIInstruction(cg, TR::InstOpCode::VLRL, node, vZondedHighReg, zonedDecimalHighMR, firstByteIndexToLoadHigh);
-      //    }
+      generateRRInstruction(cg, TR::InstOpCode::IPM, node, chkResultReg, chkResultReg);
+      if(comp->target().is64Bit())
+         {
+         generateRRInstruction(cg, TR::InstOpCode::LLGTR, node, chkResultReg, chkResultReg);
+         generateRSInstruction(cg, TR::InstOpCode::SRLG, node, chkResultReg, chkResultReg, 28);
+         }
+      else
+         {
+         generateRSInstruction(cg, TR::InstOpCode::SRL, node, chkResultReg, 28);
+         }
+
       if (vZondedLowReg) cg->stopUsingRegister(vZondedLowReg);
       if (vZondedHighReg) cg->stopUsingRegister(vZondedHighReg);
+      if (chkResultReg) cg->stopUsingRegister(chkResultReg);
       }
 
    generateVSIInstruction(cg, TR::InstOpCode::VPKZ, node, targetReg, sourceMR, destPrecision - 1);
