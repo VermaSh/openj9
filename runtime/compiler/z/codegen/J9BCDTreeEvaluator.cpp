@@ -1582,15 +1582,13 @@ J9::Z::TreeEvaluator::zd2pdVectorEvaluatorHelper(TR::Node * node, TR::CodeGenera
    TR::Node *child = node->getFirstChild();
    TR_PseudoRegister *sourceReg = cg->evaluateBCDNode(child);
    sourceReg = cg->privatizeBCDRegisterIfNeeded(node, child, sourceReg);
-   // TR::MemoryReference *sourceMR = generateS390LeftAlignedMemoryReference(child, sourceReg->getStorageReference(), cg, child->getDecimalPrecision());
+   TR::MemoryReference *sourceMR = generateS390LeftAlignedMemoryReference(child, sourceReg->getStorageReference(), cg, child->getDecimalPrecision());
    targetReg = cg->allocateRegister(TR_VRF);
    int32_t destPrecision = std::min(node->getDecimalPrecision(), child->getDecimalPrecision());
 
    static bool enableCheckZonedDecimal = feGetEnv("TR_enableCheckZonedDecimal");
    if (enableCheckZonedDecimal)
       {
-      TR::MemoryReference * sourceMR = TR::MemoryReference::create(cg, node);
-
       TR::MemoryReference *zonedDecimalLowMR = NULL;
       TR::MemoryReference *zonedDecimalHighMR = NULL;
 
