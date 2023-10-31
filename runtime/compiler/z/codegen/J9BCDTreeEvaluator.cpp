@@ -1590,7 +1590,7 @@ J9::Z::TreeEvaluator::zd2pdVectorEvaluatorHelper(TR::Node * node, TR::CodeGenera
    if (enableCheckZonedDecimal)
       {
       TR::Register *chkResultReg  = cg->allocateRegister(TR_GPR);
-      generateRRInstruction(cg, comp->target().is64Bit() ? TR::InstOpCode::XGR : TR::InstOpCode::XR, node, chkResultReg, chkResultReg);
+      generateRRInstruction(cg, cg->comp()->target().is64Bit() ? TR::InstOpCode::XGR : TR::InstOpCode::XR, node, chkResultReg, chkResultReg);
 
       TR::Register *vZondedLowReg = cg->allocateRegister(TR_VRF);
       TR::Register *vZondedHighReg = NULL;
@@ -1603,7 +1603,7 @@ J9::Z::TreeEvaluator::zd2pdVectorEvaluatorHelper(TR::Node * node, TR::CodeGenera
          vZondedHighReg = cg->allocateRegister(TR_VRF);
          zonedDecimalHighMR = zonedDecimalLowMR;
          firstByteIndexToLoad = firstByteIndexToLoad - TR_VECTOR_REGISTER_SIZE;
-         generateVSIInstruction(cg, TR::InstOpCode::VLRL, node, vZondedHighReg, zonedDecimalHighMR, firstByteIndexToLoadHigh);
+         generateVSIInstruction(cg, TR::InstOpCode::VLRL, node, vZondedHighReg, zonedDecimalHighMR, firstByteIndexToLoad);
 
          zonedDecimalLowMR = generateS390MemoryReference(*sourceMR, destPrecision - TR_VECTOR_REGISTER_SIZE, cg);
          firstByteIndexToLoad = TR_VECTOR_REGISTER_SIZE - 1;
@@ -1614,7 +1614,7 @@ J9::Z::TreeEvaluator::zd2pdVectorEvaluatorHelper(TR::Node * node, TR::CodeGenera
       // Check zoned decimal digits
 
       generateRRInstruction(cg, TR::InstOpCode::IPM, node, chkResultReg, chkResultReg);
-      if(comp->target().is64Bit())
+      if(cg->comp()->target().is64Bit())
          {
          generateRRInstruction(cg, TR::InstOpCode::LLGTR, node, chkResultReg, chkResultReg);
          generateRSInstruction(cg, TR::InstOpCode::SRLG, node, chkResultReg, chkResultReg, 28);
