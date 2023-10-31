@@ -1621,7 +1621,7 @@ J9::Z::TreeEvaluator::zd2pdVectorEvaluatorHelper(TR::Node * node, TR::CodeGenera
       if (vZondedHighReg) cg->stopUsingRegister(vZondedHighReg);
       }
 
-   // generateVSIInstruction(cg, TR::InstOpCode::VPKZ, node, targetReg, sourceMR, destPrecision - 1);
+   generateVSIInstruction(cg, TR::InstOpCode::VPKZ, node, targetReg, sourceMR, destPrecision - 1);
 
    node->setRegister(targetReg);
    cg->decReferenceCount(child);
