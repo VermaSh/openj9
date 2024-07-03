@@ -922,11 +922,8 @@ createArrayAddressTree(TR::Compilation *comp, bool is64bit, TR::Node *baseNode, 
    else
       {
       TR::Node *top, *c2;
-      TR::Node *aload = createLoad(baseNode);
       c2 = TR::TransformUtil::generateConvertArrayElementIndexToOffsetTrees(comp, indexNode, NULL, multiply);
-      top = TR::Node::create(baseNode, is64bit ? TR::aladd : TR::aiadd, 2);
-      top->setAndIncChild(0, aload);
-      top->setAndIncChild(1, c2);
+      top = TR::TransformUtil::generateArrayElementAddressTrees(comp, createLoad(baseNode), c2);
       return top;
       }
    }
