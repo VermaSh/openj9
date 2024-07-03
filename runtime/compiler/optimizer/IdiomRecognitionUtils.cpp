@@ -931,7 +931,7 @@ createArrayAddressTree(TR::Compilation *comp, bool is64bit, TR::Node *baseNode, 
    {
    if (indexNode->getOpCodeValue() == TR::iconst && indexNode->getInt() == 0)
       {
-      return createArrayTopAddressTree(comp, is64bit, baseNode);
+      return TR::TransformUtil::generateFirstArrayElementAddressTrees(comp, createLoad(baseNode));
       }
    else
       {
