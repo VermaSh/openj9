@@ -47,6 +47,7 @@
 #include "optimizer/IdiomRecognition.hpp"
 #include "optimizer/Structure.hpp"
 #include "optimizer/TranslateTable.hpp"
+#include "optimizer/TransformUtil.hpp"
 
 /************************************/
 /************ Utilities *************/
