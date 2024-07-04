@@ -823,8 +823,7 @@ createArrayHeaderConst(TR::Compilation *comp, bool is64bit, TR::Node *baseNode)
 TR::Node*
 createArrayTopAddressTree(TR::Compilation *comp, bool is64bit, TR::Node *baseNode)
    {
-   TR::Node *top = TR::TransformUtil::generateFirstArrayElementAddressTrees(comp, createLoad(baseNode));
-   return top;
+   return TR::TransformUtil::generateFirstArrayElementAddressTrees(comp, createLoad(baseNode));
    }
 
 
