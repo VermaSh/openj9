@@ -889,23 +889,9 @@ createBytesFromElement(TR::Compilation *comp, bool is64bit, TR::Node *indexNode,
 TR::Node*
 createIndexOffsetTree(TR::Compilation *comp, bool is64bit, TR::Node *indexNode, int multiply)
    {
-   TR::Node *top, *c1, *c2;
+   TR::Node *c1;
    c1 = createBytesFromElement(comp, is64bit, indexNode, multiply);
-
-   if (is64bit)
-      {
-      c2 = TR::Node::create(indexNode, TR::lconst, 0);
-      c2->setLongInt(-(int32_t)TR::Compiler->om.contiguousArrayHeaderSizeInBytes());
-      top = TR::Node::create(indexNode, TR::lsub, 2);
-      }
-   else
-      {
-      c2 = TR::Node::create(indexNode, TR::iconst, 0, -(int32_t)TR::Compiler->om.contiguousArrayHeaderSizeInBytes());
-      top = TR::Node::create(indexNode, TR::isub, 2);
-      }
-   top->setAndIncChild(0, c1);
-   top->setAndIncChild(1, c2);
-   return top;
+   return TR::TransformUtil::generateConvertArrayElementIndexToOffsetTrees(comp, c1, NULL, multiply);
    }
 
 
@@ -921,10 +907,10 @@ createArrayAddressTree(TR::Compilation *comp, bool is64bit, TR::Node *baseNode, 
       }
    else
       {
-      TR::Node *top, *c2, *indexLoadNode;
-      indexLoadNode = convertStoreToLoadWithI2LIfNecessary(comp, is64bit, indexNode);
-      c2 = TR::TransformUtil::generateConvertArrayElementIndexToOffsetTrees(comp, indexLoadNode, NULL, multiply);
-      top = TR::TransformUtil::generateArrayElementAddressTrees(comp, createLoad(baseNode), c2);
+      TR::Node *top, *c2;
+      TR::Node *aload = createLoad(baseNode);
+      c2 = createIndexOffsetTree(comp, is64bit, indexNode, multiply);
+      top = TR::TransformUtil::generateArrayElementAddressTrees(comp, aload, c2);
       return top;
       }
    }
