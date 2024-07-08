@@ -823,6 +823,7 @@ createArrayHeaderConst(TR::Compilation *comp, bool is64bit, TR::Node *baseNode)
 TR::Node*
 createArrayTopAddressTree(TR::Compilation *comp, bool is64bit, TR::Node *baseNode)
    {
+   traceMsg(comp, "In createArrayTopAddressTree with baseNode: %p\n", baseNode);
    TR::Node *aload = createLoad(baseNode);
    return TR::TransformUtil::generateFirstArrayElementAddressTrees(comp, aload);
    }
@@ -889,6 +890,7 @@ createBytesFromElement(TR::Compilation *comp, bool is64bit, TR::Node *indexNode,
 TR::Node*
 createIndexOffsetTree(TR::Compilation *comp, bool is64bit, TR::Node *indexNode, int multiply)
    {
+   traceMsg(comp, "In createIndexOffsetTree with indexNode: %p \n", indexNode);
    return createBytesFromElement(comp, is64bit, indexNode, multiply);
    }
 
@@ -899,6 +901,7 @@ createIndexOffsetTree(TR::Compilation *comp, bool is64bit, TR::Node *indexNode, 
 TR::Node*
 createArrayAddressTree(TR::Compilation *comp, bool is64bit, TR::Node *baseNode, TR::Node *indexNode, int multiply)
    {
+   traceMsg(comp, "In createArrayAddressTree with baseNode: %p and indexNode: %p \n", baseNode, indexNode);
    if (indexNode->getOpCodeValue() == TR::iconst && indexNode->getInt() == 0)
       {
       return createArrayTopAddressTree(comp, is64bit, baseNode);
