@@ -824,7 +824,7 @@ createArrayHeaderConst(TR::Compilation *comp, bool is64bit, TR::Node *baseNode)
 TR::Node*
 createArrayTopAddressTree(TR::Compilation *comp, bool is64bit, TR::Node *baseNode)
    {
-   TR::Node *top = TR::TransformUtil::generateFirstArrayElementAddressTrees(comp, createLoad(baseNode));
+   TR::Node *top = TR::TransformUtil::generateFirstArrayElementAddressTrees(comp, baseNode);
    return top;
    }
 
@@ -892,15 +892,14 @@ createArrayAddressTree(TR::Compilation *comp, bool is64bit, TR::Node *baseNode, 
    {
    TR::Node *top = NULL;
    TR::Node *c2 = NULL;
-   TR::Node *arrayObject = createLoad(baseNode);
    if (indexNode->getOpCodeValue() == TR::iconst && indexNode->getInt() == 0)
       {
-      top = TR::TransformUtil::generateFirstArrayElementAddressTrees(comp, arrayObject);
+      top = TR::TransformUtil::generateFirstArrayElementAddressTrees(comp, baseNode);
       }
    else
       {
       c2 = TR::TransformUtil::generateConvertArrayElementIndexToOffsetTrees(comp, indexNode, NULL, multiply);
-      top = TR::TransformUtil::generateArrayElementAddressTrees(comp, arrayObject, c2);
+      top = TR::TransformUtil::generateArrayElementAddressTrees(comp, baseNode, c2);
       }
 
    return top;
