@@ -826,6 +826,7 @@ createArrayTopAddressTree(TR::Compilation *comp, bool is64bit, TR::Node *baseNod
    {
    traceMsg(comp, "In createArrayTopAddressTree with baseNode: %p\n", baseNode);
    TR::Node *top = TR::TransformUtil::generateFirstArrayElementAddressTrees(comp, createLoad(baseNode));
+   traceMsg(comp, "    entered with baseNode %p and returning with: %p\n", baseNode, top);
    return top;
    }
 
@@ -904,7 +905,7 @@ createArrayAddressTree(TR::Compilation *comp, bool is64bit, TR::Node *baseNode, 
       c2 = TR::TransformUtil::generateConvertArrayElementIndexToOffsetTrees(comp, indexNode, NULL, multiply);
       top = TR::TransformUtil::generateArrayElementAddressTrees(comp, arrayObject, c2);
       }
-
+   traceMsg(comp, "    entered with baseNode %p, indexNode %p and returning with: %p and index node %p\n", baseNode, indexNode, top, c2);
    return top;
    }
 
