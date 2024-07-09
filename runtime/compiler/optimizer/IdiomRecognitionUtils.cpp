@@ -892,7 +892,7 @@ createBytesFromElement(TR::Compilation *comp, bool is64bit, TR::Node *indexNode,
 TR::Node*
 createIndexOffsetTree(TR::Compilation *comp, bool is64bit, TR::Node *indexNode, int multiply)
    {
-   traceMsg(comp, "In createIndexOffsetTree with indexNode: %p \n", indexNode);
+   traceMsg(comp, "In createIndexOffsetTree with indexNode %p and multiply %d\n", indexNode, multiply);
    TR::Node *ret = createBytesFromElement(comp, is64bit, indexNode, multiply);
    traceMsg(comp, "    generated trees using %p, multiply %d and returning with: %p\n", indexNode, multiply, ret);
    return ret;
@@ -905,12 +905,12 @@ createIndexOffsetTree(TR::Compilation *comp, bool is64bit, TR::Node *indexNode, 
 TR::Node*
 createArrayAddressTree(TR::Compilation *comp, bool is64bit, TR::Node *baseNode, TR::Node *indexNode, int multiply)
    {
-   traceMsg(comp, "In createArrayAddressTree with baseNode: %p and indexNode: %p \n", baseNode, indexNode);
+   traceMsg(comp, "In createArrayAddressTree with baseNode %p, indexNode %p and multiply %d\n", baseNode, indexNode, multiply);
    TR::Node *ret = NULL;
    if (indexNode->getOpCodeValue() == TR::iconst && indexNode->getInt() == 0)
       {
       ret = createArrayTopAddressTree(comp, is64bit, baseNode);
-      traceMsg(comp, "    generated trees using baseNode %p and returning with: %p\n", baseNode, ret);
+      traceMsg(comp, "    generated trees using baseNode %p and returning with %p\n", baseNode, ret);
       return ret;
       }
    else
@@ -918,7 +918,7 @@ createArrayAddressTree(TR::Compilation *comp, bool is64bit, TR::Node *baseNode, 
       TR::Node *c2 = createIndexOffsetTree(comp, is64bit, indexNode, multiply);
       TR::Node *aload = createLoad(baseNode);
       ret = TR::TransformUtil::generateArrayElementAddressTrees(comp, aload, c2);
-      traceMsg(comp, "    generated trees using baseNode %p, indexNode %p and returning with: %p, indexNode %p\n", aload, indexNode, ret, c2);
+      traceMsg(comp, "    generated trees using baseNode %p, indexNode %p and returning with %p, indexNode %p\n", aload, indexNode, ret, c2);
       return ret;
       }
    }
