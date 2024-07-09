@@ -948,7 +948,7 @@ createArrayAddressTree(TR::Compilation *comp, bool is64bit, TR::Node *baseNode, 
       top = TR::Node::create(baseNode, is64bit ? TR::aladd : TR::aiadd, 2);
       top->setAndIncChild(0, aload);
       top->setAndIncChild(1, c2);
-      traceMsg(comp, "    generated trees using baseNode %p, indexNode %p and returning with %p, indexNode %p\n", baseNode, indexNode, top, c2);
+      traceMsg(comp, "    generated trees using baseNode %p, indexNode %p and returning with %p, indexNode %p\n", aload, indexNode, top, c2);
       return top;
       }
    }
