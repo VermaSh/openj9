@@ -838,6 +838,7 @@ createArrayTopAddressTree(TR::Compilation *comp, bool is64bit, TR::Node *baseNod
       }
    top->setAndIncChild(0, aload);
    top->setAndIncChild(1, c2);
+   traceMsg(comp, "    entered with %p and returning with %p\n", baseNode, top);
    return top;
    }
 
@@ -931,9 +932,12 @@ TR::Node*
 createArrayAddressTree(TR::Compilation *comp, bool is64bit, TR::Node *baseNode, TR::Node *indexNode, int multiply)
    {
    traceMsg(comp, "In createArrayAddressTree with baseNode: %p and indexNode: %p \n", baseNode, indexNode);
+   TR::Node *ret = NULL;
    if (indexNode->getOpCodeValue() == TR::iconst && indexNode->getInt() == 0)
       {
-      return createArrayTopAddressTree(comp, is64bit, baseNode);
+      ret = createArrayTopAddressTree(comp, is64bit, baseNode);
+      traceMsg(comp, "    entered with baseNode %p, indexNode %p and returning with: %p\n", baseNode, indexNode, ret);
+      return ret;
       }
    else
       {
@@ -943,6 +947,7 @@ createArrayAddressTree(TR::Compilation *comp, bool is64bit, TR::Node *baseNode, 
       top = TR::Node::create(baseNode, is64bit ? TR::aladd : TR::aiadd, 2);
       top->setAndIncChild(0, aload);
       top->setAndIncChild(1, c2);
+      traceMsg(comp, "    entered with baseNode %p, indexNode %p and returning with: %p\n", baseNode, indexNode, top);
       return top;
       }
    }
