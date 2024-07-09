@@ -910,7 +910,7 @@ createArrayAddressTree(TR::Compilation *comp, bool is64bit, TR::Node *baseNode, 
    if (indexNode->getOpCodeValue() == TR::iconst && indexNode->getInt() == 0)
       {
       ret = createArrayTopAddressTree(comp, is64bit, baseNode);
-      traceMsg(comp, "    generated trees using baseNode %p, indexNode %p and returning with: %p\n", baseNode, ret);
+      traceMsg(comp, "    generated trees using baseNode %p and returning with: %p\n", baseNode, ret);
       return ret;
       }
    else
