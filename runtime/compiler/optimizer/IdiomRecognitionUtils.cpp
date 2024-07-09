@@ -894,7 +894,7 @@ createIndexOffsetTree(TR::Compilation *comp, bool is64bit, TR::Node *indexNode, 
    {
    traceMsg(comp, "In createIndexOffsetTree with indexNode: %p \n", indexNode);
    TR::Node *ret = createBytesFromElement(comp, is64bit, indexNode, multiply);
-   traceMsg(comp, "    entered with %p and returning with: %p\n", indexNode, ret);
+   traceMsg(comp, "    generated trees using %p, multiply %d and returning with: %p\n", indexNode, multiply, ret);
    return ret;
    }
 
