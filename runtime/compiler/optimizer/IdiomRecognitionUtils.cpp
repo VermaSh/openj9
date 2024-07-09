@@ -825,7 +825,9 @@ createArrayTopAddressTree(TR::Compilation *comp, bool is64bit, TR::Node *baseNod
    {
    traceMsg(comp, "In createArrayTopAddressTree with baseNode: %p\n", baseNode);
    TR::Node *aload = createLoad(baseNode);
-   return TR::TransformUtil::generateFirstArrayElementAddressTrees(comp, aload);
+   TR::Node *ret = TR::TransformUtil::generateFirstArrayElementAddressTrees(comp, aload);
+   traceMsg(comp, "    entered with %p and returning with %p\n", baseNode, ret);
+   return ret;
    }
 
 
@@ -891,7 +893,9 @@ TR::Node*
 createIndexOffsetTree(TR::Compilation *comp, bool is64bit, TR::Node *indexNode, int multiply)
    {
    traceMsg(comp, "In createIndexOffsetTree with indexNode: %p \n", indexNode);
-   return createBytesFromElement(comp, is64bit, indexNode, multiply);
+   TR::Node *ret = createBytesFromElement(comp, is64bit, indexNode, multiply);
+   traceMsg(comp, "    entered with %p and returning with: %p\n", indexNode, ret);
+   return ret;
    }
 
 
@@ -902,15 +906,20 @@ TR::Node*
 createArrayAddressTree(TR::Compilation *comp, bool is64bit, TR::Node *baseNode, TR::Node *indexNode, int multiply)
    {
    traceMsg(comp, "In createArrayAddressTree with baseNode: %p and indexNode: %p \n", baseNode, indexNode);
+   TR::Node *ret = NULL;
    if (indexNode->getOpCodeValue() == TR::iconst && indexNode->getInt() == 0)
       {
-      return createArrayTopAddressTree(comp, is64bit, baseNode);
+      ret = createArrayTopAddressTree(comp, is64bit, baseNode);
+      traceMsg(comp, "    entered with baseNode %p, indexNode %p and returning with: %p\n", baseNode, indexNode, ret);
+      return ret;
       }
    else
       {
       TR::Node *c2 = createIndexOffsetTree(comp, is64bit, indexNode, multiply);
       TR::Node *aload = createLoad(baseNode);
-      return TR::TransformUtil::generateArrayElementAddressTrees(comp, aload, c2);
+      ret = TR::TransformUtil::generateArrayElementAddressTrees(comp, aload, c2);
+      traceMsg(comp, "    entered with baseNode %p, indexNode %p and returning with: %p\n", baseNode, indexNode, ret);
+      return ret;
       }
    }
 
