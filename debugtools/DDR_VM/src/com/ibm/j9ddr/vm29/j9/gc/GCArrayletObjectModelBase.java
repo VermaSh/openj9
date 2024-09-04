@@ -66,8 +66,10 @@ public abstract class GCArrayletObjectModelBase extends GCArrayObjectModel
 		arrayletLeafSize = vm.arrayletLeafSize();
 		arrayletLeafLogSize = vm.arrayletLeafLogSize();
 		arrayletLeafSizeMask = arrayletLeafSize.sub(1);
+		MM_GCExtensionsPointer extensions = GCBase.getExtensions();
+
 		try {
-			enableVirtualLargeObjectHeap = arrayletObjectModel._enableVirtualLargeObjectHeap();
+			enableVirtualLargeObjectHeap = extensions.isVirtualLargeObjectHeapEnabled();
 		} catch (NoSuchFieldException e) {
 			enableVirtualLargeObjectHeap = false;
 		}
@@ -402,11 +404,9 @@ public abstract class GCArrayletObjectModelBase extends GCArrayObjectModel
 	 */
 	public boolean isAddressWithinHeap(VoidPointer address) throws CorruptDataException
 	{
-		MM_GCExtensionsPointer extensions = GCBase.getExtensions();
-
 		UDATA heapAddr = UDATA.cast(address);
-		UDATA heapBase = UDATA.cast(extensions.cardTable()._heapBase());
-		UDATA heapTop = UDATA.cast(extensions.cardTable()._heapAlloc());
+		UDATA heapBase = UDATA.cast(arrayletRangeBase);
+		UDATA heapTop = UDATA.cast(arrayletRangeTop);
 
 		return heapAddr.gte(heapBase) && heapAddr.lte(heapTop);
 	}
