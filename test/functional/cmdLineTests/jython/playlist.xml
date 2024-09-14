@@ -53,7 +53,7 @@
 			</disable>
 		</disables>
 		<variations>
-			<variation>NoOptions</variation>
+			<variation>"-Xtrace:none,maximal=mt,methods={org/python/core/PrePy*(),sun/nio/cs/Stream*(),JythonHello*(),org/python/core/PyFile*(),com/ibm/jvm/io/ConsolePrintStream*(),org/python/core/Py.*(),java/io/InputStream*()},resumecount=1,trigger=method{sun/nio/cs/StreamEncoder*,jstacktrace,resumethis},trigger=method{org/python/core/PrePy*,jstacktrace,resumethis},trigger=method{org/python/core/PyFile*,jstacktrace,resumethis},trigger=method{com/ibm/jvm/io/ConsolePrintStream*,jstacktrace,resumethis},trigger=method{org/python/core/Py.print*,jstacktrace,resumethis},trigger=method{java/io/InputStream*,jstacktrace,resumethis},output=jthon_hello_%p.%d.%t.trace" "-Xjit:exclude={org/python/core/PrePy*|sun/nio/cs/Stream*|JythonHello*|org/python/core/PyFile*|com/ibm/jvm/io/ConsolePrintStream*|org/python/core/Py.*|java/io/InputStream*},dontinline={org/python/core/PrePy*|sun/nio/cs/Stream*|JythonHello*|org/python/core/PyFile*|com/ibm/jvm/io/ConsolePrintStream*|org/python/core/Py.*|java/io/InputStream*}"</variation>
 			<variation>Mode108</variation>
 			<variation>Mode109</variation>
 			<variation>Mode116</variation>
