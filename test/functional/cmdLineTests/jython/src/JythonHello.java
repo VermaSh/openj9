@@ -23,10 +23,18 @@ import org.python.core.PyList;
 import org.python.core.PyObject;
 import org.python.core.PyString;
 import org.python.util.InteractiveInterpreter;
+import org.python.core.Py;
+import org.python.core.PyFile;
+import org.python.core.PySystemState;
 
 public class JythonHello {
 	public static void main(String[] arg) throws Throwable {
 		InteractiveInterpreter interp = new InteractiveInterpreter();
+                PySystemState ss = interp.getSystemState();
+                PyObject out = ss.stdout;
+                PyObject in = ss.stdin;
+		System.out.println(((PyFile)out).encoding);
+		System.out.println(((PyFile)in).encoding);
 		interp.exec("print('Hello Python World!')");
 	}
 }
