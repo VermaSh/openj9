@@ -34,6 +34,7 @@
 #include "il/TreeTop.hpp"
 #include "il/TreeTop_inlines.hpp"
 #include "infra/Assert.hpp"
+#include "optimizer/J9TransformUtil.hpp"
 
 
 #define OPT_DETAILS "O^O UNCOMMON BCDCHK ADDRESS NODE: "
@@ -62,17 +63,56 @@ UncommonBCDCHKAddressNode::perform()
             {
             TR::Node* pdOpNode = node->getFirstChild();
             TR::Node* oldAddressNode = node->getSecondChild();
-            TR_ASSERT(pdOpNode && oldAddressNode, "Unexpected null PD opNode or address node under BCDCHK");
-            TR_ASSERT(oldAddressNode->getNumChildren() == 2, "Expecting 2 children under address node of BCDCHK.");
+            TR_ASSERT_(pdOpNode && oldAddressNode, "Unexpected null PD opNode or address node under BCDCHK");
+            TR_ASSERT(oldAddressNode->getNumChildren() == 2, "Expecting 2 children under address node of BCDCHK."); // this would have also triggered because under off-heap aloadi node has only 1 child
 
             TR::ILOpCodes addressOp = oldAddressNode->getOpCodeValue();
-            TR_ASSERT((addressOp == TR::aladd || addressOp == TR::aiadd), "Unexpected addressNode opcode");
+            TR_ASSERT((addressOp == TR::aladd || addressOp == TR::aiadd), "Unexpected addressNode opcode"); // this would have triggered because under off-heap aloadi node doesn't match either of these
 
             if(oldAddressNode->getReferenceCount() > 1)
                {
-               TR::Node* newAddressNode = TR::Node::create(node, addressOp, 2,
-                                                           oldAddressNode->getFirstChild(),
-                                                           oldAddressNode->getSecondChild());
+               if (oldAddressNode->isDataAddrPointer())
+                  {
+                  TR::Node* newAddressNode = TR::Node::create(node, addressOp, 2,
+                                                              oldAddressNode->getFirstChild(),
+                                                              oldAddressNode->getSecondChild());
+
+                  // TODO: Fatal assert for expected tree structure
+                  /* Tree structure
+                   1.  aloadi
+                         pd address node
+                     
+                   2.  aladd
+                         aloadi
+                           pd address node
+                         offset
+                   */
+                  TR::Node* arrayNode = NULL;
+                  TR::Node* offsetNode = NULL;
+                  if (oldAddressNode->getOpCodeValue().isAdd() && oldAddressNode->getDataType() == TR::Address)
+                     { // dealing with 2 tree structure
+                     arrayNode = oldAddressNode->getFirstChild()->getFirstChild();
+                     offsetNode = oldAddressNode->getSecondChild();
+                     }
+                  else if (oldAddressNode->getOpCodeValue() == TR::aloadi)
+                     { // dealing with 1st tree structure
+                     arrayNode = oldAddressNode->getFirstChild();
+                     }
+                  TR::Node* newAddressNode = TR::TransformUtil::generateArrayElementAddressTrees(comp, arrayNode, offsetNode);
+                  }
+               else
+                  {
+                  /* Tree structure
+                     aladd/aiadd
+                       aloadi
+                         pd address node
+                       iconst array_header_size
+                   */
+                  TR::Node* newAddressNode = TR::Node::create(node, addressOp, 2,
+                                                              oldAddressNode->getFirstChild(),
+                                                              oldAddressNode->getSecondChild());
+                  }
+
                node->setAndIncChild(1, newAddressNode);
                oldAddressNode->decReferenceCount();
                traceMsg(comp(), "%sReplacing node %s [%p] with [%p]\n",
