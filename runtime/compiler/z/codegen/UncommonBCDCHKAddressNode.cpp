@@ -63,7 +63,7 @@ UncommonBCDCHKAddressNode::perform()
             {
             TR::Node* pdOpNode = node->getFirstChild();
             TR::Node* oldAddressNode = node->getSecondChild();
-            TR_ASSERT_(pdOpNode && oldAddressNode, "Unexpected null PD opNode or address node under BCDCHK");
+            TR_ASSERT(pdOpNode && oldAddressNode, "Unexpected null PD opNode or address node under BCDCHK");
             TR_ASSERT(oldAddressNode->getNumChildren() == 2, "Expecting 2 children under address node of BCDCHK."); // this would have also triggered because under off-heap aloadi node has only 1 child
 
             TR::ILOpCodes addressOp = oldAddressNode->getOpCodeValue();
@@ -78,7 +78,7 @@ UncommonBCDCHKAddressNode::perform()
                    *     aloadi <contiguousArrayDataAddrFieldSymbol>
                    *         load array_object
                    */
-                  newAddressNode = TR::TransformUtil::generateArrayElementAddressTrees(comp, oldAddressNode->getFirstChild(), NULL);
+                  newAddressNode = TR::TransformUtil::generateArrayElementAddressTrees(comp(), oldAddressNode->getFirstChild(), NULL);
                   }
                else
                   {
