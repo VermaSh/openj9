@@ -78,7 +78,7 @@ UncommonBCDCHKAddressNode::perform()
                    *     aloadi <contiguousArrayDataAddrFieldSymbol>
                    *         load array_object
                    */
-                  newAddressNode = TR::TransformUtil::generateArrayElementAddressTrees(comp(), oldAddressNode->getFirstChild(), NULL);
+                  newAddressNode = TR::TransformUtil::generateArrayElementAddressTrees(comp(), oldAddressNode->getFirstChild());
                   }
                else
                   {
