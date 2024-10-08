@@ -425,7 +425,7 @@
 	</test>
 
 	<test id="Test 131: Test -Xshareclasses:printallstats=aot" timeout="600" runPath=".">
-		<command>$JAVA_EXE$ $currentMode$,printallstats=aot</command>
+		<command>$JAVA_EXE$ $currentMode$,printallstats=aot "-Xtrace:none,maximal=mt,methods={java/io/Input*(),com/ibm/jvm/io/Console*(),sun/nio/cs/Stream*(),java/lang/Process*()},resumecount=1,trigger=method{sun/nio/cs/StreamEncoder*,jstacktrace,resumethis},trigger=method{java/lang/Process*,jstacktrace,resumethis},trigger=method{com/ibm/jvm/io/Console*,jstacktrace,resumethis},trigger=method{java/io/InputStream*,jstacktrace,resumethis},trigger=method{sun/nio/cs/StreamDecoder*,jstacktrace,resumethis},output=xtrace_%p_%d_%t_#.trace" "-Xjit:exclude={java/io/Input*|com/ibm/jvm/io/Console*|sun/nio/cs/Stream*|java/lang/Process*},dontinline={java/io/Input*|com/ibm/jvm/io/Console*|sun/nio/cs/Stream*|java/lang/Process*}"</command>
 		<output type="failure" caseSensitive="yes" regex="no">CLASSPATH</output>
 		<output type="failure" caseSensitive="yes" regex="yes" javaUtilPattern="yes">[\d]: 0x[\w]* URL[\s]</output>
 		<output type="failure" caseSensitive="yes" regex="yes" javaUtilPattern="yes">[\d]: 0x[\w]* TOKEN[\s]</output>
