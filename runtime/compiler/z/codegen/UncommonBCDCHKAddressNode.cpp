@@ -71,32 +71,46 @@ UncommonBCDCHKAddressNode::perform()
 
             if(oldAddressNode->getReferenceCount() > 1)
                {
-               TR::Node* newAddressNode = NULL;
-               if (oldAddressNode->getOpCodeValue() == TR::aloadi)
+               if (oldAddressNode->isDataAddrPointer())
                   {
-                  /* Expected tree structure (probably just loading first array element because offset is 0)
-                   *     aloadi <contiguousArrayDataAddrFieldSymbol>
-                   *         load array_object
+                  TR::Node* newAddressNode = TR::Node::create(node, addressOp, 2,
+                                                              oldAddressNode->getFirstChild(),
+                                                              oldAddressNode->getSecondChild());
+
+                  // TODO: Fatal assert for expected tree structure
+                  /* Tree structure
+                   1.  aloadi
+                         pd address node
+                     
+                   2.  aladd
+                         aloadi
+                           pd address node
+                         offset
                    */
-                  newAddressNode = TR::TransformUtil::generateArrayElementAddressTrees(comp, oldAddressNode->getFirstChild(), NULL);
+                  TR::Node* arrayNode = NULL;
+                  TR::Node* offsetNode = NULL;
+                  if (oldAddressNode->getOpCodeValue().isAdd() && oldAddressNode->getDataType() == TR::Address)
+                     { // dealing with 2 tree structure
+                     arrayNode = oldAddressNode->getFirstChild()->getFirstChild();
+                     offsetNode = oldAddressNode->getSecondChild();
+                     }
+                  else if (oldAddressNode->getOpCodeValue() == TR::aloadi)
+                     { // dealing with 1st tree structure
+                     arrayNode = oldAddressNode->getFirstChild();
+                     }
+                  TR::Node* newAddressNode = TR::TransformUtil::generateArrayElementAddressTrees(comp, arrayNode, offsetNode);
                   }
                else
                   {
-                  /* Expected tree structures
-                   * 1.
-                   *     aladd/aiadd
-                   *         load array_object
-                   *         array_element_offset
-                   *
-                   * 2.
-                   *     aladd/aiadd
-                   *         aloadi <contiguousArrayDataAddrFieldSymbol>
-                   *             load array_object
-                   *         array_element_offset
+                  /* Tree structure
+                     aladd/aiadd
+                       aloadi
+                         pd address node
+                       iconst array_header_size
                    */
-                  newAddressNode = TR::Node::create(node, addressOp, 2,
-                                                    oldAddressNode->getFirstChild(),
-                                                    oldAddressNode->getSecondChild());
+                  TR::Node* newAddressNode = TR::Node::create(node, addressOp, 2,
+                                                              oldAddressNode->getFirstChild(),
+                                                              oldAddressNode->getSecondChild());
                   }
 
                node->setAndIncChild(1, newAddressNode);
