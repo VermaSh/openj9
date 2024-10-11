@@ -34,6 +34,8 @@
 #include "il/TreeTop.hpp"
 #include "il/TreeTop_inlines.hpp"
 #include "infra/Assert.hpp"
+#include "optimizer/J9TransformUtil.hpp"
+
 
 #define OPT_DETAILS "O^O UNCOMMON BCDCHK ADDRESS NODE: "
 
@@ -61,14 +63,12 @@ UncommonBCDCHKAddressNode::perform()
             {
             TR::Node* pdOpNode = node->getFirstChild();
             TR::Node* oldAddressNode = node->getSecondChild();
-            TR_ASSERT_FATAL_WITH_NODE(node, pdOpNode && oldAddressNode, "Unexpected null PD opNode or address node under BCDCHK");
-
-            TR_ASSERT_FATAL_WITH_NODE(node,
-                                      oldAddressNode->isDataAddrPointer() && oldAddressNode->getNumChildren() == 1
-                                          || ((addressOp == TR::aladd || addressOp == TR::aiadd) && oldAddressNode->getNumChildren() == 2),
-                                      "Expecting either a dataAddrPointer node with 1 child or a aladd/aiadd with 2 children under address node of BCDCHK.");
+            TR_ASSERT(pdOpNode && oldAddressNode, "Unexpected null PD opNode or address node under BCDCHK");
+            TR_ASSERT(oldAddressNode->getNumChildren() == 2, "Expecting 2 children under address node of BCDCHK."); // this would have also triggered because under off-heap aloadi node has only 1 child
 
             TR::ILOpCodes addressOp = oldAddressNode->getOpCodeValue();
+            TR_ASSERT((addressOp == TR::aladd || addressOp == TR::aiadd), "Unexpected addressNode opcode"); // this would have triggered because under off-heap aloadi node doesn't match either of these
+
             if(oldAddressNode->getReferenceCount() > 1)
                {
                TR::Node* newAddressNode = NULL;
@@ -83,12 +83,12 @@ UncommonBCDCHKAddressNode::perform()
                else
                   {
                   /* Expected tree structures
-                   * 1. non off-heap mode
+                   * 1.
                    *     aladd/aiadd
                    *         load array_object
                    *         array_element_offset
                    *
-                   * 2. off-heap enabled
+                   * 2.
                    *     aladd/aiadd
                    *         aloadi <contiguousArrayDataAddrFieldSymbol>
                    *             load array_object
