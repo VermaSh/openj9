@@ -5185,30 +5185,26 @@ J9::Z::TreeEvaluator::zdchkEvaluator(TR::Node *node, TR::CodeGenerator *cg)
     *                                     000 all sign codes are considered valid (hex) (A-F).
     *    - Digits Count (DC)            : Integer specifying number of bytes to be verified. Does not include sign byte.
     */
-   uint16_t zonedDecimalInfo = 0x0; // I3 operandgit d
-   uint8_t stc = 0x0;
+   #define I3_SSC_SEPARATE 0x1
+   #define I3_STC_SIGN_SEPARATE 0x2
+   #define I3_LS_LEADING 0x1
+   #define I3_STC_EMBEDDED_SIGN 0x6
 
+   uint16_t zonedDecimalInfo = static_cast<uint16_t>(precision); // I3 operand
    int8_t dsc = static_cast<int8_t>(precision - bytesWithSpacesConst);
 
    if (dataType == TR::ZonedDecimalSignTrailingSeparate) // Sign trailing separate
       {
-      zonedDecimalInfo = 0x2; // set SSC bit
-      stc = 0x2;
-      dsc = 0x0;
+      zonedDecimalInfo |= ((I3_SSC_SEPARATE << 14) | (I3_STC_SIGN_SEPARATE << 5));
       }
    else if (dataType == TR::ZonedDecimalSignLeadingEmbedded) // Sign leading embedded
       {
-      zonedDecimalInfo = 0x1; // set LC bit
+      zonedDecimalInfo |= ((I3_LS_LEADING << 13) | (dsc << 8));
       }
    else if (dataType == TR::ZonedDecimalSignLeadingSeparate) // Sign leading separate
       {
-      zonedDecimalInfo = 0x3; // set SSC and LS bits
-      stc = 0x2;
-      dsc = 0x0;
+      zonedDecimalInfo |= ((I3_SSC_SEPARATE << 14) | (I3_LS_LEADING << 13) | (I3_STC_SIGN_SEPARATE << 5));
       }
-   zonedDecimalInfo = (zonedDecimalInfo << 5) | dsc;
-   zonedDecimalInfo = (zonedDecimalInfo << 3) | stc;
-   zonedDecimalInfo = (zonedDecimalInfo << 5) | precision; // DC
 
    // Must use decimalLength because precision does not equal length when sign is separate
    int8_t firstByteIndexToLoad = decimalLength - 1;
@@ -5243,7 +5239,7 @@ J9::Z::TreeEvaluator::zdchkEvaluator(TR::Node *node, TR::CodeGenerator *cg)
    node->setRegister(chkResultReg);
    cg->decReferenceCount(child);
    cg->decReferenceCount(node->getSecondChild());
-   cg->traceBCDExit("zdchk",node);
+   cg->traceBCDExit("zdchk", node);
    return chkResultReg;
    }
 
