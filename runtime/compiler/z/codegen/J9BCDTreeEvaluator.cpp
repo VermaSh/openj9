@@ -5178,7 +5178,7 @@ J9::Z::TreeEvaluator::zdchkEvaluator(TR::Node *node, TR::CodeGenerator *cg)
     *    - Leading Sign (LS)            : 1 if sign is leading, otherwise 0 for trailing sign.
     *    - Disallowed-Spaces Count (DSC): DC is total number of digits, DSC represents number of digits
     *                                     with zone and digit format, rest can have space.
-    *                                     Only relevant when LS and SSC are 0.
+    *                                     Only relevant when SSC are 0.
     *    - Sign-Test Control (STC)      : Specifies which codes are considered as valid sign codes.
     *                                     110 (C,D,F) for embedded sign (will return false for non-preferred sign codes).
     *                                     010 (4e,60) for sign separate (leading/trailing).
@@ -5204,6 +5204,10 @@ J9::Z::TreeEvaluator::zdchkEvaluator(TR::Node *node, TR::CodeGenerator *cg)
    else if (dataType == TR::ZonedDecimalSignLeadingSeparate) // Sign leading separate
       {
       zonedDecimalInfo |= ((I3_SSC_SEPARATE << 14) | (I3_LS_LEADING << 13) | (I3_STC_SIGN_SEPARATE << 5));
+      }
+   else if (dataType == TR::ZonedDecimal) // Sign embedded trailing
+      {
+      zonedDecimalInfo |= (dsc << 8);
       }
 
    // Must use decimalLength because precision does not equal length when sign is separate
