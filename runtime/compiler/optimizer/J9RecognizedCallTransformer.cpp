@@ -242,8 +242,8 @@ void J9::RecognizedCallTransformer::process_java_lang_StringCoding_encodeASCII(T
    TR::SymbolReference *methodSymRef = comp()->getSymRefTab()->findOrCreateEncodeASCIISymbolRef();
    TR::Node *encodeASCIINode = TR::Node::createWithSymRef(TR::call, 3, methodSymRef);
 
-   TR::Node *newInputNode = TR::TransformUtil::generateFirstArrayElementAddressTrees(comp(), sourceArrayNode);
-   TR::Node *newOutputNode = TR::TransformUtil::generateFirstArrayElementAddressTrees(comp(), destinationArrayNode);
+   TR::Node *newInputNode = TR::TransformUtil::generateFirstArrayElementAddressTrees(comp(), sourceArrayNode, sourceArrayNode);
+   TR::Node *newOutputNode = TR::TransformUtil::generateFirstArrayElementAddressTrees(comp(), destinationArrayNode, destinationArrayNode);
 
    encodeASCIINode->setAndIncChild(0, newInputNode);
    encodeASCIINode->setAndIncChild(1, newOutputNode);

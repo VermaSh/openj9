@@ -1131,7 +1131,7 @@ TR::Node* TR_DataAccessAccelerator::constructAddressNode(TR::Node* callNode, TR:
       }
 
    totalOffsetNode = TR::TransformUtil::generateConvertArrayElementIndexToOffsetTrees(comp(), offsetNode, NULL, isSrcOrTargetUnicodeDecimal ? 2 : 1, false);
-   arrayAddressNode = TR::TransformUtil::generateArrayElementAddressTrees(comp(), arrayNode, totalOffsetNode);
+   arrayAddressNode = TR::TransformUtil::generateArrayElementAddressTrees(comp(), arrayNode, totalOffsetNode, callNode);
    arrayAddressNode->setIsInternalPointer(true);
    return arrayAddressNode;
    }
