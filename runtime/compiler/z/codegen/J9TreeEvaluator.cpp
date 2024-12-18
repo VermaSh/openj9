@@ -11147,7 +11147,7 @@ J9::Z::TreeEvaluator::VMnewEvaluator(TR::Node * node, TR::CodeGenerator * cg)
             iCursor = generateRXInstruction(cg, TR::InstOpCode::LA, node, dataSizeReg, dataAddrMR, iCursor);
             iCursor = generateRILInstruction(cg,TR::InstOpCode::getCmpImmOpCode(), node, enumReg, 0, iCursor); // compare array size to 0
             // write only if array is non zero size
-            iCursor = generateRSInstruction(cg, TR::InstOpCode::STOCG, node, dataSizeReg, static_cast<uint32_t>(0x10), dataAddrSlotMR, iCursor);
+            iCursor = generateRSInstruction(cg, TR::InstOpCode::STOCG, node, dataSizeReg, static_cast<uint32_t>(0x8), dataAddrSlotMR, iCursor);
             }
 #endif /* J9VM_GC_SPARSE_HEAP_ALLOCATION */
 
