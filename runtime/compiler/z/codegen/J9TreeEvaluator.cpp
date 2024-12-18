@@ -11126,74 +11126,28 @@ J9::Z::TreeEvaluator::VMnewEvaluator(TR::Node * node, TR::CodeGenerator * cg)
              * In both scenarios, arrays of non-zero size use contiguous header layout while zero size arrays use
              * discontiguous header layout.
              */
-            TR::Register *offsetReg = NULL;
             TR::MemoryReference *dataAddrMR = NULL;
             TR::MemoryReference *dataAddrSlotMR = NULL;
 
-            if (isVariableLen && TR::Compiler->om.compressObjectReferences())
-               {
-               /* We need to check enumReg (array size) at runtime to determine correct offset of dataAddr field.
-                * Here we deal only with compressed refs because dataAddr offset for discontiguous
-                * and contiguous arrays is the same in full refs.
-                */
-               if (comp->getOption(TR_TraceCG))
-                  traceMsg(comp, "Node (%p): Dealing with compressed refs variable length array.\n", node);
+            // TR::LabelSymbol* intializeForZeroSizeArray = generateLabelSymbol(cg);
+            // TR::LabelSymbol* writeToDataAddrSlot = generateLabelSymbol(cg);
 
-               TR_ASSERT_FATAL_WITH_NODE(node,
-                  (fej9->getOffsetOfDiscontiguousDataAddrField() - fej9->getOffsetOfContiguousDataAddrField()) == 8,
-                  "Offset of dataAddr field in discontiguous array is expected to be 8 bytes more than contiguous array. "
-                  "But was %d bytes for discontiguous and %d bytes for contiguous array.\n",
-                  fej9->getOffsetOfDiscontiguousDataAddrField(), fej9->getOffsetOfContiguousDataAddrField());
+            // // Zero size path
+            // iCursor = generateRRInstruction(cg, TR::InstOpCode::XGR, node, dataSizeReg, dataSizeReg); // clear out dataSizeReg
 
-               offsetReg = cg->allocateRegister();
-               // Invert enumReg sign. 0 and negative numbers remain unchanged.
-               iCursor = generateRREInstruction(cg, TR::InstOpCode::LNGFR, node, offsetReg, enumReg, iCursor);
-               iCursor = generateRSInstruction(cg, TR::InstOpCode::SRLG, node, dataSizeReg, offsetReg, 63, iCursor);
-               iCursor = generateRSInstruction(cg, TR::InstOpCode::SLLG, node, offsetReg, dataSizeReg, 3, iCursor);
-               // Inverting the sign bit will leave us with either -8 (if enumCopyReg > 0) or 0 (if enumCopyReg == 0).
-               iCursor = generateRREInstruction(cg, TR::InstOpCode::LNGR, node, offsetReg, offsetReg, iCursor);
+            // generateS390CompareAndBranchInstruction(cg, compareOp, node, scratchRegister, metaReg, TR::InstOpCode::COND_BNE, callHelper, false, false);
+            // iCursor = generateS390CompareAndBranchInstruction(cg, TR::InstOpCode::CGIB, node, enumReg, 0, TR::InstOpCode::COND_BE, nonZeroFirstDimLabel, false);
 
-               dataAddrMR = generateS390MemoryReference(resReg, offsetReg, TR::Compiler->om.discontiguousArrayHeaderSizeInBytes(), cg);
-               dataAddrSlotMR = generateS390MemoryReference(resReg, offsetReg, fej9->getOffsetOfDiscontiguousDataAddrField(), cg);
-               }
-            else if (!isVariableLen && node->getFirstChild()->getOpCode().isLoadConst() && node->getFirstChild()->getInt() == 0)
-               {
-               if (comp->getOption(TR_TraceCG))
-                  traceMsg(comp, "Node (%p): Dealing with full/compressed refs fixed length zero size array.\n", node);
+            // // Write value to dataAddr slot
+            // generateS390LabelInstruction(cg, TR::InstOpCode::label, node, cFlowRegionStart, firstBRCToOOL->getPrev());
+            // iCursor = generateRXInstruction(cg, TR::InstOpCode::STG, node, dataSizeReg, dataAddrSlotMR, iCursor);
 
-               dataAddrMR = generateS390MemoryReference(resReg, TR::Compiler->om.discontiguousArrayHeaderSizeInBytes(), cg);
-               dataAddrSlotMR = generateS390MemoryReference(resReg, fej9->getOffsetOfDiscontiguousDataAddrField(), cg);
-               }
-            else
-               {
-               if (comp->getOption(TR_TraceCG))
-                  {
-                  traceMsg(comp,
-                     "Node (%p): Dealing with either full/compressed refs fixed length non-zero size array or full refs variable length array.\n",
-                     node);
-                  }
-
-               if (!TR::Compiler->om.compressObjectReferences())
-                  {
-                  TR_ASSERT_FATAL_WITH_NODE(node,
-                     fej9->getOffsetOfDiscontiguousDataAddrField() == fej9->getOffsetOfContiguousDataAddrField(),
-                     "dataAddr field offset is expected to be same for both contiguous and discontiguous arrays in full refs. "
-                     "But was %d bytes for discontiguous and %d bytes for contiguous array.\n",
-                     fej9->getOffsetOfDiscontiguousDataAddrField(), fej9->getOffsetOfContiguousDataAddrField());
-                  }
-
-               dataAddrMR = generateS390MemoryReference(resReg, TR::Compiler->om.contiguousArrayHeaderSizeInBytes(), cg);
-               dataAddrSlotMR = generateS390MemoryReference(resReg, fej9->getOffsetOfContiguousDataAddrField(), cg);
-               }
-
+            dataAddrMR = generateS390MemoryReference(resReg, TR::Compiler->om.contiguousArrayHeaderSizeInBytes(), cg);
+            dataAddrSlotMR = generateS390MemoryReference(resReg, fej9->getOffsetOfContiguousDataAddrField(), cg);
             iCursor = generateRXInstruction(cg, TR::InstOpCode::LA, node, dataSizeReg, dataAddrMR, iCursor);
-            iCursor = generateRXInstruction(cg, TR::InstOpCode::STG, node, dataSizeReg, dataAddrSlotMR, iCursor);
-
-            if (offsetReg)
-               {
-               conditions->addPostCondition(offsetReg, TR::RealRegister::AssignAny);
-               cg->stopUsingRegister(offsetReg);
-               }
+            iCursor = generateRILInstruction(cg,TR::InstOpCode::getCmpImmOpCode(), node, enumReg, 0, iCursor); // compare array size to 0
+            // write only if array is non zero size
+            iCursor = generateRSInstruction(cg, TR::InstOpCode::STOCG, node, dataSizeReg, static_cast<uint32_t>(0x10), dataAddrSlotMR, iCursor);
             }
 #endif /* J9VM_GC_SPARSE_HEAP_ALLOCATION */
 
