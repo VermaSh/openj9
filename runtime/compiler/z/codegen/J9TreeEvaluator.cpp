@@ -11171,6 +11171,12 @@ J9::Z::TreeEvaluator::VMnewEvaluator(TR::Node * node, TR::CodeGenerator * cg)
                   traceMsg(comp,
                      "Node (%p): Dealing with either full/compressed refs fixed length non-zero size array or full refs variable length array.\n",
                      node);
+                  if (!isVariableLen)
+                     {
+                     traceMsg(comp,
+                        "Array size: %d\n", (node->getFirstChild()->getOpCode().isLoadConst() && node->getFirstChild()->getInt()),
+                        node);
+                     }
                   }
 
                if (!TR::Compiler->om.compressObjectReferences())
