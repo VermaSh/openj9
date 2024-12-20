@@ -11129,7 +11129,6 @@ J9::Z::TreeEvaluator::VMnewEvaluator(TR::Node * node, TR::CodeGenerator * cg)
             iCursor = generateRXInstruction(cg, TR::InstOpCode::LA, node, dataSizeReg, dataAddrMR, iCursor);
             iCursor = generateRILInstruction(cg, TR::InstOpCode::CFI, node, enumReg, 0, iCursor);
 
-            // write only if array is non zero size
             iCursor = generateRSInstruction(cg, TR::InstOpCode::STOCG, node, dataSizeReg, static_cast<uint32_t>(0x2), dataAddrSlotMR, iCursor);
             }
 #endif /* J9VM_GC_SPARSE_HEAP_ALLOCATION */
