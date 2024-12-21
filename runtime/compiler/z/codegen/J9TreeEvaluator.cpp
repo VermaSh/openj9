@@ -4950,12 +4950,12 @@ static TR::Register * generateMultianewArrayWithInlineAllocators(TR::Node *node,
       iComment("Init 1st dim size field.");
 #if defined(J9VM_GC_SPARSE_HEAP_ALLOCATION)
       if (isOffHeapAllocationEnabled)
-         { // first dimensional size was sign extended to 64 bits so firstDimLenReg should be all 0 here
+         {
          TR_ASSERT_FATAL_WITH_NODE(node,
             TR::InstOpCode::LGF == loadDimLenOpCode,
             "LGF wasn't used to populate firstDimLenReg. It might have garbage in top half bits. "
             "It is essential that there is no garbage carried over in the reg because "
-            "firstDimLenReg is used to NULL dataAddr field for 0 length array.\n");
+            "firstDimLenReg is used to NULL dataAddr field for 0 length arrays.\n");
          cursor = generateRXInstruction(cg, TR::InstOpCode::STG, node, firstDimLenReg, generateS390MemoryReference(targetReg, fej9->getOffsetOfDiscontiguousDataAddrField(), cg));
          iComment("Clear 1st dim dataAddr field.");
          }
