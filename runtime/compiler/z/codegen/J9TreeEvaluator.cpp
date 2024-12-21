@@ -11120,7 +11120,7 @@ J9::Z::TreeEvaluator::VMnewEvaluator(TR::Node * node, TR::CodeGenerator * cg)
          if (TR::Compiler->om.isOffHeapAllocationEnabled())
             {
             /* Here we'll update dataAddr slot for fixed and variable non-zero length arrays. DataAddr field
-             * should be left blank for zero size arrays.
+             * should be left blank for zero length arrays.
              */
             TR::MemoryReference *dataAddrMR = = generateS390MemoryReference(resReg, TR::Compiler->om.contiguousArrayHeaderSizeInBytes(), cg);
             TR::MemoryReference *dataAddrSlotMR = generateS390MemoryReference(resReg, fej9->getOffsetOfContiguousDataAddrField(), cg);
