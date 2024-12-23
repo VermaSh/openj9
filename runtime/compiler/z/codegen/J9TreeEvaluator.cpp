@@ -4888,7 +4888,7 @@ static TR::Register * generateMultianewArrayWithInlineAllocators(TR::Node *node,
    TR::Register *classReg = cg->evaluate(thirdChild);
 
    // In the mainline, first load the first and second dimensions' lengths into registers.
-   TR::InstOpCode loadDimLenOpCode = TR::InstOpCode::LGF;
+   TR::InstOpCode::Mnemonic loadDimLenOpCode = TR::InstOpCode::LGF;
    TR::Register *firstDimLenReg = cg->allocateRegister();
    cursor = generateRXInstruction(cg, loadDimLenOpCode, node, firstDimLenReg, generateS390MemoryReference(dimsPtrReg, 4, cg));
    iComment("Load 1st dim length.");
@@ -11091,7 +11091,7 @@ J9::Z::TreeEvaluator::VMnewEvaluator(TR::Node * node, TR::CodeGenerator * cg)
             /* Here we'll update dataAddr slot for fixed and variable non-zero length arrays. DataAddr field
              * should be left blank for zero length arrays.
              */
-            TR::MemoryReference *dataAddrMR = = generateS390MemoryReference(resReg, TR::Compiler->om.contiguousArrayHeaderSizeInBytes(), cg);
+            TR::MemoryReference *dataAddrMR = generateS390MemoryReference(resReg, TR::Compiler->om.contiguousArrayHeaderSizeInBytes(), cg);
             TR::MemoryReference *dataAddrSlotMR = generateS390MemoryReference(resReg, fej9->getOffsetOfContiguousDataAddrField(), cg);
 
             dataAddrSlotMR = generateS390MemoryReference(resReg, fej9->getOffsetOfContiguousDataAddrField(), cg);
