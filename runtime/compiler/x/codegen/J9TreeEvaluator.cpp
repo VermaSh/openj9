@@ -7538,8 +7538,16 @@ static void handleOffHeapDataForArrays(
       }
 
    // write first data element address to dataAddr slot
-   generateRegMemInstruction(TR::InstOpCode::LEARegMem(), node, tempReg, dataAddrMR, cg);
-   generateMemRegInstruction(TR::InstOpCode::SMemReg(), node, dataAddrSlotMR, tempReg, cg);
+   generateRegMemInstruction(TR::InstOpCode::LEARegMem(), node, tempReg, dataAddrMR, cg); // load address of first data element
+   generateMemRegInstruction(TR::InstOpCode::SMemReg(), node, dataAddrSlotMR, tempReg, cg); // store address of first data element
+
+   // We are copying Memory refernce to a register ()
+   generateRegImmInstruction(TR::InstOpCode::CMPRegImm4(), node, sizeReg, 0, cg);
+   generateRegMemInstruction(TR::InstOpCode::LEARegMem(), node, tempReg, dataAddrMR, cg); // load address of first data element
+   // Store tempReg to dataAddrSlotMR if ZF is set
+   // copy memory refernce to register
+   // ideally: we would want to copy register to memory location
+   // CMOVcc moves memory/reg to destination reg
    }
 #endif /* J9VM_GC_SPARSE_HEAP_ALLOCATION */
 
