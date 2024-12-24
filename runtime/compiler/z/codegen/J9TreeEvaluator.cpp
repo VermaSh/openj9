@@ -11094,6 +11094,11 @@ J9::Z::TreeEvaluator::VMnewEvaluator(TR::Node * node, TR::CodeGenerator * cg)
             TR::Register *tmpDataAddrReg = srm->findOrCreateScratchRegister();
             // Clear out reg so that it can used to NULL fields in the array header
             iCursor = generateRRInstruction(cg, TR::InstOpCode::XGR, node, tmpDataAddrReg, tmpDataAddrReg, iCursor);
+
+            /* Clear out padding and dataAddr field of array header assuming it's a 0 length array
+             * so we don't have to worry about clearing it out later during initialization.
+             * Dealing with 0 length array here keeps the dataAddr field initialization sequence simple.
+             */
             if (TR::Compiler->om.compressObjectReferences())
                {
                TR_ASSERT_FATAL_WITH_NODE(node,
@@ -11134,30 +11139,26 @@ J9::Z::TreeEvaluator::VMnewEvaluator(TR::Node * node, TR::CodeGenerator * cg)
                iCursor = generateRXInstruction(cg, TR::InstOpCode::STG, node, tmpDataAddrReg, generateS390MemoryReference(resReg, fej9->getOffsetOfDiscontiguousDataAddrField(), cg), iCursor);
                }
 
+            // Intialize dataAddr field for non-zero length arrays
             TR::MemoryReference *dataAddrMR = generateS390MemoryReference(resReg, TR::Compiler->om.contiguousArrayHeaderSizeInBytes(), cg);
             TR::MemoryReference *dataAddrSlotMR = generateS390MemoryReference(resReg, fej9->getOffsetOfContiguousDataAddrField(), cg);
-            iCursor = generateRXInstruction(cg, TR::InstOpCode::LA, node, tmpDataAddrReg, dataAddrMR, iCursor);
             if (isVariableLen)
                {
-               /* We need to check enumReg (array size) at runtime to determine correct offset of dataAddr field.
-                * Here we deal only with compressed refs because dataAddr offset for discontiguous
-                * and contiguous arrays is the same in full refs.
-                */
+               // We need to check enumReg (array length) at runtime to determine if dataAddr needs to be intialized or not.
                if (comp->getOption(TR_TraceCG))
-                  traceMsg(comp, "Node (%p): Dealing with compressed/full refs variable length, 0/non-zero length array.\n", node);
+                  traceMsg(comp, "Node (%p): Dealing with compressed/full refs variable length non-zero length array.\n", node);
 
+               iCursor = generateRXInstruction(cg, TR::InstOpCode::LA, node, tmpDataAddrReg, dataAddrMR, iCursor); // load first element address
                iCursor = generateRILInstruction(cg, TR::InstOpCode::CFI, node, enumReg, 0, iCursor);
+               // Write only if array length is non zero
                iCursor = generateRSInstruction(cg, TR::InstOpCode::STOCG, node, tmpDataAddrReg, static_cast<uint32_t>(0x2), dataAddrSlotMR, iCursor);
                }
-            else
+            else if (!isVariableLen && node->getFirstChild()->getOpCode().isLoadConst() && node->getFirstChild()->getInt() == 0)
                {
                if (comp->getOption(TR_TraceCG))
-                  {
-                  traceMsg(comp,
-                     "Node (%p): Dealing with either full/compressed refs fixed length non-zero length array.\n",
-                     node);
-                  }
+                  traceMsg(comp, "Node (%p): Dealing with either full/compressed refs fixed length non-zero length array.\n", node);
 
+               iCursor = generateRXInstruction(cg, TR::InstOpCode::LA, node, tmpDataAddrReg, dataAddrMR, iCursor); // load first element address
                iCursor = generateRXInstruction(cg, TR::InstOpCode::STG, node, tmpDataAddrReg, dataAddrSlotMR, iCursor);
                }
 
