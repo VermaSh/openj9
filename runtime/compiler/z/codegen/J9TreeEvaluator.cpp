@@ -11161,11 +11161,7 @@ J9::Z::TreeEvaluator::VMnewEvaluator(TR::Node * node, TR::CodeGenerator * cg)
                iCursor = generateRXInstruction(cg, TR::InstOpCode::STG, node, tmpDataAddrReg, dataAddrSlotMR, iCursor);
                }
 
-            if (tmpDataAddrReg)
-               {
-               conditions->addPostCondition(tmpDataAddrReg, TR::RealRegister::AssignAny);
-               cg->stopUsingRegister(tmpDataAddrReg);
-               }
+            srm->reclaimScratchRegister(tmpDataAddrReg);
             }
 #endif /* J9VM_GC_SPARSE_HEAP_ALLOCATION */
 
