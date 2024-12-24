@@ -11091,14 +11091,72 @@ J9::Z::TreeEvaluator::VMnewEvaluator(TR::Node * node, TR::CodeGenerator * cg)
             /* Here we'll update dataAddr slot for fixed and variable non-zero length arrays. DataAddr field
              * should be left blank for zero length arrays.
              */
-            TR::MemoryReference *dataAddrMR = generateS390MemoryReference(resReg, TR::Compiler->om.contiguousArrayHeaderSizeInBytes(), cg);
-            TR::MemoryReference *dataAddrSlotMR = generateS390MemoryReference(resReg, fej9->getOffsetOfContiguousDataAddrField(), cg);
 
-            dataAddrSlotMR = generateS390MemoryReference(resReg, fej9->getOffsetOfContiguousDataAddrField(), cg);
-            iCursor = generateRXInstruction(cg, TR::InstOpCode::LA, node, dataSizeReg, dataAddrMR, iCursor);
-            iCursor = generateRILInstruction(cg, TR::InstOpCode::CFI, node, enumReg, 0, iCursor);
+            TR::Register *tmpDataAddrReg = srm->findOrCreateScratchRegister();
+            // Clear out reg so that it can used to NULL fields in the array header
+            iCursor = generateRRInstruction(cg, TR::InstOpCode::XGR, node, tmpDataAddrReg, tmpDataAddrReg, iCursor);
+            if (TR::Compiler->om.compressObjectReferences())
+               {
+               // clear padding field after size field in discontiguous header layout, in case the array turns out to be discontiguous
+               // since padding is at the same offset as dataAddr field of contiguous header layout, writing 32 bits at the same offset
+               // will clear it out for discontiguous layout
+               // TODO: assert that discontiguous size + 8 bytes == offset of dataAddr field in discontiguous layout
+               iCursor = generateRXInstruction(cg, TR::InstOpCode::STG, node, tmpDataAddrReg, generateS390MemoryReference(resReg, fej9->getOffsetOfContiguousDataAddrField(), cg), iCursor);
+               }
+            else
+               {
+               // clear out padding field after size in contiguous header layout
+               // since padding is at the same offset as dataAddr field of discontiguous header layout
+               // writing 32 bits to the offset should clear it
+               iCursor = generateRXInstruction(cg, TR::InstOpCode::ST, node, tmpDataAddrReg, generateS390MemoryReference(resReg, fej9->getOffsetOfDiscontiguousArraySizeField(), cg), iCursor);
+               }
 
-            iCursor = generateRSInstruction(cg, TR::InstOpCode::STOCG, node, dataSizeReg, static_cast<uint32_t>(0x2), dataAddrSlotMR, iCursor);
+            TR::MemoryReference *dataAddrMR = NULL;
+            TR::MemoryReference *dataAddrSlotMR = NULL;
+            if (isVariableLen)
+               {
+               /* We need to check enumReg (array size) at runtime to determine correct offset of dataAddr field.
+                * Here we deal only with compressed refs because dataAddr offset for discontiguous
+                * and contiguous arrays is the same in full refs.
+                */
+               if (comp->getOption(TR_TraceCG))
+                  traceMsg(comp, "Node (%p): Dealing with compressed/full refs variable length array.\n", node);
+
+               dataAddrMR = generateS390MemoryReference(resReg, TR::Compiler->om.contiguousArrayHeaderSizeInBytes(), cg);
+               dataAddrSlotMR = generateS390MemoryReference(resReg, fej9->getOffsetOfContiguousDataAddrField(), cg);
+
+               iCursor = generateRXInstruction(cg, TR::InstOpCode::LA, node, dataSizeReg, dataAddrMR, iCursor);
+               iCursor = generateRILInstruction(cg, TR::InstOpCode::CFI, node, enumReg, 0, iCursor);
+               iCursor = generateRSInstruction(cg, TR::InstOpCode::STOCG, node, dataSizeReg, static_cast<uint32_t>(0x2), dataAddrSlotMR, iCursor);
+               }
+            else if (!isVariableLen && node->getFirstChild()->getOpCode().isLoadConst() && node->getFirstChild()->getInt() == 0)
+               {
+               if (comp->getOption(TR_TraceCG))
+                  traceMsg(comp, "Node (%p): Dealing with full/compressed refs fixed length zero size array.\n", node);
+
+               dataAddrSlotMR = generateS390MemoryReference(resReg, fej9->getOffsetOfContiguousDataAddrField(), cg);
+               iCursor = generateRXInstruction(cg, TR::InstOpCode::STG, node, tmpDataAddrReg, dataAddrSlotMR, iCursor);
+               }
+            else
+               {
+               if (comp->getOption(TR_TraceCG))
+                  {
+                  traceMsg(comp,
+                     "Node (%p): Dealing with either full/compressed refs fixed length non-zero size array.\n",
+                     node);
+                  }
+               dataAddrMR = generateS390MemoryReference(resReg, TR::Compiler->om.contiguousArrayHeaderSizeInBytes(), cg);
+               dataAddrSlotMR = generateS390MemoryReference(resReg, fej9->getOffsetOfContiguousDataAddrField(), cg);
+
+               iCursor = generateRXInstruction(cg, TR::InstOpCode::LA, node, dataSizeReg, dataAddrMR, iCursor);
+               iCursor = generateRXInstruction(cg, TR::InstOpCode::STG, node, dataSizeReg, dataAddrSlotMR, iCursor);
+               }
+
+            if (tmpDataAddrReg)
+               {
+               conditions->addPostCondition(tmpDataAddrReg, TR::RealRegister::AssignAny);
+               cg->stopUsingRegister(tmpDataAddrReg);
+               }
             }
 #endif /* J9VM_GC_SPARSE_HEAP_ALLOCATION */
 
