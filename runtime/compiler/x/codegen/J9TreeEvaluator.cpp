@@ -7527,7 +7527,7 @@ static void handleOffHeapDataForArrays(
 
    TR::MemoryReference *dataAddrSlotMR = generateX86MemoryReference(targetReg, fej9->getOffsetOfContiguousDataAddrField(), cg);
    TR::MemoryReference *dataAddrMR = generateX86MemoryReference(targetReg, TR::Compiler->om.contiguousArrayHeaderSizeInBytes(), cg);
-   if (NULL != sizeReg)
+   if (TR::Compiler->om.compressObjectReferences() && NULL != sizeReg)
       {
       /* We need to check sizeReg at runtime to determine correct offset of dataAddr field.
        * Here we deal only with compressed refs because dataAddr field offset for discontiguous
@@ -7547,27 +7547,52 @@ static void handleOffHeapDataForArrays(
       generateRegImmInstruction(TR::InstOpCode::CMPRegImm4(), node, sizeReg, 1, cg);
       generateRegImmInstruction(TR::InstOpCode::ADCRegImm4(), node, discontiguousDataAddrOffsetReg, 0, cg);
 
-      // Write first data element address to dataAddr slot
-      generateRegMemInstruction(TR::InstOpCode::LEARegMem(), node, tempReg, dataAddrMR, cg);
+      dataAddrMR = generateX86MemoryReference(targetReg, discontiguousDataAddrOffsetReg, 3, TR::Compiler->om.contiguousArrayHeaderSizeInBytes(), cg);
+      dataAddrSlotMR = generateX86MemoryReference(targetReg, discontiguousDataAddrOffsetReg, 3, fej9->getOffsetOfContiguousDataAddrField(), cg);
+      generateRegMemInstruction(TR::InstOpCode::LEARegMem(), node, tempReg, dataAddrMR, cg); // load first element address
+
+      // Clear out tempReg if dealing with 0 length array
       generateRegImmInstruction(TR::InstOpCode::CMPRegImm4(), node, sizeReg, 0, cg);
-      // NULL first element address (tempReg) if size is 0
       generateRegMemInstruction(TR::InstOpCode::CMOVE8RegMem, node, tempReg, generateX86MemoryReference(cg->findOrCreate8ByteConstant(node, 0), cg()), cg());
-      /* If array is non-zero length, intialize dataAddr slot. Else, write NULL to size and
-       * padding field in discontiguous header layout. There is no harm in writing to size
-       * padding field because we are basically overwriting 0 with 0 and it saves us 
-       */
+
+      // write first data element address to dataAddr slot
       generateMemRegInstruction(TR::InstOpCode::SMemReg(), node, dataAddrSlotMR, tempReg, cg);
       }
-   else if (NULL == sizeReg && node->getFirstChild()->getOpCode().isLoadConst() && node->getFirstChild()->getInt() != 0)
+   else if (NULL == sizeReg && node->getFirstChild()->getOpCode().isLoadConst() && node->getFirstChild()->getInt() == 0)
       {
       if (comp->getOption(TR_TraceCG))
-         traceMsg(comp, "Node (%p): Dealing with either full/compressed refs fixed length non-zero length array.\n", node);
+         traceMsg(comp, "Node (%p): Dealing with full/compressed refs fixed length zero size array.\n", node);
+
+      generateRegRegInstruction(TR::InstOpCode::XOR4RegReg, node, discontiguousDataAddrOffsetReg, discontiguousDataAddrOffsetReg, cg);
+      dataAddrSlotMR = generateX86MemoryReference(targetReg, fej9->getOffsetOfDiscontiguousDataAddrField(), cg);
+      // write NULL in dataAddr slot
+      generateMemRegInstruction(TR::InstOpCode::SMemReg(), node, dataAddrSlotMR, discontiguousDataAddrOffsetReg, cg);
+      }
+   else
+      {
+      if (comp->getOption(TR_TraceCG))
+         {
+         traceMsg(comp,
+            "Node (%p): Dealing with either full/compressed refs fixed length non-zero size array or full refs variable length array.\n",
+            node);
+         }
+
+      if (!TR::Compiler->om.compressObjectReferences())
+         {
+         TR_ASSERT_FATAL_WITH_NODE(node,
+            fej9->getOffsetOfDiscontiguousDataAddrField() == fej9->getOffsetOfContiguousDataAddrField(),
+            "dataAddr field offset is expected to be same for both contiguous and discontiguous arrays in full refs. "
+            "But was %d bytes for discontiguous and %d bytes for contiguous array.\n",
+            fej9->getOffsetOfDiscontiguousDataAddrField(), fej9->getOffsetOfContiguousDataAddrField());
+         }
+
+      dataAddrMR = generateX86MemoryReference(targetReg, TR::Compiler->om.contiguousArrayHeaderSizeInBytes(), cg);
+      dataAddrSlotMR = generateX86MemoryReference(targetReg, fej9->getOffsetOfContiguousDataAddrField(), cg);
 
       // write first data element address to dataAddr slot
       generateRegMemInstruction(TR::InstOpCode::LEARegMem(), node, tempReg, dataAddrMR, cg);
       generateMemRegInstruction(TR::InstOpCode::SMemReg(), node, dataAddrSlotMR, tempReg, cg);
       }
-
    }
 #endif /* J9VM_GC_SPARSE_HEAP_ALLOCATION */
 
@@ -8048,6 +8073,27 @@ J9::X86::TreeEvaluator::VMnewEvaluator(
                   generateX86MemoryReference(targetReg, fej9->getOffsetOfDiscontiguousArraySizeField(), cg),
                   0, cg);
                shouldInitZeroSizedArrayHeader = false;
+               }
+
+            // clear 4 bytes after size field in preparation for 0 length arrays
+            if (isArrayNew)
+               {
+               if (TR::Compiler->om.compressObjectReferences())
+                  {
+                  generateMemImmInstruction(TR::InstOpCode::SMemImm4(),
+                     node,
+                     generateX86MemoryReference(targetReg, fej9->getOffsetOfDiscontiguousArraySizeField() + 4, cg),
+                     0,
+                     cg);
+                  }
+               else
+                  {
+                  generateMemImmInstruction(TR::InstOpCode::SMemImm4(),
+                     node,
+                     generateX86MemoryReference(targetReg, fej9->getOffsetOfDiscontiguousArraySizeField(), cg),
+                     0,
+                     cg);
+                  }
                }
             }
 
