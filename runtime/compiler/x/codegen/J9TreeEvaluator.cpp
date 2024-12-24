@@ -7476,16 +7476,58 @@ static void handleOffHeapDataForArrays(
    TR::Compilation *comp = cg->comp();
    TR_J9VMBase *fej9 = (TR_J9VMBase *)(cg->fe());
 
-   /* Here we'll update dataAddr slot for both fixed and variable length arrays. Fixed length arrays are
-    * simple as we just need to check first child of the node for array size. For variable length arrays,
-    * runtime size checks are needed to determine whether to use contiguous or discontiguous header layout.
-    *
-    * In both scenarios, arrays of non-zero size use contiguous header layout while zero size arrays use
-    * discontiguous header layout.
+   /* Here we'll update dataAddr slot for fixed and variable non-zero length arrays. DataAddr field
+    * of 0 length arrays will be NULL'ed.
     */
-   TR::MemoryReference *dataAddrSlotMR = NULL;
-   TR::MemoryReference *dataAddrMR = NULL;
-   if (TR::Compiler->om.compressObjectReferences() && NULL != sizeReg)
+   generateRegRegInstruction(TR::InstOpCode::XOR4RegReg, node, tempReg, tempReg, cg);
+
+   /* Clear out padding and dataAddr field of array header assuming it's a 0 length array
+    * so we don't have to worry about clearing it out later during initialization.
+    * Dealing with 0 length array here keeps the dataAddr field initialization sequence simple.
+    */
+   if (TR::Compiler->om.compressObjectReferences())
+      {
+      TR_ASSERT_FATAL_WITH_NODE(node,
+         fej9->getOffsetOfDiscontiguousArraySizeField() + 8 == fej9->getOffsetOfDiscontiguousDataAddrField(),
+         "4 byte padding is added after size field in discontiguous header layout for 8 byte alignment. "
+            "Size field is 4 bytes in size so adding 4 to size field offset should equal offset of dataAddr field. "
+            "But size field + 8 bytes was %d while dataAddr field offset was %d bytes for discontiguous array.\n",
+         static_cast<uint32_t>(fej9->getOffsetOfDiscontiguousArraySizeField() + 8), fej9->getOffsetOfDiscontiguousDataAddrField());
+
+      if (comp->getOption(TR_TraceCG))
+         {
+         traceMsg(comp,
+            "Node (%p): Clean out padding added after size field and dataAddr field assuming 0 length array. "
+               "If we are not dealing with 0 length array, 0s would be written to first element so no harm done.\n",
+            node);
+         }
+
+      generateMemRegInstruction(TR::InstOpCode::S4MemReg, node, generateX86MemoryReference(targetReg, fej9->getOffsetOfDiscontiguousArraySizeField() + 4, cg), tempReg, cg);
+      generateMemRegInstruction(TR::InstOpCode::S8MemReg, node, generateX86MemoryReference(targetReg, fej9->getOffsetOfDiscontiguousDataAddrField(), cg), tempReg, cg);
+      }
+   else
+      {
+      TR_ASSERT_FATAL_WITH_NODE(node,
+         fej9->getOffsetOfDiscontiguousDataAddrField() == fej9->getOffsetOfContiguousDataAddrField(),
+         "dataAddr field offset is expected to be same for both contiguous and discontiguous arrays in full refs. "
+            "But was %d bytes for discontiguous and %d bytes for contiguous array.\n",
+         fej9->getOffsetOfDiscontiguousDataAddrField(), fej9->getOffsetOfContiguousDataAddrField());
+
+      if (comp->getOption(TR_TraceCG))
+         {
+         traceMsg(comp,
+            "Node (%p): Clean out dataAddr field assuming 0 length array. In full refs mode, "
+               "dataAddr field offset is same for both contiguous and discontiguous header layout "
+               "so harm done if our assumption about array length turns out to be wrong.\n",
+            node);
+         }
+
+      generateMemRegInstruction(TR::InstOpCode::S8MemReg, node, generateX86MemoryReference(targetReg, fej9->getOffsetOfDiscontiguousDataAddrField(), cg), tempReg, cg);
+      }
+
+   TR::MemoryReference *dataAddrSlotMR = generateX86MemoryReference(targetReg, fej9->getOffsetOfContiguousDataAddrField(), cg);
+   TR::MemoryReference *dataAddrMR = generateX86MemoryReference(targetReg, TR::Compiler->om.contiguousArrayHeaderSizeInBytes(), cg);
+   if (NULL != sizeReg)
       {
       /* We need to check sizeReg at runtime to determine correct offset of dataAddr field.
        * Here we deal only with compressed refs because dataAddr field offset for discontiguous
@@ -7504,54 +7546,28 @@ static void handleOffHeapDataForArrays(
       generateRegRegInstruction(TR::InstOpCode::XOR4RegReg, node, discontiguousDataAddrOffsetReg, discontiguousDataAddrOffsetReg, cg);
       generateRegImmInstruction(TR::InstOpCode::CMPRegImm4(), node, sizeReg, 1, cg);
       generateRegImmInstruction(TR::InstOpCode::ADCRegImm4(), node, discontiguousDataAddrOffsetReg, 0, cg);
-      dataAddrMR = generateX86MemoryReference(targetReg, discontiguousDataAddrOffsetReg, 3, TR::Compiler->om.contiguousArrayHeaderSizeInBytes(), cg);
-      dataAddrSlotMR = generateX86MemoryReference(targetReg, discontiguousDataAddrOffsetReg, 3, fej9->getOffsetOfContiguousDataAddrField(), cg);
+
+      // Write first data element address to dataAddr slot
+      generateRegMemInstruction(TR::InstOpCode::LEARegMem(), node, tempReg, dataAddrMR, cg);
+      generateRegImmInstruction(TR::InstOpCode::CMPRegImm4(), node, sizeReg, 0, cg);
+      // NULL first element address (tempReg) if size is 0
+      generateRegMemInstruction(TR::InstOpCode::CMOVE8RegMem, node, tempReg, generateX86MemoryReference(cg->findOrCreate8ByteConstant(node, 0), cg()), cg());
+      /* If array is non-zero length, intialize dataAddr slot. Else, write NULL to size and
+       * padding field in discontiguous header layout. There is no harm in writing to size
+       * padding field because we are basically overwriting 0 with 0 and it saves us 
+       */
+      generateMemRegInstruction(TR::InstOpCode::SMemReg(), node, dataAddrSlotMR, tempReg, cg);
       }
-   else if (NULL == sizeReg && node->getFirstChild()->getOpCode().isLoadConst() && node->getFirstChild()->getInt() == 0)
+   else if (NULL == sizeReg && node->getFirstChild()->getOpCode().isLoadConst() && node->getFirstChild()->getInt() != 0)
       {
       if (comp->getOption(TR_TraceCG))
-         traceMsg(comp, "Node (%p): Dealing with full/compressed refs fixed length zero size array.\n", node);
+         traceMsg(comp, "Node (%p): Dealing with either full/compressed refs fixed length non-zero length array.\n", node);
 
-      dataAddrMR = generateX86MemoryReference(targetReg, TR::Compiler->om.discontiguousArrayHeaderSizeInBytes(), cg);
-      dataAddrSlotMR = generateX86MemoryReference(targetReg, fej9->getOffsetOfDiscontiguousDataAddrField(), cg);
-      }
-   else
-      {
-      if (comp->getOption(TR_TraceCG))
-         {
-         traceMsg(comp,
-            "Node (%p): Dealing with either full/compressed refs fixed length non-zero size array or full refs variable length array.\n",
-            node);
-         }
-
-      if (!TR::Compiler->om.compressObjectReferences())
-         {
-         TR_ASSERT_FATAL_WITH_NODE(node,
-            fej9->getOffsetOfDiscontiguousDataAddrField() == fej9->getOffsetOfContiguousDataAddrField(),
-            "dataAddr field offset is expected to be same for both contiguous and discontiguous arrays in full refs. "
-            "But was %d bytes for discontiguous and %d bytes for contiguous array.\n",
-            fej9->getOffsetOfDiscontiguousDataAddrField(), fej9->getOffsetOfContiguousDataAddrField());
-         }
-
-      dataAddrMR = generateX86MemoryReference(targetReg, TR::Compiler->om.contiguousArrayHeaderSizeInBytes(), cg);
-      dataAddrSlotMR = generateX86MemoryReference(targetReg, fej9->getOffsetOfContiguousDataAddrField(), cg);
+      // write first data element address to dataAddr slot
+      generateRegMemInstruction(TR::InstOpCode::LEARegMem(), node, tempReg, dataAddrMR, cg);
+      generateMemRegInstruction(TR::InstOpCode::SMemReg(), node, dataAddrSlotMR, tempReg, cg);
       }
 
-   // write first data element address to dataAddr slot
-   generateRegMemInstruction(TR::InstOpCode::LEARegMem(), node, tempReg, dataAddrMR, cg); // load address of first data element
-   generateMemRegInstruction(TR::InstOpCode::SMemReg(), node, dataAddrSlotMR, tempReg, cg); // store address of first data element
-
-   // We are copying Memory reference to a register ()
-   generateRegImmInstruction(TR::InstOpCode::CMPRegImm4(), node, sizeReg, 0, cg);
-   generateRegMemInstruction(TR::InstOpCode::LEARegMem(), node, tempReg, dataAddrMR, cg); // load address of first data element
-   // Store tempReg to dataAddrSlotMR if ZF is set
-   // copy memory refernce to register
-   // ideally: we would want to copy register to memory location
-   // CMOVcc moves memory/reg to destination reg
-   /* Option 1:
-      - NULL out tempReg if ZF is seat
-      - Unconditionally write tempReg to dataAddrSlotMR using SMemReg
-    */
    }
 #endif /* J9VM_GC_SPARSE_HEAP_ALLOCATION */
 
