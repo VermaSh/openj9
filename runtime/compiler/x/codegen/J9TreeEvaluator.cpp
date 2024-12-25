@@ -7527,7 +7527,7 @@ static void handleOffHeapDataForArrays(
    // Intialize dataAddr field
    TR::MemoryReference *dataAddrSlotMR = NULL;
    TR::MemoryReference *dataAddrMR = NULL;
-   if (TR::Compiler->om.compressObjectReferences() && NULL != sizeReg)
+   if (NULL != sizeReg)
       {
       /* We need to check sizeReg at runtime to determine correct offset of dataAddr field.
        * Here we deal only with compressed refs because dataAddr field offset for discontiguous
@@ -7536,22 +7536,43 @@ static void handleOffHeapDataForArrays(
       if (comp->getOption(TR_TraceCG))
          traceMsg(comp, "Node (%p): Dealing with compressed refs variable length array.\n", node);
 
-      TR_ASSERT_FATAL_WITH_NODE(node,
-         (fej9->getOffsetOfDiscontiguousDataAddrField() - fej9->getOffsetOfContiguousDataAddrField()) == 8,
-         "Offset of dataAddr field in discontiguous array is expected to be 8 bytes more than contiguous array. "
-         "But was %d bytes for discontiguous and %d bytes for contiguous array.\n",
-         fej9->getOffsetOfDiscontiguousDataAddrField(), fej9->getOffsetOfContiguousDataAddrField());
 
-      TR::Register *discontiguousDataAddrOffsetReg = srm->findOrCreateScratchRegister();
-      generateRegRegInstruction(TR::InstOpCode::XOR4RegReg, node, discontiguousDataAddrOffsetReg, discontiguousDataAddrOffsetReg, cg);
-      generateRegImmInstruction(TR::InstOpCode::CMPRegImm4(), node, sizeReg, 1, cg);
-      generateRegImmInstruction(TR::InstOpCode::ADCRegImm4(), node, discontiguousDataAddrOffsetReg, 0, cg);
+      TR::Register *discontiguousDataAddrOffsetReg = NULL;
+      if (TR::Compiler->om.compressObjectReferences())
+         {
+         TR_ASSERT_FATAL_WITH_NODE(node,
+            (fej9->getOffsetOfDiscontiguousDataAddrField() - fej9->getOffsetOfContiguousDataAddrField()) == 8,
+            "Offset of dataAddr field in discontiguous array is expected to be 8 bytes more than contiguous array. "
+            "But was %d bytes for discontiguous and %d bytes for contiguous array.\n",
+            fej9->getOffsetOfDiscontiguousDataAddrField(), fej9->getOffsetOfContiguousDataAddrField());
 
-      dataAddrMR = generateX86MemoryReference(targetReg, discontiguousDataAddrOffsetReg, 3, TR::Compiler->om.contiguousArrayHeaderSizeInBytes(), cg);
-      dataAddrSlotMR = generateX86MemoryReference(targetReg, discontiguousDataAddrOffsetReg, 3, fej9->getOffsetOfContiguousDataAddrField(), cg);
+         discontiguousDataAddrOffsetReg = srm->findOrCreateScratchRegister();
+         generateRegRegInstruction(TR::InstOpCode::XOR4RegReg, node, discontiguousDataAddrOffsetReg, discontiguousDataAddrOffsetReg, cg);
+         generateRegImmInstruction(TR::InstOpCode::CMPRegImm4(), node, sizeReg, 1, cg);
+         generateRegImmInstruction(TR::InstOpCode::ADCRegImm4(), node, discontiguousDataAddrOffsetReg, 0, cg);
+
+         dataAddrMR = generateX86MemoryReference(targetReg, discontiguousDataAddrOffsetReg, 3, TR::Compiler->om.contiguousArrayHeaderSizeInBytes(), cg);
+         dataAddrSlotMR = generateX86MemoryReference(targetReg, discontiguousDataAddrOffsetReg, 3, fej9->getOffsetOfContiguousDataAddrField(), cg);
+         }
+      else
+         {
+         TR_ASSERT_FATAL_WITH_NODE(node,
+            fej9->getOffsetOfDiscontiguousDataAddrField() == fej9->getOffsetOfContiguousDataAddrField(),
+            "dataAddr field offset is expected to be same for both contiguous and discontiguous arrays in full refs. "
+               "But was %d bytes for discontiguous and %d bytes for contiguous array.\n",
+            fej9->getOffsetOfDiscontiguousDataAddrField(), fej9->getOffsetOfContiguousDataAddrField());
+
+         dataAddrMR = generateX86MemoryReference(targetReg, TR::Compiler->om.contiguousArrayHeaderSizeInBytes(), cg);
+         dataAddrSlotMR = generateX86MemoryReference(targetReg, fej9->getOffsetOfContiguousDataAddrField(), cg);
+         }
 
       // Load first data element address
       generateRegMemInstruction(TR::InstOpCode::LEARegMem(), node, tempReg, dataAddrMR, cg);
+
+      // Clear out tempReg if dealing with 0 length array
+      generateRegImmInstruction(TR::InstOpCode::CMPRegImm4(), node, sizeReg, 0, cg);
+      generateRegMemInstruction(TR::InstOpCode::CMOVE8RegMem, node, tempReg, generateX86MemoryReference(cg->findOrCreate8ByteConstant(node, 0), cg()), cg());
+
       // write first data element address to dataAddr slot
       generateMemRegInstruction(TR::InstOpCode::SMemReg(), node, dataAddrSlotMR, tempReg, cg);
 
