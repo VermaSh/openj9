@@ -7529,21 +7529,17 @@ static void handleOffHeapDataForArrays(
    TR::MemoryReference *dataAddrMR = NULL;
    if (NULL != sizeReg)
       {
-      /* We need to check sizeReg at runtime to determine correct offset of dataAddr field.
-       * Here we deal only with compressed refs because dataAddr field offset for discontiguous
-       * and contiguous arrays is the same in full refs.
-       */
-      if (comp->getOption(TR_TraceCG))
-         traceMsg(comp, "Node (%p): Dealing with compressed refs variable length array.\n", node);
-
-
+      // We need to check sizeReg at runtime to determine correct offset of dataAddr field.
       TR::Register *discontiguousDataAddrOffsetReg = NULL;
       if (TR::Compiler->om.compressObjectReferences())
          {
+         if (comp->getOption(TR_TraceCG))
+            traceMsg(comp, "Node (%p): Dealing with comparessed refs variable length array.\n", node);
+
          TR_ASSERT_FATAL_WITH_NODE(node,
             (fej9->getOffsetOfDiscontiguousDataAddrField() - fej9->getOffsetOfContiguousDataAddrField()) == 8,
             "Offset of dataAddr field in discontiguous array is expected to be 8 bytes more than contiguous array. "
-            "But was %d bytes for discontiguous and %d bytes for contiguous array.\n",
+               "But was %d bytes for discontiguous and %d bytes for contiguous array.\n",
             fej9->getOffsetOfDiscontiguousDataAddrField(), fej9->getOffsetOfContiguousDataAddrField());
 
          discontiguousDataAddrOffsetReg = srm->findOrCreateScratchRegister();
@@ -7556,11 +7552,8 @@ static void handleOffHeapDataForArrays(
          }
       else
          {
-         TR_ASSERT_FATAL_WITH_NODE(node,
-            fej9->getOffsetOfDiscontiguousDataAddrField() == fej9->getOffsetOfContiguousDataAddrField(),
-            "dataAddr field offset is expected to be same for both contiguous and discontiguous arrays in full refs. "
-               "But was %d bytes for discontiguous and %d bytes for contiguous array.\n",
-            fej9->getOffsetOfDiscontiguousDataAddrField(), fej9->getOffsetOfContiguousDataAddrField());
+         if (comp->getOption(TR_TraceCG))
+            traceMsg(comp, "Node (%p): Dealing with full refs variable length array.\n", node);
 
          dataAddrMR = generateX86MemoryReference(targetReg, TR::Compiler->om.contiguousArrayHeaderSizeInBytes(), cg);
          dataAddrSlotMR = generateX86MemoryReference(targetReg, fej9->getOffsetOfContiguousDataAddrField(), cg);
@@ -7578,13 +7571,12 @@ static void handleOffHeapDataForArrays(
 
       srm->reclaimScratchRegister(discontiguousDataAddrOffsetReg);
       }
-   else if ((!TR::Compiler->om.compressObjectReferences() && NULL != sizeReg)
-      || (node->getFirstChild()->getOpCode().isLoadConst() && node->getFirstChild()->getInt() != 0))
+   else if (node->getFirstChild()->getOpCode().isLoadConst() && node->getFirstChild()->getInt() != 0)
       {
       if (comp->getOption(TR_TraceCG))
          {
          traceMsg(comp,
-            "Node (%p): Dealing with either full/compressed refs fixed length non-zero size array or full refs variable length array.\n",
+            "Node (%p): Dealing with either full/compressed refs fixed length non-zero size array.\n",
             node);
          }
 
@@ -7593,14 +7585,6 @@ static void handleOffHeapDataForArrays(
 
       // Load first data element address
       generateRegMemInstruction(TR::InstOpCode::LEARegMem(), node, tempReg, dataAddrMR, cg);
-
-      if (NULL != sizeReg)
-         { // dealing with variable length array
-         // Clear out tempReg if dealing with 0 length array
-         generateRegImmInstruction(TR::InstOpCode::CMPRegImm4(), node, sizeReg, 0, cg);
-         generateRegMemInstruction(TR::InstOpCode::CMOVE8RegMem, node, tempReg, generateX86MemoryReference(cg->findOrCreate8ByteConstant(node, 0), cg()), cg());
-         }
-
       // write first data element address to dataAddr slot
       generateMemRegInstruction(TR::InstOpCode::SMemReg(), node, dataAddrSlotMR, tempReg, cg);
       }
