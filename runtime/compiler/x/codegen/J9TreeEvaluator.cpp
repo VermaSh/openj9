@@ -6827,6 +6827,24 @@ static void genInitArrayHeader(
          }
       }
 
+   // NULL padding after size
+   if (TR::Compiler->om.compressObjectReferences())
+      {
+      generateMemImmInstruction(TR::InstOpCode::SMemImm4(),
+         node,
+         generateX86MemoryReference(objectReg, fej9->getOffsetOfDiscontiguousArraySizeField() + 4, cg),
+         0,
+         cg);
+      }
+   else
+      {
+      generateMemImmInstruction(TR::InstOpCode::SMemImm4(),
+         node,
+         generateX86MemoryReference(objectReg, fej9->getOffsetOfDiscontiguousArraySizeField(), cg),
+         0,
+         cg);
+      }
+
    bool generateArraylets = comp->generateArraylets();
 
    if (generateArraylets)
@@ -7481,7 +7499,7 @@ static void handleOffHeapDataForArrays(
     */
    generateRegRegInstruction(TR::InstOpCode::XOR4RegReg, node, tempReg, tempReg, cg);
 
-   /* Clear out padding and dataAddr field of array header assuming it's a 0 length array
+   /* Clear out dataAddr field of array header assuming it's a 0 length array
     * so we don't have to worry about clearing it out later during initialization.
     * Dealing with 0 length array here keeps the dataAddr field initialization sequence simple.
     */
@@ -8073,27 +8091,6 @@ J9::X86::TreeEvaluator::VMnewEvaluator(
                   generateX86MemoryReference(targetReg, fej9->getOffsetOfDiscontiguousArraySizeField(), cg),
                   0, cg);
                shouldInitZeroSizedArrayHeader = false;
-               }
-
-            // clear 4 bytes after size field in preparation for 0 length arrays
-            if (isArrayNew)
-               {
-               if (TR::Compiler->om.compressObjectReferences())
-                  {
-                  generateMemImmInstruction(TR::InstOpCode::SMemImm4(),
-                     node,
-                     generateX86MemoryReference(targetReg, fej9->getOffsetOfDiscontiguousArraySizeField() + 4, cg),
-                     0,
-                     cg);
-                  }
-               else
-                  {
-                  generateMemImmInstruction(TR::InstOpCode::SMemImm4(),
-                     node,
-                     generateX86MemoryReference(targetReg, fej9->getOffsetOfDiscontiguousArraySizeField(), cg),
-                     0,
-                     cg);
-                  }
                }
             }
 
