@@ -7514,16 +7514,19 @@ static void handleOffHeapDataForArrays(
    if (comp->getOption(TR_TraceCG))
       {
       traceMsg(comp,
-         "Node (%p): Clean out dataAddr field assuming 0 length array. In full refs mode, "
-            "dataAddr field offset is same for both contiguous and discontiguous header layout "
-            "so no harm done if our assumption about array length turns out to be wrong.\n",
+         "Node (%p): Clean out dataAddr field assuming 0 length array. If we are wrong "
+            "in full refs mode, dataAddr field offset is same for both contiguous and "
+            "discontiguous header layout so no harm done. If we are wrong in compressed "
+            "refs mode, we'll just be writing 0s to an element position of the contiguous "
+            "array which will get overwritten when the elements are populated so no harm "
+            " done here either.\n",
          node);
       }
    generateMemRegInstruction(TR::InstOpCode::S8MemReg, node, generateX86MemoryReference(targetReg, fej9->getOffsetOfDiscontiguousDataAddrField(), cg), tempReg, cg);
 
    // Intialize dataAddr field
-   TR::MemoryReference *dataAddrSlotMR = generateX86MemoryReference(targetReg, fej9->getOffsetOfContiguousDataAddrField(), cg);
-   TR::MemoryReference *dataAddrMR = generateX86MemoryReference(targetReg, TR::Compiler->om.contiguousArrayHeaderSizeInBytes(), cg);
+   TR::MemoryReference *dataAddrSlotMR = NULL;
+   TR::MemoryReference *dataAddrMR = NULL;
    if (TR::Compiler->om.compressObjectReferences() && NULL != sizeReg)
       {
       /* We need to check sizeReg at runtime to determine correct offset of dataAddr field.
@@ -7547,11 +7550,15 @@ static void handleOffHeapDataForArrays(
       dataAddrMR = generateX86MemoryReference(targetReg, discontiguousDataAddrOffsetReg, 3, TR::Compiler->om.contiguousArrayHeaderSizeInBytes(), cg);
       dataAddrSlotMR = generateX86MemoryReference(targetReg, discontiguousDataAddrOffsetReg, 3, fej9->getOffsetOfContiguousDataAddrField(), cg);
 
-      generateRegMemInstruction(TR::InstOpCode::LEARegMem(), node, tempReg, dataAddrMR, cg); // load first element address
+      // Load first data element address
+      generateRegMemInstruction(TR::InstOpCode::LEARegMem(), node, tempReg, dataAddrMR, cg);
       // write first data element address to dataAddr slot
       generateMemRegInstruction(TR::InstOpCode::SMemReg(), node, dataAddrSlotMR, tempReg, cg);
+
+      srm->reclaimScratchRegister(discontiguousDataAddrOffsetReg);
       }
-   else if ((!TR::Compiler->om.compressObjectReferences() && NULL != sizeReg) || (node->getFirstChild()->getOpCode().isLoadConst() && node->getFirstChild()->getInt() != 0))
+   else if ((!TR::Compiler->om.compressObjectReferences() && NULL != sizeReg)
+      || (node->getFirstChild()->getOpCode().isLoadConst() && node->getFirstChild()->getInt() != 0))
       {
       if (comp->getOption(TR_TraceCG))
          {
@@ -7563,13 +7570,17 @@ static void handleOffHeapDataForArrays(
       dataAddrMR = generateX86MemoryReference(targetReg, TR::Compiler->om.contiguousArrayHeaderSizeInBytes(), cg);
       dataAddrSlotMR = generateX86MemoryReference(targetReg, fej9->getOffsetOfContiguousDataAddrField(), cg);
 
-      // write first data element address to dataAddr slot
+      // Load first data element address
       generateRegMemInstruction(TR::InstOpCode::LEARegMem(), node, tempReg, dataAddrMR, cg);
 
-      // Clear out tempReg if dealing with 0 length array
-      generateRegImmInstruction(TR::InstOpCode::CMPRegImm4(), node, sizeReg, 0, cg);
-      generateRegMemInstruction(TR::InstOpCode::CMOVE8RegMem, node, tempReg, generateX86MemoryReference(cg->findOrCreate8ByteConstant(node, 0), cg()), cg());
+      if (NULL != sizeReg)
+         { // dealing with variable length array
+         // Clear out tempReg if dealing with 0 length array
+         generateRegImmInstruction(TR::InstOpCode::CMPRegImm4(), node, sizeReg, 0, cg);
+         generateRegMemInstruction(TR::InstOpCode::CMOVE8RegMem, node, tempReg, generateX86MemoryReference(cg->findOrCreate8ByteConstant(node, 0), cg()), cg());
+         }
 
+      // write first data element address to dataAddr slot
       generateMemRegInstruction(TR::InstOpCode::SMemReg(), node, dataAddrSlotMR, tempReg, cg);
       }
    }
