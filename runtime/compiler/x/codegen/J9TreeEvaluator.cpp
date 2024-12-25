@@ -6827,9 +6827,9 @@ static void genInitArrayHeader(
          }
       }
 
-   // NULL padding after size
+   // Clear padding after size field in array header
    if (TR::Compiler->om.compressObjectReferences())
-      {
+      { // Clear padding after size field in discontiguous header layout (for 0 length arrays)
       generateMemImmInstruction(TR::InstOpCode::SMemImm4(),
          node,
          generateX86MemoryReference(objectReg, fej9->getOffsetOfDiscontiguousArraySizeField() + 4, cg),
@@ -6837,7 +6837,7 @@ static void genInitArrayHeader(
          cg);
       }
    else
-      {
+      { // Clear padding after size field in contiguous header layout
       generateMemImmInstruction(TR::InstOpCode::SMemImm4(),
          node,
          generateX86MemoryReference(objectReg, fej9->getOffsetOfDiscontiguousArraySizeField(), cg),
