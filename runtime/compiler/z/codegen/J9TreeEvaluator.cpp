@@ -4948,6 +4948,12 @@ static TR::Register * generateMultianewArrayWithInlineAllocators(TR::Node *node,
       iComment("Init 1st dim mustBeZero field.");
       cursor = generateRXInstruction(cg, TR::InstOpCode::ST, node, firstDimLenReg, generateS390MemoryReference(targetReg, fej9->getOffsetOfDiscontiguousArraySizeField(), cg));
       iComment("Init 1st dim size field.");
+   if (TR::Compiler->om.compressObjectReferences())
+      { // Clear padding in contiguous array header layout
+      cursor = generateRXInstruction(TR::InstOpCode::ST, node, generateS390MemoryReference(targetReg, fej9->getOffsetOfDiscontiguousArraySizeField() + 4, cg), 0, cg);
+      iComment("Clear padding.");
+      }
+
 #if defined(J9VM_GC_SPARSE_HEAP_ALLOCATION)
       if (isOffHeapAllocationEnabled)
          {
@@ -5014,6 +5020,31 @@ static TR::Register * generateMultianewArrayWithInlineAllocators(TR::Node *node,
    iComment("Init 1st dim class field.");
    cursor = generateRXInstruction(cg, TR::InstOpCode::ST, node, firstDimLenReg, generateS390MemoryReference(targetReg, fej9->getOffsetOfContiguousArraySizeField(), cg));
    iComment("Init 1st dim size field.");
+   if (!TR::Compiler->om.compressObjectReferences())
+      { // Clear padding in contiguous array header layout
+      cursor = generateRXInstruction(TR::InstOpCode::ST, node, generateS390MemoryReference(targetReg, fej9->getOffsetOfDiscontiguousArraySizeField() + 4, cg), 0, cg);
+      iComment("Clear padding.");
+      }
+
+   #if defined(J9VM_GC_SPARSE_HEAP_ALLOCATION)
+      if (isOffHeapAllocationEnabled)
+         {
+         /* Populate dataAddr slot of 1st dimension array. We don't need to worry
+          * about zero length array since it has already been taken care of.
+          */
+         generateRXInstruction(cg,
+            TR::InstOpCode::LA,
+            node,
+            temp3Reg,
+            generateS390MemoryReference(targetReg, TR::Compiler->om.contiguousArrayHeaderSizeInBytes(), cg));
+         cursor = generateRXInstruction(cg,
+            TR::InstOpCode::STG,
+            node,
+            temp3Reg,
+            generateS390MemoryReference(targetReg, fej9->getOffsetOfContiguousDataAddrField(), cg));
+         iComment("populateFirstDimDataAddrSlot.");
+         }
+   #endif /* J9VM_GC_SPARSE_HEAP_ALLOCATION */
    // temp2 point to end of 1st dim array i.e. start of 2nd dim
    generateRRInstruction(cg, TR::InstOpCode::LGR, node, temp2Reg, targetReg);
    generateRRInstruction(cg, TR::InstOpCode::AGR, node, temp2Reg, temp1Reg);
@@ -5044,6 +5075,12 @@ static TR::Register * generateMultianewArrayWithInlineAllocators(TR::Node *node,
       iComment("Init 2st dim mustBeZero field.");
       cursor = generateRXInstruction(cg, TR::InstOpCode::ST, node, secondDimLenReg, generateS390MemoryReference(temp2Reg, fej9->getOffsetOfDiscontiguousArraySizeField(), cg));
       iComment("Init 2st dim size field.");
+   if (TR::Compiler->om.compressObjectReferences())
+      { // Clear padding in contiguous array header layout
+      cursor = generateRXInstruction(TR::InstOpCode::ST, node, generateS390MemoryReference(temp2Reg, fej9->getOffsetOfDiscontiguousArraySizeField() + 4, cg), 0, cg);
+      iComment("Clear padding.");
+      }
+
 #if defined(J9VM_GC_SPARSE_HEAP_ALLOCATION)
       if (isOffHeapAllocationEnabled)
          {
@@ -5081,26 +5118,6 @@ static TR::Register * generateMultianewArrayWithInlineAllocators(TR::Node *node,
 
    generateRILInstruction(cg, TR::InstOpCode::SLFI, node, firstDimLenReg, 1);
    generateS390CompareAndBranchInstruction(cg, TR::InstOpCode::CL, node, firstDimLenReg, 0, TR::InstOpCode::COND_BNE, loopLabel, false);
-
-#if defined(J9VM_GC_SPARSE_HEAP_ALLOCATION)
-   if (isOffHeapAllocationEnabled)
-      {
-      /* Populate dataAddr slot of 1st dimension array. We don't need to worry
-       * about zero length array since it has already been taken care of.
-       */
-      generateRXInstruction(cg,
-         TR::InstOpCode::LA,
-         node,
-         temp3Reg,
-         generateS390MemoryReference(targetReg, TR::Compiler->om.contiguousArrayHeaderSizeInBytes(), cg));
-      cursor = generateRXInstruction(cg,
-         TR::InstOpCode::STG,
-         node,
-         temp3Reg,
-         generateS390MemoryReference(targetReg, fej9->getOffsetOfContiguousDataAddrField(), cg));
-      iComment("populateFirstDimDataAddrSlot.");
-      }
-#endif /* J9VM_GC_SPARSE_HEAP_ALLOCATION */
 
    generateS390BranchInstruction(cg, TR::InstOpCode::BRC, TR::InstOpCode::COND_BRC, node, cFlowRegionDone);
 
