@@ -1499,7 +1499,6 @@ static TR::Register * generateMultianewArrayWithInlineAllocators(TR::Node *node,
    TR::LabelSymbol *nonZeroFirstDimLabel = generateLabelSymbol(cg);
 #if defined(J9VM_GC_SPARSE_HEAP_ALLOCATION)
    bool isOffHeapAllocationEnabled = TR::Compiler->om.isOffHeapAllocationEnabled();
-   TR::LabelSymbol *populateFirstDimDataAddrSlot = isOffHeapAllocationEnabled? generateLabelSymbol(cg) : NULL;
 #endif /* defined(J9VM_GC_SPARSE_HEAP_ALLOCATION) */
 
    startLabel->setStartInternalControlFlow();
@@ -1554,37 +1553,18 @@ static TR::Register * generateMultianewArrayWithInlineAllocators(TR::Node *node,
    // Init size and mustBeZero ('0') fields to 0
    generateMemImmInstruction(TR::InstOpCode::S4MemImm4, node, generateX86MemoryReference(targetReg, fej9->getOffsetOfContiguousArraySizeField(), cg), 0, cg);
    generateMemImmInstruction(TR::InstOpCode::S4MemImm4, node, generateX86MemoryReference(targetReg, fej9->getOffsetOfDiscontiguousArraySizeField(), cg), 0, cg);
+   if (TR::Compiler->om.compressObjectReferences())
+      { // Clear padding in discontiguous array header layout
+      generateMemImmInstruction(TR::InstOpCode::S4MemImm4, node, generateX86MemoryReference(targetReg, fej9->getOffsetOfDiscontiguousArraySizeField() + 4, cg), 0, cg);
+      }
 
 #if defined(J9VM_GC_SPARSE_HEAP_ALLOCATION)
    if (isOffHeapAllocationEnabled)
-      {
-      // Load dataAddr slot offset difference since 0 size arrays are treated as discontiguous.
-      TR_ASSERT_FATAL_WITH_NODE(node,
-         IS_32BIT_SIGNED(fej9->getOffsetOfDiscontiguousDataAddrField() - fej9->getOffsetOfContiguousDataAddrField()),
-         "dataAddrFieldOffset is too big for the instruction.");
-
-      TR_ASSERT_FATAL_WITH_NODE(node,
-         (TR::Compiler->om.compressObjectReferences()
-               && (fej9->getOffsetOfDiscontiguousDataAddrField() - fej9->getOffsetOfContiguousDataAddrField()) == 8)
-            || (!TR::Compiler->om.compressObjectReferences()
-               && fej9->getOffsetOfDiscontiguousDataAddrField() == fej9->getOffsetOfContiguousDataAddrField()),
-         "Offset of dataAddr field in discontiguous array is expected to be 8 bytes more than contiguous array if using compressed refs, "
-         "or same if using full refs. But was %d bytes for discontiguous and %d bytes for contiguous array.\n",
-         fej9->getOffsetOfDiscontiguousDataAddrField(), fej9->getOffsetOfContiguousDataAddrField());
-
-      generateRegImmInstruction(TR::InstOpCode::MOV8RegImm4,
-         node,
-         temp3Reg,
-         static_cast<int32_t>(fej9->getOffsetOfDiscontiguousDataAddrField() - fej9->getOffsetOfContiguousDataAddrField()),
-         cg);
-
-      generateLabelInstruction(TR::InstOpCode::JMP4, node, populateFirstDimDataAddrSlot, cg);
+      { // Init dataAddr slot to 0
+      generateMemRegInstruction(TR::InstOpCode::S8MemImm4, node, generateX86MemoryReference(targetReg, fej9->getOffsetOfDiscontiguousDataAddrField(), cg), 0, cg);
       }
-   else
 #endif /* J9VM_GC_SPARSE_HEAP_ALLOCATION */
-      {
-      generateLabelInstruction(TR::InstOpCode::JMP4, node, doneLabel, cg);
-      }
+   generateLabelInstruction(TR::InstOpCode::JMP4, node, doneLabel, cg);
 
    //First dim length not 0
    generateLabelInstruction(TR::InstOpCode::label, node, nonZeroFirstDimLabel, cg);
@@ -1633,6 +1613,28 @@ static TR::Register * generateMultianewArrayWithInlineAllocators(TR::Node *node,
    generateMemRegInstruction(TR::InstOpCode::SMemReg(use64BitClasses), node, generateX86MemoryReference(targetReg, TR::Compiler->om.offsetOfObjectVftField(), cg), classReg, cg);
    // Init 1st dim array size field
    generateMemRegInstruction(TR::InstOpCode::S4MemReg, node, generateX86MemoryReference(targetReg, fej9->getOffsetOfContiguousArraySizeField(), cg), firstDimLenReg, cg);
+   if (!TR::Compiler->om.compressObjectReferences())
+      { // Clear padding in contiguous array header layout
+      generateMemImmInstruction(TR::InstOpCode::S4MemImm4, node, generateX86MemoryReference(targetReg, fej9->getOffsetOfDiscontiguousArraySizeField() + 4, cg), 0, cg);
+      }
+#if defined(J9VM_GC_SPARSE_HEAP_ALLOCATION)
+   if (isOffHeapAllocationEnabled)
+      {
+      /* Populate dataAddr slot of 1st dimension array. Arrays of non-zero size
+       * use contiguous header layout while zero size arrays use discontiguous header layout.
+       */
+      generateRegMemInstruction(TR::InstOpCode::LEARegMem(),
+         node,
+         temp2Reg,
+         generateX86MemoryReference(targetReg, temp3Reg, 0, TR::Compiler->om.contiguousArrayHeaderSizeInBytes(), cg),
+         cg);
+      generateMemRegInstruction(TR::InstOpCode::SMemReg(),
+         node,
+         generateX86MemoryReference(targetReg, temp3Reg, 0, fej9->getOffsetOfContiguousDataAddrField(), cg),
+         temp2Reg,
+         cg);
+      }
+#endif /* J9VM_GC_SPARSE_HEAP_ALLOCATION */
 
    // temp2 point to end of 1st dim array i.e. start of 2nd dim
    generateRegRegInstruction(TR::InstOpCode::MOVRegReg(),  node, temp2Reg, targetReg, cg);
@@ -1647,21 +1649,16 @@ static TR::Register * generateMultianewArrayWithInlineAllocators(TR::Node *node,
    // Init 2nd dim element's size and mustBeZero ('0') fields to 0
    generateMemImmInstruction(TR::InstOpCode::S4MemImm4, node, generateX86MemoryReference(temp2Reg, fej9->getOffsetOfContiguousArraySizeField(), cg), 0, cg);
    generateMemImmInstruction(TR::InstOpCode::S4MemImm4, node, generateX86MemoryReference(temp2Reg, fej9->getOffsetOfDiscontiguousArraySizeField(), cg), 0, cg);
+   if (TR::Compiler->om.compressObjectReferences())
+      { // Clear padding in discontiguous array header layout
+      generateMemImmInstruction(TR::InstOpCode::S4MemImm4, node, generateX86MemoryReference(temp2Reg, fej9->getOffsetOfDiscontiguousArraySizeField() + 4, cg), 0, cg);
+      }
 
 #if defined(J9VM_GC_SPARSE_HEAP_ALLOCATION)
    if (isOffHeapAllocationEnabled)
       {
       // Populate dataAddr slot for 2nd dimension zero size array.
-      generateRegMemInstruction(TR::InstOpCode::LEARegMem(),
-         node,
-         temp3Reg,
-         generateX86MemoryReference(temp2Reg, TR::Compiler->om.discontiguousArrayHeaderSizeInBytes(), cg),
-         cg);
-      generateMemRegInstruction(TR::InstOpCode::SMemReg(),
-         node,
-         generateX86MemoryReference(temp2Reg, fej9->getOffsetOfDiscontiguousDataAddrField(), cg),
-         temp3Reg,
-         cg);
+      generateMemRegInstruction(TR::InstOpCode::S8MemImm4, node, generateX86MemoryReference(temp2Reg, fej9->getOffsetOfDiscontiguousDataAddrField(), cg), 0, cg);
       }
 #endif /* J9VM_GC_SPARSE_HEAP_ALLOCATION */
 
@@ -1688,18 +1685,7 @@ static TR::Register * generateMultianewArrayWithInlineAllocators(TR::Node *node,
    generateRegInstruction(TR::InstOpCode::DEC4Reg, node, firstDimLenReg, cg);
    generateLabelInstruction(TR::InstOpCode::JA4, node, loopLabel, cg);
 
-#if defined(J9VM_GC_SPARSE_HEAP_ALLOCATION)
-   if (isOffHeapAllocationEnabled)
-      {
-      // No offset is needed since 1st dimension array is contiguous.
-      generateRegRegInstruction(TR::InstOpCode::XOR4RegReg, node, temp3Reg, temp3Reg, cg);
-      generateLabelInstruction(TR::InstOpCode::JMP4, node, populateFirstDimDataAddrSlot, cg);
-      }
-   else
-#endif /* J9VM_GC_SPARSE_HEAP_ALLOCATION */
-      {
-      generateLabelInstruction(TR::InstOpCode::JMP4, node, doneLabel, cg);
-      }
+   generateLabelInstruction(TR::InstOpCode::JMP4, node, doneLabel, cg);
 
    TR::RegisterDependencyConditions  *deps = generateRegisterDependencyConditions((uint8_t)0, 13, cg);
 
@@ -1745,26 +1731,6 @@ static TR::Register * generateMultianewArrayWithInlineAllocators(TR::Node *node,
 
    generateLabelInstruction(TR::InstOpCode::label, node, oolJumpPoint, cg);
    generateLabelInstruction(TR::InstOpCode::JMP4, node, oolFailLabel, cg);
-
-#if defined(J9VM_GC_SPARSE_HEAP_ALLOCATION)
-   if (isOffHeapAllocationEnabled)
-      {
-      /* Populate dataAddr slot of 1st dimension array. Arrays of non-zero size
-       * use contiguous header layout while zero size arrays use discontiguous header layout.
-       */
-      generateLabelInstruction(TR::InstOpCode::label, node, populateFirstDimDataAddrSlot, cg);
-      generateRegMemInstruction(TR::InstOpCode::LEARegMem(),
-         node,
-         temp2Reg,
-         generateX86MemoryReference(targetReg, temp3Reg, 0, TR::Compiler->om.contiguousArrayHeaderSizeInBytes(), cg),
-         cg);
-      generateMemRegInstruction(TR::InstOpCode::SMemReg(),
-         node,
-         generateX86MemoryReference(targetReg, temp3Reg, 0, fej9->getOffsetOfContiguousDataAddrField(), cg),
-         temp2Reg,
-         cg);
-      }
-#endif /* J9VM_GC_SPARSE_HEAP_ALLOCATION */
 
    generateLabelInstruction(TR::InstOpCode::label, node, doneLabel, deps, cg);
 
