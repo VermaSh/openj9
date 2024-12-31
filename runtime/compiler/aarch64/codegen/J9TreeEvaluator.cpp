@@ -3491,6 +3491,10 @@ J9::ARM64::TreeEvaluator::VMnewEvaluator(TR::Node *node, TR::CodeGenerator *cg)
 
             dataAddrSlotMR = TR::MemoryReference::createWithDisplacement(cg, offsetReg, fej9->getOffsetOfContiguousDataAddrField());
             generateTrg1Src1ImmInstruction(cg, TR::InstOpCode::addimmx, node, firstDataElementReg, offsetReg, TR::Compiler->om.contiguousArrayHeaderSizeInBytes());
+
+            // Clear firstDataElementReg reg if dealing with 0 size arrays
+            generateCompareImmInstruction(cg, node, lengthReg, 0, false);
+            generateCondTrg1Src2Instruction(cg(), TR::InstOpCode::cselx, node, firstDataElementReg, zeroReg, firstDataElementReg, TR::CC_EQ);
             }
          else if (!isVariableLength && node->getFirstChild()->getOpCode().isLoadConst() && node->getFirstChild()->getInt() == 0)
             {
@@ -3498,7 +3502,7 @@ J9::ARM64::TreeEvaluator::VMnewEvaluator(TR::Node *node, TR::CodeGenerator *cg)
                traceMsg(comp, "Node (%p): Dealing with full/compressed refs fixed length zero size array.\n", node);
 
             dataAddrSlotMR = TR::MemoryReference::createWithDisplacement(cg, resultReg, fej9->getOffsetOfDiscontiguousDataAddrField());
-            generateTrg1Src1ImmInstruction(cg, TR::InstOpCode::addimmx, node, firstDataElementReg, resultReg, TR::Compiler->om.discontiguousArrayHeaderSizeInBytes());
+            firstDataElementReg =  zeroReg;
             }
          else
             {
@@ -3520,8 +3524,14 @@ J9::ARM64::TreeEvaluator::VMnewEvaluator(TR::Node *node, TR::CodeGenerator *cg)
 
             dataAddrSlotMR = TR::MemoryReference::createWithDisplacement(cg, resultReg, fej9->getOffsetOfContiguousDataAddrField());
             generateTrg1Src1ImmInstruction(cg, TR::InstOpCode::addimmx, node, firstDataElementReg, resultReg, TR::Compiler->om.contiguousArrayHeaderSizeInBytes());
-            }
 
+            if (isVariableLength && !TR::Compiler->om.compressedOBjectReferences())
+               {
+               // Clear firstDataElementReg reg if dealing with variable length 0 size arrays
+               generateCompareImmInstruction(cg, node, lengthReg, 0, false);
+               generateCondTrg1Src2Instruction(cg(), TR::InstOpCode::cselx, node, offsetReg, zeroReg, offsetReg, TR::CC_EQ);
+               }
+            }
          generateMemSrc1Instruction(cg, TR::InstOpCode::strimmx, node, dataAddrSlotMR, firstDataElementReg);
          }
 #endif /* J9VM_GC_SPARSE_HEAP_ALLOCATION */
