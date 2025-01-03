@@ -11168,22 +11168,34 @@ J9::Z::TreeEvaluator::VMnewEvaluator(TR::Node * node, TR::CodeGenerator * cg)
 
                offsetReg = cg->allocateRegister();
 
-               // Invert enumReg sign. 0 and negative numbers remain unchanged.
-               iCursor = generateRREInstruction(cg, TR::InstOpCode::LNGFR, node, offsetReg, enumReg, iCursor);
-               iCursor = generateRSInstruction(cg, TR::InstOpCode::SRLG, node, dataSizeReg, offsetReg, 63, iCursor);
-               iCursor = generateRSInstruction(cg, TR::InstOpCode::SLLG, node, offsetReg, dataSizeReg, 3, iCursor);
-               // Inverting the sign bit will leave us with either -8 (if enumCopyReg > 0) or 0 (if enumCopyReg == 0).
-               iCursor = generateRREInstruction(cg, TR::InstOpCode::LNGR, node, offsetReg, offsetReg, iCursor);
+               // // Invert enumReg sign. 0 and negative numbers remain unchanged.
+               // iCursor = generateRREInstruction(cg, TR::InstOpCode::LNGFR, node, offsetReg, enumReg, iCursor); // load negative
+               // iCursor = generateRSInstruction(cg, TR::InstOpCode::SRLG, node, dataSizeReg, offsetReg, 63, iCursor); // SHIFT RIGHT SINGLE LOGICAL
+               // iCursor = generateRSInstruction(cg, TR::InstOpCode::SLLG, node, offsetReg, dataSizeReg, 3, iCursor); // SHIFT LEFT SINGLE LOGICAL
+               // // Inverting the sign bit will leave us with either -8 (if enumCopyReg > 0) or 0 (if enumCopyReg == 0).
+               // iCursor = generateRREInstruction(cg, TR::InstOpCode::LNGR, node, offsetReg, offsetReg, iCursor);
 
-               dataAddrMR = generateS390MemoryReference(resReg, offsetReg, TR::Compiler->om.discontiguousArrayHeaderSizeInBytes(), cg);
-               dataAddrSlotMR = generateS390MemoryReference(resReg, offsetReg, fej9->getOffsetOfDiscontiguousDataAddrField(), cg);
-
+               // Without: load 8 into offset reg if dealing with 0 size array, instead of -8
+               iCursor = generateRILInstruction(cg, TR::InstOpCode::LGFI, node, dataSizeReg, 8, iCursor); // load 8 into dataSizeReg
+               iCursor = generateRILInstruction(cg, TR::InstOpCode::CFI, node, enumReg, 0, iCursor);
+               iCursor = generateRRFInstruction(cg, TR::InstOpCode::LOCGR, node, offsetReg, dataSizeReg, getMaskForBranchCondition(TR::InstOpCode::COND_BE), true, iCursor);// conditional load dataSizeReg into offsetReg
+               dataAddrMR = generateS390MemoryReference(resReg, offsetReg, TR::Compiler->om.contiguousArrayHeaderSizeInBytes(), cg);
+               dataAddrSlotMR = generateS390MemoryReference(resReg, offsetReg, fej9->getOffsetOfContiguousDataAddrField(), cg);
                // Load address of first array element
                iCursor = generateRXInstruction(cg, TR::InstOpCode::LA, node, dataSizeReg, dataAddrMR, iCursor);
+               // Write only if array length is non zero // condition code should remain unchanged so we don't need to compare twice
+               iCursor = generateRSInstruction(cg, TR::InstOpCode::STOCG, node, dataSizeReg, getMaskForBranchCondition(TR::InstOpCode::COND_BE), dataAddrSlotMR, iCursor);
 
-               iCursor = generateRILInstruction(cg, TR::InstOpCode::CFI, node, enumReg, 0, iCursor);
-               // Write only if array length is non zero
-               iCursor = generateRSInstruction(cg, TR::InstOpCode::STOCG, node, dataSizeReg, static_cast<uint32_t>(0x2), dataAddrSlotMR, iCursor);
+
+               // dataAddrMR = generateS390MemoryReference(resReg, offsetReg, TR::Compiler->om.contiguousArrayHeaderSizeInBytes(), cg);
+               // dataAddrSlotMR = generateS390MemoryReference(resReg, offsetReg, fej9->getOffsetOfContiguousDataAddrField(), cg);
+
+               // // Load address of first array element
+               // iCursor = generateRXInstruction(cg, TR::InstOpCode::LA, node, dataSizeReg, dataAddrMR, iCursor);
+
+               // iCursor = generateRILInstruction(cg, TR::InstOpCode::CFI, node, enumReg, 0, iCursor);
+               // // Write only if array length is non zero
+               // iCursor = generateRSInstruction(cg, TR::InstOpCode::STOCG, node, dataSizeReg, static_cast<uint32_t>(0x2), dataAddrSlotMR, iCursor);
                }
             else if (isVariableLen && !TR::Compiler->om.compressObjectReferences())
                {
