@@ -11069,6 +11069,8 @@ J9::Z::TreeEvaluator::VMnewEvaluator(TR::Node * node, TR::CodeGenerator * cg)
       genHeapAlloc(node, iCursor, isVariableLen, enumReg, resReg, dataSizeReg, srm, callLabel, allocateSize, elementSize, cg,
             litPoolBaseReg, conditions, firstBRCToOOL, secondBRCToOOL, exitOOLLabel);
 
+      srm->addScratchRegistersToDependencyList(conditions);
+
       //////////////////////////////////////////////////////////////////////////////////////////////////////
       ///============================ STAGE 4: Generate Fall-back Path ==================================///
       //////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -11133,7 +11135,7 @@ J9::Z::TreeEvaluator::VMnewEvaluator(TR::Node * node, TR::CodeGenerator * cg)
                   fej9->getOffsetOfDiscontiguousDataAddrField(), fej9->getOffsetOfContiguousDataAddrField());
                }
 
-            if (isVariableLen || node->getFirstChild()->getOpCode().isLoadConst() && node->getFirstChild()->getInt() == 0)
+            if (isVariableLen || (node->getFirstChild()->getOpCode().isLoadConst() && node->getFirstChild()->getInt() == 0))
                {
                if (comp->getOption(TR_TraceCG))
                   {
