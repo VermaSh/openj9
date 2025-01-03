@@ -11176,11 +11176,14 @@ J9::Z::TreeEvaluator::VMnewEvaluator(TR::Node * node, TR::CodeGenerator * cg)
                // iCursor = generateRREInstruction(cg, TR::InstOpCode::LNGR, node, offsetReg, offsetReg, iCursor);
 
                // Without: load 8 into offset reg if dealing with 0 size array, instead of -8
+               iCursor = generateRRInstruction(cg, TR::InstOpCode::XGR, node, offsetReg, offsetReg, iCursor);
                iCursor = generateRILInstruction(cg, TR::InstOpCode::LGFI, node, dataSizeReg, 8, iCursor); // load 8 into dataSizeReg
                iCursor = generateRILInstruction(cg, TR::InstOpCode::CFI, node, enumReg, 0, iCursor);
                iCursor = generateRRFInstruction(cg, TR::InstOpCode::LOCGR, node, offsetReg, dataSizeReg, getMaskForBranchCondition(TR::InstOpCode::COND_BE), true, iCursor);// conditional load dataSizeReg into offsetReg
+
                dataAddrMR = generateS390MemoryReference(resReg, offsetReg, TR::Compiler->om.contiguousArrayHeaderSizeInBytes(), cg);
                dataAddrSlotMR = generateS390MemoryReference(resReg, offsetReg, fej9->getOffsetOfContiguousDataAddrField(), cg);
+
                // Load address of first array element
                iCursor = generateRXInstruction(cg, TR::InstOpCode::LA, node, dataSizeReg, dataAddrMR, iCursor);
                // Write only if array length is non zero // condition code should remain unchanged so we don't need to compare twice
@@ -11256,7 +11259,6 @@ J9::Z::TreeEvaluator::VMnewEvaluator(TR::Node * node, TR::CodeGenerator * cg)
          {
          genInitObjectHeader(node, iCursor, classAddress, classReg, resReg, dataSizeReg, litPoolBaseReg, conditions, cg);
          }
-      srm->addScratchRegistersToDependencyList(conditions);
 
       TR_ASSERT((fej9->tlhHasBeenCleared() || J9JIT_TOSS_CODE), "");
 
