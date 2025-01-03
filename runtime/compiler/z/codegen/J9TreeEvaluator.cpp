@@ -11166,7 +11166,7 @@ J9::Z::TreeEvaluator::VMnewEvaluator(TR::Node * node, TR::CodeGenerator * cg)
                      "But was %d bytes for discontiguous and %d bytes for contiguous array.\n",
                   fej9->getOffsetOfDiscontiguousDataAddrField(), fej9->getOffsetOfContiguousDataAddrField());
 
-               offsetReg = srm->findOrCreateScratchRegister();
+               offsetReg = cg->allocateRegister();
 
                // Invert enumReg sign. 0 and negative numbers remain unchanged.
                iCursor = generateRREInstruction(cg, TR::InstOpCode::LNGFR, node, offsetReg, enumReg, iCursor);
@@ -11221,7 +11221,8 @@ J9::Z::TreeEvaluator::VMnewEvaluator(TR::Node * node, TR::CodeGenerator * cg)
 
             if (offsetReg)
                {
-               srm->reclaimScratchRegister(offsetReg);
+               conditions->addPostCondition(offsetReg, TR::RealRegister::AssignAny);
+               cg->stopUsingRegister(offsetReg);
                }
             }
 #endif /* J9VM_GC_SPARSE_HEAP_ALLOCATION */
