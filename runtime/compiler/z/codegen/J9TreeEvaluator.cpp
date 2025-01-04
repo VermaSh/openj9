@@ -11135,23 +11135,7 @@ J9::Z::TreeEvaluator::VMnewEvaluator(TR::Node * node, TR::CodeGenerator * cg)
                   fej9->getOffsetOfDiscontiguousDataAddrField(), fej9->getOffsetOfContiguousDataAddrField());
                }
 
-            if (isVariableLen || (node->getFirstChild()->getOpCode().isLoadConst() && node->getFirstChild()->getInt() == 0))
-               {
-               if (comp->getOption(TR_TraceCG))
-                  {
-                  traceMsg(comp,
-                     "Node (%p): Clean out dataAddr field in case the array being allocated is 0 size. We don't need to "
-                        "do any checks because the field is at the same offset for discontiguous full/compressed refs. "
-                        "If dealing with non-zero size array in full refs, the field will get overwritten with first "
-                        "element address. If dealing with non-zero size array in compressed refs, we would be writing "
-                        "0s into element space which will get overwritten when the elements get populated.\n",
-                     node);
-                  }
-               dataAddrSlotMR = generateS390MemoryReference(resReg, fej9->getOffsetOfDiscontiguousDataAddrField(), cg);
-               iCursor = generateSS1Instruction(cg, TR::InstOpCode::XC, node, 8, dataAddrSlotMR, dataAddrSlotMR, iCursor);
-               }
-
-            if (isVariableLen && TR::Compiler->om.compressObjectReferences())
+            if (isVariableLen)
                {
                /* We need to check enumReg (array size) at runtime to determine correct offset of dataAddr field.
                 * Here we deal only with compressed refs because dataAddr offset for discontiguous
@@ -11159,12 +11143,6 @@ J9::Z::TreeEvaluator::VMnewEvaluator(TR::Node * node, TR::CodeGenerator * cg)
                 */
                if (comp->getOption(TR_TraceCG))
                   traceMsg(comp, "Node (%p): Dealing with compressed refs variable length array.\n", node);
-
-               TR_ASSERT_FATAL_WITH_NODE(node,
-                  (fej9->getOffsetOfDiscontiguousDataAddrField() - fej9->getOffsetOfContiguousDataAddrField()) == 8,
-                  "Offset of dataAddr field in discontiguous array is expected to be 8 bytes more than contiguous array. "
-                     "But was %d bytes for discontiguous and %d bytes for contiguous array.\n",
-                  fej9->getOffsetOfDiscontiguousDataAddrField(), fej9->getOffsetOfContiguousDataAddrField());
 
                offsetReg = cg->allocateRegister();
 
@@ -11180,7 +11158,7 @@ J9::Z::TreeEvaluator::VMnewEvaluator(TR::Node * node, TR::CodeGenerator * cg)
 
                // Load address of first array element
                iCursor = generateRXInstruction(cg, TR::InstOpCode::LA, node, dataSizeReg, dataAddrMR, iCursor);
-               iCursor = generateRRFInstruction(cg, TR::InstOpCode::LOCGR, node, dataSizeReg, offsetReg, getMaskForBranchCondition(TR::InstOpCode::COND_BE), true, iCursor);// conditional load dataSizeReg into offsetReg
+               iCursor = generateRRFInstruction(cg, TR::InstOpCode::LOCGR, node, dataSizeReg, offsetReg, getMaskForBranchCondition(TR::InstOpCode::COND_BE), true, iCursor); // conditional load dataSizeReg into offsetReg
 
                // Write element addres into the field
                iCursor = generateRXInstruction(cg, TR::InstOpCode::STG, node, dataSizeReg, dataAddrSlotMR, iCursor);
@@ -11188,30 +11166,18 @@ J9::Z::TreeEvaluator::VMnewEvaluator(TR::Node * node, TR::CodeGenerator * cg)
                conditions->addPostCondition(offsetReg, TR::RealRegister::AssignAny);
                cg->stopUsingRegister(offsetReg);
                }
-            else if (isVariableLen && !TR::Compiler->om.compressObjectReferences())
+            else if (!comp->getOption(TR_DisableDualTLH) && node->canSkipZeroInitialization() && ((node->getFirstChild()->getOpCode().isLoadConst() && node->getFirstChild()->getInt() == 0)))
                {
                if (comp->getOption(TR_TraceCG))
-                  {
-                  traceMsg(comp, "Node (%p): Dealing with full refs variable length array.\n", node);
-                  }
+                  traceMsg(comp, "Node (%p): Clean out dataAddr field in case the array being allocated is 0 size.\n", node);
 
                dataAddrSlotMR = generateS390MemoryReference(resReg, fej9->getOffsetOfDiscontiguousDataAddrField(), cg);
-               dataAddrMR = generateS390MemoryReference(resReg, TR::Compiler->om.discontiguousArrayHeaderSizeInBytes(), cg);
-               // Load address of first array element
-               iCursor = generateRXInstruction(cg, TR::InstOpCode::LA, node, dataSizeReg, dataAddrMR, iCursor);
-
-               iCursor = generateRILInstruction(cg, TR::InstOpCode::CFI, node, enumReg, 0, iCursor);
-               // Write only if array length is non zero
-               iCursor = generateRSInstruction(cg, TR::InstOpCode::STOCG, node, dataSizeReg, static_cast<uint32_t>(0x2), dataAddrSlotMR, iCursor);
+               iCursor = generateSS1Instruction(cg, TR::InstOpCode::XC, node, 7, dataAddrSlotMR, dataAddrSlotMR, iCursor);
                }
             else
                {
                if (comp->getOption(TR_TraceCG))
-                  {
-                  traceMsg(comp,
-                     "Node (%p): Dealing with full/compressed refs fixed length non-zero size array.\n",
-                     node);
-                  }
+                  traceMsg(comp, "Node (%p): Dealing with full/compressed refs fixed length non-zero size array.\n", node);
 
                dataAddrMR = generateS390MemoryReference(resReg, TR::Compiler->om.contiguousArrayHeaderSizeInBytes(), cg);
                dataAddrSlotMR = generateS390MemoryReference(resReg, fej9->getOffsetOfContiguousDataAddrField(), cg);
