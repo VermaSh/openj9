@@ -87,7 +87,7 @@
  * List of functions that is needed by J9 Specific Evaluators that were moved from codegen.
  * Since other evaluators in codegen still calls these, extern here in order to call them.
  */
-extern void updateReferenceNode(TR::Node * node, TR::Register * reg);
+extern void updateReferenceNode(TR::CodeGenerator * cg, TR::Node * node, TR::Register * reg);
 extern void killRegisterIfNotLocked(TR::CodeGenerator * cg, TR::RealRegister::RegNum reg, TR::Instruction * instr , TR::RegisterDependencyConditions * deps = NULL);
 extern TR::Register * iDivRemGenericEvaluator(TR::Node * node, TR::CodeGenerator * cg, bool isDivision, TR::MemoryReference * divchkDivisorMR);
 extern TR::Instruction * generateS390CompareOps(TR::Node * node, TR::CodeGenerator * cg, TR::InstOpCode::S390BranchCondition fBranchOpCond, TR::InstOpCode::S390BranchCondition rBranchOpCond, TR::LabelSymbol * targetLabel);
@@ -4076,7 +4076,7 @@ J9::Z::TreeEvaluator::asynccheckEvaluator(TR::Node * node, TR::CodeGenerator * c
                }
             generateRXInstruction(cg, TR::InstOpCode::getLoadOpCode(), firstChild, src1Reg, tempMR);
 
-            updateReferenceNode(firstChild, src1Reg);
+            updateReferenceNode(cg, firstChild, src1Reg);
             firstChild->setRegister(src1Reg);
 
             generateRIInstruction(cg, TR::InstOpCode::getCmpHalfWordImmOpCode(), node, src1Reg, value);
