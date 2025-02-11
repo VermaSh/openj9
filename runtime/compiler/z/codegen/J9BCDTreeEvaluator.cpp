@@ -2069,6 +2069,8 @@ J9::Z::TreeEvaluator::BCDCHKEvaluatorImpl(TR::Node * node,
    for (uint32_t i = 0; i < numCallParam; ++i)
       callNode->setAndIncChild(i, childRootNode->getChild(i + callChildStartIndex));
 
+   traceMsg(comp, "Entered with second child: %p | refernce count: %d\n", secondChild, secondChild->getReferenceCount());
+   traceMsg(comp, "  Refernce c: %p.\n", secondChild);
    // Evaluate secondChild's children, if the secondChild is an address node into a byte[]
    if(isResultPD && secondChild->getNumChildren() == 2 && secondChild->getReferenceCount() > 1)
       {
