@@ -6516,7 +6516,8 @@ TR::Register *J9::Power::TreeEvaluator::VMnewEvaluator(TR::Node *node, TR::CodeG
                   fej9->getOffsetOfDiscontiguousDataAddrField(), fej9->getOffsetOfContiguousDataAddrField());
                }
 
-            if (isVariableLen)
+            static bool svermaNullDataAddrSlot = (feGetEnv("TR_svermaNullDataAddrSlot") != NULL);
+            if (isVariableLen && svermaNullDataAddrSlot)
                {
                // We need to check enumReg at runtime to determine correct offset of dataAddr field.
                if (comp->getOption(TR_TraceCG))
@@ -6547,6 +6548,50 @@ TR::Register *J9::Power::TreeEvaluator::VMnewEvaluator(TR::Node *node, TR::CodeG
                iCursor = generateMemSrc1Instruction(cg, TR::InstOpCode::std, node, dataAddrSlotMR, firstDataElementReg, iCursor);
 
                iCursor = generateLabelInstruction(cg, TR::InstOpCode::label, node, dataAddrInitDoneLabel, iCursor);
+               }
+            else if (isVariableLen && TR::Compiler->om.compressObjectReferences())
+               {
+               /* We need to check enumReg at runtime to determine correct offset of dataAddr field.
+                * Here we deal only with compressed refs because dataAddr offset for discontiguous
+                * and contiguous arrays is the same in full refs.
+                */
+               if (comp->getOption(TR_TraceCG))
+                  traceMsg(comp, "Node (%p): Dealing with compressed refs variable length array.\n", node);
+
+               TR_ASSERT_FATAL_WITH_NODE(node,
+                  (fej9->getOffsetOfDiscontiguousDataAddrField() - fej9->getOffsetOfContiguousDataAddrField()) == 8,
+                  "Offset of dataAddr field in discontiguous array is expected to be 8 bytes more than contiguous array. "
+                  "But was %d bytes for discontiguous and %d bytes for contiguous array.\n",
+                  fej9->getOffsetOfDiscontiguousDataAddrField(), fej9->getOffsetOfContiguousDataAddrField());
+
+               iCursor = generateTrg1Src1Instruction(cg, TR::InstOpCode::cntlzd, node, offsetReg, enumReg, iCursor);
+               iCursor = generateTrg1Src1Imm2Instruction(cg, TR::InstOpCode::rlwinm, node, offsetReg, offsetReg, 29, 8, iCursor);
+               // offsetReg should either be 0 (if enumReg > 0) or 8 (if enumReg == 0)
+               iCursor = generateTrg1Src2Instruction(cg, TR::InstOpCode::add, node, offsetReg, resReg, offsetReg, iCursor);
+
+               iCursor = generateTrg1Src1ImmInstruction(cg, TR::InstOpCode::addi, node, firstDataElementReg, offsetReg, TR::Compiler->om.contiguousArrayHeaderSizeInBytes(), iCursor);
+               dataAddrSlotMR = TR::MemoryReference::createWithDisplacement(cg, offsetReg, fej9->getOffsetOfContiguousDataAddrField(), TR::Compiler->om.sizeofReferenceAddress());
+               }
+            else if (isVariableLen && !TR::Compiler->om.compressObjectReferences())
+               {
+               if (comp->getOption(TR_TraceCG))
+                  {
+                  traceMsg(comp,
+                     "Node (%p): Dealing with either full refs variable length array.\n",
+                     node);
+                  }
+
+               if (!TR::Compiler->om.compressObjectReferences())
+                  {
+                  TR_ASSERT_FATAL_WITH_NODE(node,
+                     fej9->getOffsetOfDiscontiguousDataAddrField() == fej9->getOffsetOfContiguousDataAddrField(),
+                     "dataAddr field offset is expected to be same for both contiguous and discontiguous arrays in full refs. "
+                     "But was %d bytes for discontiguous and %d bytes for contiguous array.\n",
+                     fej9->getOffsetOfDiscontiguousDataAddrField(), fej9->getOffsetOfContiguousDataAddrField());
+                  }
+
+               iCursor = generateTrg1Src1ImmInstruction(cg, TR::InstOpCode::addi, node, firstDataElementReg, resReg, TR::Compiler->om.contiguousArrayHeaderSizeInBytes(), iCursor);
+               dataAddrSlotMR = TR::MemoryReference::createWithDisplacement(cg, resReg, fej9->getOffsetOfContiguousDataAddrField(), TR::Compiler->om.sizeofReferenceAddress());
                }
             else if (!isVariableLen && node->getFirstChild()->getOpCode().isLoadConst() && node->getFirstChild()->getInt() == 0)
                {
