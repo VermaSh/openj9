@@ -5709,6 +5709,8 @@ J9::Z::TreeEvaluator::pddivremEvaluatorHelper(TR::Node * node, TR::CodeGenerator
                           divisorSize-1,
                           generateS390RightAlignedMemoryReference(*divisorMR, node, 0, cg));
 
+   // cg->stopUsingRegister(secondReg);
+
    targetReg->setHasKnownValidSignAndData();
 
    bool isRem = node->getOpCodeValue() == TR::pdrem;
@@ -5794,9 +5796,11 @@ J9::Z::TreeEvaluator::pddivremEvaluatorHelper(TR::Node * node, TR::CodeGenerator
             if (cg->traceBCDCodeGen())
                traceMsg(comp,"\tpddiv: dividendSign does not match the divisorSign so set targetReg sign code to the preferred sign 0x%x\n", TR::DataType::getPreferredMinusCode());
             }
+
          }
       }
 
+   cg->stopUsingRegister(secondReg);
    cg->decReferenceCount(secondChild);
    return targetReg;
    }
