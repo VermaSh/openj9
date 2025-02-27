@@ -196,6 +196,16 @@ int32_t TR_DataAccessAccelerator::performOnBlock(TR::Block* block, TreeTopContai
    int32_t blockResult = 0;
    bool requestOSRGuardRemoval = false;
 
+   // Don't optimize DAA if packed decimal facilities aren't available
+   if (TR::Compiler->om.isOffHeapAllocationEnabled()
+      && !(comp()->target().cpu.supportsFeature(OMR_FEATURE_S390_VECTOR_PACKED_DECIMAL)
+           && comp()->target().cpu.supportsFeature(OMR_FEATURE_S390_VECTOR_PACKED_DECIMAL_ENHANCEMENT_FACILITY)
+           && comp()->target().cpu.supportsFeature(OMR_FEATURE_S390_VECTOR_PACKED_DECIMAL_ENHANCEMENT_FACILITY_2)
+           && comp()->target().cpu.supportsFeature(OMR_FEATURE_S390_VECTOR_PACKED_DECIMAL_ENHANCEMENT_FACILITY_3)))
+      {
+      return blockResult;
+      }
+
    for (TR::TreeTopIterator iter(block->getEntry(), comp()); iter != block->getExit(); ++iter)
       {
       TR::Node* currentNode = iter.currentNode();
