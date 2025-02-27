@@ -197,7 +197,7 @@ int32_t TR_DataAccessAccelerator::performOnBlock(TR::Block* block, TreeTopContai
    bool requestOSRGuardRemoval = false;
 
    // Don't optimize DAA if packed decimal facilities aren't available
-   if (TR::Compiler->om.isOffHeapAllocationEnabled()
+   if (comp()->target().cpu.isZ() && TR::Compiler->om.isOffHeapAllocationEnabled()
       && !(comp()->target().cpu.supportsFeature(OMR_FEATURE_S390_VECTOR_PACKED_DECIMAL)
            && comp()->target().cpu.supportsFeature(OMR_FEATURE_S390_VECTOR_PACKED_DECIMAL_ENHANCEMENT_FACILITY)
            && comp()->target().cpu.supportsFeature(OMR_FEATURE_S390_VECTOR_PACKED_DECIMAL_ENHANCEMENT_FACILITY_2)
