@@ -3391,9 +3391,11 @@ TR::Register *J9::Z::TreeEvaluator::pdloadEvaluatorHelper(TR::Node *node, TR::Co
    bool isConstant = node->getOpCode().isLoadConst();
    bool isReadOnlyConstant = false;
 
+   traceMsg(comp, "pdloadEvaluatorHelper: Entering non vector pdloadEvaluatorHelper for node %p\n", node);
    TR_OpaquePseudoRegister *targetReg = NULL;
    if (isBCD)
       {
+      traceMsg(comp, "pdloadEvaluatorHelper-ifblock: Entering if block\n");
       targetReg = cg->allocatePseudoRegister(node->getDataType());
       TR_PseudoRegister *targetPseudoReg = targetReg->getPseudoRegister();
       TR_ASSERT(targetPseudoReg,"targetPseudoReg should be non-NULL for node %p\n",node);
@@ -3408,6 +3410,7 @@ TR::Register *J9::Z::TreeEvaluator::pdloadEvaluatorHelper(TR::Node *node, TR::Co
 
       if (node->hasKnownOrAssumedSignCode())
          {
+         traceMsg(comp, "pdloadEvaluatorHelper-ifblock: Entering hasKnownOrAssumedSignCode()\n");
          switch (node->getKnownOrAssumedSignCode())
             {
             case raw_bcd_sign_0xc:
@@ -3434,16 +3437,21 @@ TR::Register *J9::Z::TreeEvaluator::pdloadEvaluatorHelper(TR::Node *node, TR::Co
                break;
             default: TR_ASSERT(false,"unexpected node->getKnownOrAssumedSignCode() of %d\n",node->getKnownOrAssumedSignCode());
             }
+         traceMsg(comp, "pdloadEvaluatorHelper-ifblock: Leaving hasKnownOrAssumedSignCode()\n");
          }
 
       if (!node->getOpCode().isSignlessBCDType() && node->hasKnownOrAssumedCleanSign())
          {
+         traceMsg(comp, "pdloadEvaluatorHelper-ifblock: Entering isSignlessBCDType()\n");
+
          uint32_t preferredPlusSign = TR::DataType::getPreferredPlusSignCode(node->getDataType());
          uint32_t preferredMinusSign = TR::DataType::getPreferredMinusSignCode(node->getDataType());
+
          if (node->isNonNegative()) // >= 0
             node->hasKnownCleanSign() ? targetPseudoReg->setKnownSignCode(preferredPlusSign) : targetPseudoReg->setAssumedSignCode(preferredPlusSign);
          else if (node->isNonZero() && node->isNonPositive())  // < 0
             node->hasKnownCleanSign() ? targetPseudoReg->setKnownSignCode(preferredMinusSign) : targetPseudoReg->setAssumedSignCode(preferredMinusSign);
+
          if (cg->traceBCDCodeGen() && targetPseudoReg->hasKnownOrAssumedSignCode())
             traceMsg(comp,"\ttargetPseudoReg has%sSignCode = true and it is 0x%x\n",targetPseudoReg->hasAssumedSignCode()?"Assumed":"Known",targetPseudoReg->getKnownOrAssumedSignCode());
          // call setHasCleanSign() after the set*SignCode() calls so the TR::DataType::getPreferredMinusCode() does not unset
@@ -3452,14 +3460,22 @@ TR::Register *J9::Z::TreeEvaluator::pdloadEvaluatorHelper(TR::Node *node, TR::Co
             traceMsg(comp,"\tsetting Has%sCleanSign (due to node flag) on targetPseudoReg %s on %s (%p)\n",
                node->hasKnownCleanSign()?"Known":"Assumed",cg->getDebug()->getName(targetPseudoReg),node->getOpCode().getName(),node);
          node->hasKnownCleanSign() ? targetPseudoReg->setHasKnownCleanSign() : targetPseudoReg->setHasAssumedCleanSign();
+
+         traceMsg(comp, "pdloadEvaluatorHelper-ifblock: Leaving isSignlessBCDType()\n");
          }
 
       // set decimal precision here so any copy made in privatizeStorageReference is marked with the correct precision
       targetPseudoReg->setDecimalPrecision(node->getDecimalPrecision());
 
+      traceMsg(comp, "pdloadEvaluatorHelper-ifblock: Setting left most nibble\n");
       if (comp->fej9()->assumeLeftMostNibbleIsZero() && targetPseudoReg->isEvenPrecision() && TR::DataType::getDigitSize(node->getDataType()) == HalfByteDigit)
+         {
+         traceMsg(comp, "pdloadEvaluatorHelper-ifblock: 1. is nibble clear: %d\n", targetPseudoReg->isLeftMostNibbleClear());
          targetPseudoReg->setLeftMostNibbleClear();
+         traceMsg(comp, "pdloadEvaluatorHelper-ifblock: 2. is nibble clear: %d\n", targetPseudoReg->isLeftMostNibbleClear());
+         }
 
+      traceMsg(comp, "pdloadEvaluatorHelper-ifblock: storageRef->isTemporaryBased(): %s\n", storageRef->isTemporaryBased() ? "TRUE" : "FALSE");
       if (storageRef->isTemporaryBased())
          {
          TR_ASSERT(false,"storageRef for load node %p should not be temp based\n");
@@ -3479,6 +3495,7 @@ TR::Register *J9::Z::TreeEvaluator::pdloadEvaluatorHelper(TR::Node *node, TR::Co
          traceMsg(comp,"\t%s (%p) has hasSignStateOnLoad=%d\n",node->getOpCode().getName(),node,node->hasSignStateOnLoad());
          }
 
+      traceMsg(comp, "pdloadEvaluatorHelper-ifblock: !node->hasSignStateOnLoad(): %s\n", !node->hasSignStateOnLoad() ? "TRUE" : "FALSE");
       if (!node->hasSignStateOnLoad())
          {
          // even if a particular sign state is not known (i.e. clean,preferred, a particular value) knowing that a load does not have
@@ -3488,15 +3505,20 @@ TR::Register *J9::Z::TreeEvaluator::pdloadEvaluatorHelper(TR::Node *node, TR::Co
          if (cg->traceBCDCodeGen())
             traceMsg(comp,"\tsetting SignStateInitialized due to hasSignStateOnLoad=false flag on %s (%p)\n",node->getOpCode().getName(),node);
          }
+      traceMsg(comp, "pdloadEvaluatorHelper-ifblock: Leaving if block\n");
       }
    else
       {
+      traceMsg(comp, "pdloadEvaluatorHelper: Entering else block\n");
       targetReg = cg->allocateOpaquePseudoRegister(node->getDataType());
       targetReg->setStorageReference(storageRef, node);
+      traceMsg(comp, "pdloadEvaluatorHelper: Leaving else block\n");
       }
    node->setRegister(targetReg);
    if (comp->getOption(TR_ForceBCDInit) || !isReadOnlyConstant)
       cg->privatizeStorageReference(node, targetReg, NULL);
+
+   traceMsg(comp, "pdloadEvaluatorHelper: Leaving evaluator\n");
    return targetReg;
    }
 
