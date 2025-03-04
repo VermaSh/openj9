@@ -463,7 +463,7 @@ int32_t TR_UnsafeFastPath::perform()
 
             prepareToReplaceNode(node); // This will remove the usedef info, valueNumber info and all children of the node
             TR::Node *offsetNode = TR::TransformUtil::generateConvertArrayElementIndexToOffsetTrees(comp(), index, NULL, 4, false);
-            TR::Node *addrCalc = TR::TransformUtil::generateArrayElementAddressTrees(comp(), charArray, offsetNode);
+            TR::Node *addrCalc = TR::TransformUtil::generateArrayElementAddressTrees(comp(), charArray, offsetNode, node);
             TR::SymbolReference * unsafeSymRef = comp()->getSymRefTab()->findOrCreateUnsafeSymbolRef(TR::Int32, true, false);
             node = TR::Node::recreateWithoutProperties(node, TR::istorei, 2, addrCalc, value, unsafeSymRef);
 

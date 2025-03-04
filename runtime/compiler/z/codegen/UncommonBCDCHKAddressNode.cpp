@@ -96,7 +96,7 @@ UncommonBCDCHKAddressNode::perform()
             if (oldAddressNode->getOpCodeValue() == TR::aloadi)
                {
                // handles expected tree structure 2
-               newAddressNode = TR::TransformUtil::generateArrayElementAddressTrees(comp(), oldAddressNode->getFirstChild());
+               newAddressNode = TR::TransformUtil::generateArrayElementAddressTrees(comp(), oldAddressNode->getFirstChild(), oldAddressNode);
                }
             else
                {

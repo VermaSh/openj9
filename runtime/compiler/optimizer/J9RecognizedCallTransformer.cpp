@@ -243,8 +243,8 @@ void J9::RecognizedCallTransformer::process_java_lang_StringCoding_encodeASCII(T
    TR::SymbolReference *methodSymRef = comp()->getSymRefTab()->findOrCreateEncodeASCIISymbolRef();
    TR::Node *encodeASCIINode = TR::Node::createWithSymRef(TR::call, 3, methodSymRef);
 
-   TR::Node *newInputNode = TR::TransformUtil::generateFirstArrayElementAddressTrees(comp(), sourceArrayNode);
-   TR::Node *newOutputNode = TR::TransformUtil::generateFirstArrayElementAddressTrees(comp(), destinationArrayNode);
+   TR::Node *newInputNode = TR::TransformUtil::generateFirstArrayElementAddressTrees(comp(), sourceArrayNode, node);
+   TR::Node *newOutputNode = TR::TransformUtil::generateFirstArrayElementAddressTrees(comp(), destinationArrayNode, node);
 
    encodeASCIINode->setAndIncChild(0, newInputNode);
    encodeASCIINode->setAndIncChild(1, newOutputNode);
@@ -341,8 +341,8 @@ void J9::RecognizedCallTransformer::process_java_lang_StringLatin1_inflate_BIBII
    if (TR::Compiler->om.isOffHeapAllocationEnabled())
       {
       dstOff = TR::TransformUtil::generateConvertArrayElementIndexToOffsetTrees(comp(), dstOff, strideNode, 0, false);
-      srcAddr = TR::TransformUtil::generateArrayElementAddressTrees(comp(), srcObj, srcOff);
-      dstAddr = TR::TransformUtil::generateArrayElementAddressTrees(comp(), dstObj, dstOff);
+      srcAddr = TR::TransformUtil::generateArrayElementAddressTrees(comp(), srcObj, srcOff, node);
+      dstAddr = TR::TransformUtil::generateArrayElementAddressTrees(comp(), dstObj, dstOff, node);
       }
    else
 #endif /* OMR_GC_SPARSE_HEAP_ALLOCATION */
