@@ -12469,7 +12469,7 @@ J9::Z::TreeEvaluator::inlineCurrentTimeMaxPrecision(TR::CodeGenerator* cg, TR::N
 
 TR::Register*
 J9::Z::TreeEvaluator::inlineAtomicOps(TR::Node *node, TR::CodeGenerator *cg, int8_t size, TR::MethodSymbol *method, bool isArray)
-   {
+   { // TODO: Need to verify this for off-heap
    TR::Compilation *comp = cg->comp();
    TR_J9VMBase *fej9 = (TR_J9VMBase *)(comp->fe());
    TR::Node *valueChild = node->getFirstChild();

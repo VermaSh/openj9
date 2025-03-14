@@ -84,8 +84,8 @@ J9::Z::CodeGenerator::initialize()
    if (!comp->getOption(TR_FullSpeedDebug))
       cg->setSupportsDirectJNICalls();
 
-   if (cg->getSupportsVectorRegisters() && !comp->getOption(TR_DisableSIMDStringCaseConv))
-      cg->setSupportsInlineStringCaseConversion();
+   if (cg->getSupportsVectorRegisters() && !comp->getOption(TR_DisableSIMDStringCaseConv) && !TR::Compiler->om.isOffHeapAllocationEnabled())
+      cg->setSupportsInlineStringCaseConversion(); // Needs to be disabled for off-heap and arraylets??
 
    if (cg->getSupportsVectorRegisters() && !comp->getOption(TR_DisableFastStringIndexOf) &&
        !TR::Compiler->om.canGenerateArraylets() && !TR::Compiler->om.isOffHeapAllocationEnabled())
@@ -101,7 +101,8 @@ J9::Z::CodeGenerator::initialize()
       }
 
    if (cg->getSupportsVectorRegisters() && comp->target().cpu.isAtLeast(OMR_PROCESSOR_S390_Z14) &&
-       !TR::Compiler->om.canGenerateArraylets())
+       !TR::Compiler->om.canGenerateArraylets()
+       && !TR::Compiler->om.isOffHeapAllocationEnabled())
       {
       cg->setSupportsInlineStringLatin1Inflate();
       }
@@ -122,13 +123,15 @@ J9::Z::CodeGenerator::initialize()
 
    static bool disableInlineStringCodingHasNegatives = feGetEnv("TR_DisableInlineStringCodingHasNegatives") != NULL;
    if (cg->getSupportsVectorRegisters() && !disableInlineStringCodingHasNegatives &&
-        !TR::Compiler->om.canGenerateArraylets())
+        !TR::Compiler->om.canGenerateArraylets()
+        && !TR::Compiler->om.isOffHeapAllocationEnabled())
       {
       cg->setSupportsInlineStringCodingHasNegatives();
       }
    static bool disableInlineStringCodingCountPositives = feGetEnv("TR_DisableInlineStringCodingCountPositives") != NULL;
    if (cg->getSupportsVectorRegisters() && !disableInlineStringCodingCountPositives &&
-         !TR::Compiler->om.canGenerateArraylets())
+         !TR::Compiler->om.canGenerateArraylets()
+         && !TR::Compiler->om.isOffHeapAllocationEnabled())
       {
       cg->setSupportsInlineStringCodingCountPositives();
       }
