@@ -101,8 +101,7 @@ J9::Z::CodeGenerator::initialize()
       }
 
    if (cg->getSupportsVectorRegisters() && comp->target().cpu.isAtLeast(OMR_PROCESSOR_S390_Z14) &&
-       !TR::Compiler->om.canGenerateArraylets()
-       && !TR::Compiler->om.isOffHeapAllocationEnabled())
+       !TR::Compiler->om.canGenerateArraylets())
       {
       cg->setSupportsInlineStringLatin1Inflate();
       }
