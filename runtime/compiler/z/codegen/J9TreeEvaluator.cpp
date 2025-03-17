@@ -917,6 +917,27 @@ J9::Z::TreeEvaluator::inlineStringCodingHasNegativesOrCountPositives(TR::Node *n
       generateRIInstruction(cg, TR::InstOpCode::LGHI, node, returnReg, 0);
       }
 
+#ifdef J9VM_GC_SPARSE_HEAP_ALLOCATION
+   if (TR::Compiler->om.isOffHeapAllocationEnabled())
+      {
+      // Load first element address for char array
+      generateRXInstruction(cg,
+         TR::InstOpCode::getLoadOpCode(),
+         node,
+         inputPtrReg,
+         generateS390MemoryReference(inputPtrReg, cg->comp()->fej9()->getOffsetOfContiguousDataAddrField(), cg));
+      }
+   else
+#endif /* J9VM_GC_SPARSE_HEAP_ALLOCATION */
+      {
+      // Add array header size to get address of first data element
+      generateRXInstruction(cg,
+         TR::InstOpCode::getLoadAddressOpCode(),
+         node,
+         inputPtrReg,
+         generateS390MemoryReference(inputPtrReg, TR::Compiler->om.contiguousArrayHeaderSizeInBytes(), cg));
+      }
+
    generateS390LabelInstruction(cg, TR::InstOpCode::label, node, cFlowRegionStart);
    cFlowRegionStart->setStartInternalControlFlow();
    generateS390CompareAndBranchInstruction(cg, TR::InstOpCode::C, node, lengthReg, 0, TR::InstOpCode::COND_BE, cFlowRegionEnd, false, false);
@@ -934,7 +955,7 @@ J9::Z::TreeEvaluator::inlineStringCodingHasNegativesOrCountPositives(TR::Node *n
    generateS390LabelInstruction(cg, TR::InstOpCode::label, node, processMultiple16CharsStart);
 
    // Load bytes and search for out of range character
-   generateVRXInstruction(cg, TR::InstOpCode::VL, node, vInput, generateS390MemoryReference(inputPtrReg, TR::Compiler->om.contiguousArrayHeaderSizeInBytes(), cg));
+   generateVRXInstruction(cg, TR::InstOpCode::VL, node, vInput, generateS390MemoryReference(inputPtrReg, 0, cg));
 
    generateVRRdInstruction(cg, TR::InstOpCode::VSTRC, node, outOfRangeCharIndex, vInput, vUpperLimit, vComparison, 0x1, 0);
 
@@ -956,7 +977,7 @@ J9::Z::TreeEvaluator::inlineStringCodingHasNegativesOrCountPositives(TR::Node *n
    // VLL and VSTL work on indices so we subtract 1
    generateRIInstruction(cg, TR::InstOpCode::AHI, node, numCharsLeftToProcess, -1);
    // Load residue bytes and check for out of range character
-   generateVRSbInstruction(cg, TR::InstOpCode::VLL, node, vInput, numCharsLeftToProcess, generateS390MemoryReference(inputPtrReg, TR::Compiler->om.contiguousArrayHeaderSizeInBytes(), cg));
+   generateVRSbInstruction(cg, TR::InstOpCode::VLL, node, vInput, numCharsLeftToProcess, generateS390MemoryReference(inputPtrReg, 0, cg));
 
    generateVRRdInstruction(cg, TR::InstOpCode::VSTRC, node, outOfRangeCharIndex, vInput, vUpperLimit, vComparison, 0x1, 0);
    generateS390BranchInstruction(cg, TR::InstOpCode::BRC, TR::InstOpCode::COND_CC1, node, isCountPositives ? processCountPositivesOutOfRangeChar : processOutOfRangeChar);
