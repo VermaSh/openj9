@@ -101,8 +101,7 @@ J9::Z::CodeGenerator::initialize()
       }
 
    if (cg->getSupportsVectorRegisters() && comp->target().cpu.isAtLeast(OMR_PROCESSOR_S390_Z14) &&
-       !TR::Compiler->om.canGenerateArraylets()
-       && !TR::Compiler->om.isOffHeapAllocationEnabled())
+       !TR::Compiler->om.canGenerateArraylets())
       {
       cg->setSupportsInlineStringLatin1Inflate();
       }
@@ -123,15 +122,13 @@ J9::Z::CodeGenerator::initialize()
 
    static bool disableInlineStringCodingHasNegatives = feGetEnv("TR_DisableInlineStringCodingHasNegatives") != NULL;
    if (cg->getSupportsVectorRegisters() && !disableInlineStringCodingHasNegatives &&
-        !TR::Compiler->om.canGenerateArraylets()
-        && !TR::Compiler->om.isOffHeapAllocationEnabled())
+        !TR::Compiler->om.canGenerateArraylets())
       {
       cg->setSupportsInlineStringCodingHasNegatives();
       }
    static bool disableInlineStringCodingCountPositives = feGetEnv("TR_DisableInlineStringCodingCountPositives") != NULL;
    if (cg->getSupportsVectorRegisters() && !disableInlineStringCodingCountPositives &&
-         !TR::Compiler->om.canGenerateArraylets()
-         && !TR::Compiler->om.isOffHeapAllocationEnabled())
+         !TR::Compiler->om.canGenerateArraylets())
       {
       cg->setSupportsInlineStringCodingCountPositives();
       }
