@@ -84,8 +84,8 @@ J9::Z::CodeGenerator::initialize()
    if (!comp->getOption(TR_FullSpeedDebug))
       cg->setSupportsDirectJNICalls();
 
-   if (cg->getSupportsVectorRegisters() && !comp->getOption(TR_DisableSIMDStringCaseConv))
-      cg->setSupportsInlineStringCaseConversion();
+   if (cg->getSupportsVectorRegisters() && !comp->getOption(TR_DisableSIMDStringCaseConv) && !TR::Compiler->om.isOffHeapAllocationEnabled())
+      cg->setSupportsInlineStringCaseConversion(); // Needs to be disabled for off-heap and arraylets??
 
    if (cg->getSupportsVectorRegisters() && !comp->getOption(TR_DisableFastStringIndexOf) &&
        !TR::Compiler->om.canGenerateArraylets() && !TR::Compiler->om.isOffHeapAllocationEnabled())
