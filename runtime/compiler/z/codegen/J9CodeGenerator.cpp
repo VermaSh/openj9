@@ -121,13 +121,13 @@ J9::Z::CodeGenerator::initialize()
       }
 
    static bool disableInlineStringCodingHasNegatives = feGetEnv("TR_DisableInlineStringCodingHasNegatives") != NULL;
-   if (cg->getSupportsVectorRegisters() && !disableInlineStringCodingHasNegatives &&
+   if (false && cg->getSupportsVectorRegisters() && !disableInlineStringCodingHasNegatives &&
         !TR::Compiler->om.canGenerateArraylets())
       {
       cg->setSupportsInlineStringCodingHasNegatives();
       }
    static bool disableInlineStringCodingCountPositives = feGetEnv("TR_DisableInlineStringCodingCountPositives") != NULL;
-   if (cg->getSupportsVectorRegisters() && !disableInlineStringCodingCountPositives &&
+   if (false && cg->getSupportsVectorRegisters() && !disableInlineStringCodingCountPositives &&
          !TR::Compiler->om.canGenerateArraylets())
       {
       cg->setSupportsInlineStringCodingCountPositives();
