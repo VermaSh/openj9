@@ -100,7 +100,7 @@ J9::Z::CodeGenerator::initialize()
       cg->setSupportsInlineVectorizedHashCode();
       }
 
-   if (cg->getSupportsVectorRegisters() && comp->target().cpu.isAtLeast(OMR_PROCESSOR_S390_Z14) &&
+   if (false && cg->getSupportsVectorRegisters() && comp->target().cpu.isAtLeast(OMR_PROCESSOR_S390_Z14) &&
        !TR::Compiler->om.canGenerateArraylets())
       {
       cg->setSupportsInlineStringLatin1Inflate();
