@@ -2070,10 +2070,36 @@ J9::Z::TreeEvaluator::BCDCHKEvaluatorImpl(TR::Node * node,
       callNode->setAndIncChild(i, childRootNode->getChild(i + callChildStartIndex));
 
    // Evaluate secondChild's children, if the secondChild is an address node into a byte[]
-   if(isResultPD && secondChild->getNumChildren() == 2 && secondChild->getReferenceCount() > 1)
+   if(isResultPD && secondChild->getNumChildren() == 2)
       {
-      cg->evaluate(secondChild->getFirstChild());
-      cg->evaluate(secondChild->getSecondChild());
+      /* Expected second child (address) node trees
+       * off-heap mode:
+       *     aladd
+       *      aloadi  <contiguousArrayDataAddrFieldSymbol>
+       *        arrayObject
+       *      offset
+       *
+       * non off-heap mode:
+       *     aladd
+       *      arrayObject
+       *      offset
+       *
+       * contiguousArrayDataAddrFieldSymbol isn't being commoned right now so it shouldn't
+       * have reference count > 1; arrayObject and offset nodes are the only nodes we need to
+       * evaluate early.
+       */
+      TR::Node *arrayObjectNode = secondChild->getFirstChild();
+      if (secondChild->getFirstChild()->isDataAddrPointer())
+         {
+         TR_ASSERT_FATAL_WITH_NODE(node,
+            secondChild->getFirstChild()->getReferenceCount() <= 1,
+            "DataAddr pointer isn't being commoned so it shouldn't have reference count greater than 1.\n");
+
+         arrayObjectNode = secondChild->getFirstChild()->getFirstChild();
+         }
+
+      cg->evaluate(arrayObjectNode);
+      cg->evaluate(secondChild->getSecondChild()); // evaluate offset Node
       }
 
    // Evaluate intrinsics node
