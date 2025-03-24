@@ -2044,7 +2044,7 @@ J9::Z::TreeEvaluator::BCDCHKEvaluatorImpl(TR::Node * node,
    TR::Compilation *comp = cg->comp();
    TR_Debug* debugObj = cg->getDebug();
    TR::Node* pdopNode = node->getFirstChild();
-   TR::Node* secondChild = node->getSecondChild();
+   TR::Node* addressNode = node->getSecondChild();
 
    bool isResultLong = pdopNode->getOpCodeValue() == TR::pd2l ||
                        pdopNode->getOpCodeValue() == TR::pd2lOverflow ||
@@ -2069,17 +2069,23 @@ J9::Z::TreeEvaluator::BCDCHKEvaluatorImpl(TR::Node * node,
    for (uint32_t i = 0; i < numCallParam; ++i)
       callNode->setAndIncChild(i, childRootNode->getChild(i + callChildStartIndex));
 
-   // Evaluate secondChild's children, if the secondChild is an address node into a byte[]
-   if(isResultPD && secondChild->getNumChildren() == 2)
+   // Evaluate addressNode's children, if it is an address node into a byte[]
+   if(isResultPD
+         && (addressNode->getNumChildren() == 2 // case 1 and 3
+            || addressNode->isDataAddrPointer())) // case 2
       {
       /* Expected second child (address) node trees
-       * off-heap mode:
+       * case 1: off-heap mode
        *     aladd
        *      aloadi  <contiguousArrayDataAddrFieldSymbol>
        *        arrayObject
        *      offset
        *
-       * non off-heap mode:
+       * case 2: off-heap mode, accessing first element of the array
+       *     aloadi  <contiguousArrayDataAddrFieldSymbol>
+       *       arrayObject
+       *
+       * case 3: non off-heap mode
        *     aladd
        *      arrayObject
        *      offset
@@ -2088,18 +2094,21 @@ J9::Z::TreeEvaluator::BCDCHKEvaluatorImpl(TR::Node * node,
        * have reference count > 1; arrayObject and offset nodes are the only nodes we need to
        * evaluate early.
        */
-      TR::Node *arrayObjectNode = secondChild->getFirstChild();
-      if (secondChild->getFirstChild()->isDataAddrPointer())
+      TR::Node *arrayObjectNode = addressNode->getFirstChild();
+      if (addressNode->getFirstChild()->isDataAddrPointer())
          {
          TR_ASSERT_FATAL_WITH_NODE(node,
-            secondChild->getFirstChild()->getReferenceCount() <= 1,
+            addressNode->getFirstChild()->getReferenceCount() <= 1,
             "DataAddr pointer isn't being commoned so it shouldn't have reference count greater than 1.\n");
 
-         arrayObjectNode = secondChild->getFirstChild()->getFirstChild();
+         arrayObjectNode = addressNode->getFirstChild()->getFirstChild();
          }
 
       cg->evaluate(arrayObjectNode);
-      cg->evaluate(secondChild->getSecondChild()); // evaluate offset Node
+
+      // evaluate offset node
+      if (addressNode->getNumChildren() == 2)
+         cg->evaluate(addressNode->getSecondChild());
       }
 
    // Evaluate intrinsics node
