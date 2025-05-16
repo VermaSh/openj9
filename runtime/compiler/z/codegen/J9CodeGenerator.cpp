@@ -96,10 +96,7 @@ J9::Z::CodeGenerator::initialize()
    if (cg->getSupportsVectorRegisters() && !comp->getOption(TR_DisableSIMDStringHashCode) && !TR::Compiler->om.canGenerateArraylets())
       {
       cg->setSupportsInlineStringHashCode();
-      if (!TR::Compiler->om.isOffHeapAllocationEnabled())
-         {
-         cg->setSupportsInlineVectorizedHashCode();
-         }
+      cg->setSupportsInlineVectorizedHashCode();
       }
 
    if (cg->getSupportsVectorRegisters() && comp->target().cpu.isAtLeast(OMR_PROCESSOR_S390_Z14) &&
