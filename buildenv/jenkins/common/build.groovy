@@ -354,6 +354,8 @@ def get_compile_command() {
          make_target = 'images test-image debug-image'
     } else if ((SDK_VERSION == "21") && SPEC.contains('zos')) {
          make_target = 'images test-image debug-image'
+    } else if ((SDK_VERSION == "next") && SPEC.contains('zos')) {
+        make_target = 'images'
     } else {
          make_target = 'all'
     }
