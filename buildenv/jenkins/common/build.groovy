@@ -349,15 +349,17 @@ def build() {
 }
 
 def get_compile_command() {
-    def make_target = ''
-    if ((SDK_VERSION == "17") && SPEC.contains('zos')) {
-         make_target = 'images test-image debug-image'
-    } else if ((SDK_VERSION == "21") && SPEC.contains('zos')) {
-         make_target = 'images test-image debug-image'
-    } else if ((SDK_VERSION == "next") && SPEC.contains('zos')) {
-        make_target = 'images'
-    } else {
-         make_target = 'all'
+    def make_target = 'all'
+    if (SPEC.contains('zos') {
+        if (SDK_VERSION == "17") {
+            make_target = 'images test-image debug-image'
+        } else if (SDK_VERSION == "21") {
+            make_target = 'images test-image debug-image'
+        } else if (SDK_VERSION == "25") {
+            make_target = 'images'
+        } else if (SDK_VERSION == "next") {
+            make_target = 'images'
+        }
     }
     return "make ${EXTRA_MAKE_OPTIONS} ${make_target}"
 }
