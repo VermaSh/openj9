@@ -356,7 +356,7 @@ def get_compile_command() {
         } else if (SDK_VERSION == "21") {
             make_target = 'images test-image debug-image'
         } else if (SDK_VERSION == "25") {
-            make_target = 'images'
+            make_target = 'images test-image debug-image'
         } else if (SDK_VERSION == "next") {
             make_target = 'images'
         }
