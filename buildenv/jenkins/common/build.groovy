@@ -348,6 +348,23 @@ def build() {
     }
 }
 
+def run_security_scan() {
+    stage('Security Scan') {
+        if (SPEC.contains('zos') && (BUILD_IDENTIFIER == 'Nightly')) {
+            def jobName = "SonarQube/SonarQube_Scan"
+            build job: jobName,
+                propagate: false,
+                waitForStart: true,
+                parameters: [
+                    string(name: 'GIT_REPO', value: OPENJ9_REPO),
+                    string(name: 'BRANCH', value: OPENJ9_BRANCH),
+                    string(name: 'BINARY_URL', value: env.CUSTOMIZED_SDK_URL.tokenize(' ').find { it.endsWith('pax.Z') } ),
+                    booleanParam(name: 'SCAN_JAVA', value: true),
+                ]
+        }
+    }
+}
+
 def get_compile_command() {
     def make_target = 'all'
     if (SPEC.contains('zos')) {
@@ -847,6 +864,7 @@ def _build_all() {
         variableFile.set_build_custom_options()
         build()
         archive_sdk()
+        run_security_scan()
     } finally {
         KEEP_WORKSPACE = (params.KEEP_WORKSPACE) ?: false
         cleanWorkspace(KEEP_WORKSPACE)
