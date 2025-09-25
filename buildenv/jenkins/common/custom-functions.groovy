@@ -14,14 +14,14 @@ def set_extra_options() {
 }
 
 def set_gskit() {
-    if (EXTRA_GETSOURCE_OPTIONS.contains("-openjceplus-repo") && (!EXTRA_CONFIGURE_OPTIONS.contains("--with-gskit"))) {
-        // required by OpenJCEPlus for IBM Java 11 builds
-		println("Fetch gskit")
-
+    if (!EXTRA_CONFIGURE_OPTIONS.contains("--with-gskit")) {
         def gskitSDKDownloadUrl = buildspec.getScalarField("gskit.sdk", SDK_VERSION)
         def gskitLibDownloadUrl = buildspec.getScalarField("gskit.lib", SDK_VERSION)
 
         if  (gskitSDKDownloadUrl && gskitLibDownloadUrl) {
+            // required by OpenJCEPlus for IBM Java 11+ builds
+            println("Fetch gskit")
+
             def gskitDir = "${WORKSPACE}/gskit"
             def gskitLibDir = "${gskitDir}/lib/"
 
