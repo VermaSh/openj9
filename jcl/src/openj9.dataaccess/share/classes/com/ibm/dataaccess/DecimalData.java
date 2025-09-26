@@ -26,7 +26,6 @@ import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
-import sun.nio.ch.DirectBuffer;
 
 import com.ibm.dataaccess.ByteArrayMarshaller;
 import com.ibm.dataaccess.ByteArrayUnmarshaller;
@@ -576,72 +575,13 @@ public final class DecimalData
 			ByteBuffer packedDecimal, int offset, int precision,
 			boolean checkOverflow) {
 
-			if ((packedDecimal.position() + offset + ((precision/ 2) + 1) > packedDecimal.capacity()) || (offset < 0))
-				throw new ArrayIndexOutOfBoundsException("Array access index out of bounds. " +
-						"convertLongToPackedDecimal is trying to access packedDecimal[" + offset + "] to packedDecimal[" + (offset + (precision/ 2)) + "], " +
-						" but valid indices are from 0 to " + (packedDecimal.capacity() - 1) + ".");
+		if ((packedDecimal.position() + offset + ((precision/ 2) + 1) > packedDecimal.capacity()) || (offset < 0))
+			throw new ArrayIndexOutOfBoundsException("Array access index out of bounds. " +
+					"convertLongToPackedDecimal is trying to access packedDecimal[" + offset + "] to packedDecimal[" + (offset + (precision/ 2)) + "], " +
+					" but valid indices are from 0 to " + (packedDecimal.capacity() - 1) + ".");
 
-			if (!packedDecimal.isDirect()) {
-				convertLongToPackedDecimal_(longValue, packedDecimal.array(), offset, precision, checkOverflow);
-			} else {
-				convertLongToPackedDecimal_(longValue, packedDecimal, offset, precision, checkOverflow, ((DirectBuffer)packedDecimal).address(), packedDecimal.position(), packedDecimal.capacity());
-			}
-		}
-
-	private static void convertLongToPackedDecimal_(long longValue,
-			ByteBuffer packedDecimal, int offset, int precision,
-			boolean checkOverflow, long address, int position, int capacity) {
-
-		long value;
-		int bytes = CommonData.getPackedByteCount(precision);
-		int last = position + offset + bytes - 1;
-		int i;
-		boolean evenPrecision = (precision % 2 == 0) ? true : false;
-
-		if (checkOverflow) {
-			if (precision < 1)
-				throw new ArithmeticException(
-						"Decimal overflow - Packed Decimal precision lesser than 1");
-
-			if (numDigits(longValue) > precision)
-				throw new ArithmeticException(
-						"Decimal overflow - Packed Decimal precision insufficient");
-		}
-
-		if (longValue < 0) {
-			packedDecimal.put(last, (byte) ((Math.abs(longValue) % 10) << 4 | CommonData.PACKED_MINUS));
-			value = Math.abs(longValue / 10);
-		} else {
-			value = longValue;
-			packedDecimal.put(last, (byte) ((value % 10) << 4 | CommonData.PACKED_PLUS));
-			value = value / 10;
-		}
-
-		// fill in high/low nibble pairs from next-to-last up to first
-		for (i = last - 1; i > offset && value != 0; i--) {
-			packedDecimal.put(i, CommonData
-					.getBinaryToPackedValues((int) (value % 100)));
-			value = value / 100;
-		}
-
-		if (i == offset && value != 0) {
-			if (evenPrecision)
-				packedDecimal.put(i, (byte) (CommonData
-						.getBinaryToPackedValues((int) (value % 100)) & CommonData.LOWER_NIBBLE_MASK));
-			else
-				packedDecimal.put(i, (CommonData
-						.getBinaryToPackedValues((int) (value % 100))));
-			value = value / 100;
-			i--;
-		}
-
-		if (checkOverflow && value != 0) {
-			throw new ArithmeticException(
-					"Decimal overflow - Packed Decimal precision insufficient");
-		}
-		if (i >= offset) {
-			for (int j = 0; j < i - offset + 1; ++j)
-				packedDecimal.put(j+offset, CommonData.PACKED_ZERO);
+		if (!packedDecimal.isDirect()) {
+			convertLongToPackedDecimal_(longValue, packedDecimal.array(), offset, precision, checkOverflow);
 		}
 	}
 
