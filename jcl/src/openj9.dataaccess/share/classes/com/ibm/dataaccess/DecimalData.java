@@ -24,6 +24,7 @@ package com.ibm.dataaccess;
 
 import java.math.BigDecimal;
 import java.math.BigInteger;
+import java.nio.ByteBuffer;
 import java.util.Arrays;
 
 import com.ibm.dataaccess.ByteArrayMarshaller;
@@ -571,6 +572,18 @@ public final class DecimalData
 	 *             the <code>checkOverflow</code> parameter is true and overflow occurs
 	 */
 	public static void convertLongToPackedDecimal(long longValue,
+			ByteBuffer packedDecimal, int offset, int precision,
+			boolean checkOverflow) {
+
+			if ((packedDecimal.position() + offset + ((precision/ 2) + 1) > packedDecimal.capacity()) || (offset < 0))
+				throw new ArrayIndexOutOfBoundsException("Array access index out of bounds. " +
+						"convertLongToPackedDecimal is trying to access packedDecimal[" + offset + "] to packedDecimal[" + (offset + (precision/ 2)) + "], " +
+						" but valid indices are from 0 to " + (packedDecimal.capacity() - 1) + ".");
+
+			if (!packedDecimal.isDirect()) {
+				convertLongToPackedDecimal_(longValue, packedDecimal.array(), offset, precision, checkOverflow);
+			}
+		}
 			byte[] packedDecimal, int offset, int precision,
 			boolean checkOverflow) {
 		if ((offset + ((precision/ 2) + 1) > packedDecimal.length) || (offset < 0))
