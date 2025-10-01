@@ -26,7 +26,9 @@ import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
-import sun.nio.ch.DirectBuffer;
+
+import jdk.internal.access.JavaNioAccess;
+import jdk.internal.access.SharedSecrets;
 
 import com.ibm.dataaccess.ByteArrayMarshaller;
 import com.ibm.dataaccess.ByteArrayUnmarshaller;
@@ -68,6 +70,8 @@ import com.ibm.dataaccess.PackedDecimal;
  */
 public final class DecimalData
 {
+	private static final JavaNioAccess NIO_ACCESS = SharedSecrets.getJavaNioAccess();
+
 	/**
 	 * External Decimal data format where each byte is an EBCDIC character representing a decimal digit, the sign is
 	 * encoded in the top nibble of the last byte.
@@ -581,10 +585,10 @@ public final class DecimalData
 						"convertLongToPackedDecimal is trying to access packedDecimal[" + offset + "] to packedDecimal[" + (offset + (precision/ 2)) + "], " +
 						" but valid indices are from 0 to " + (packedDecimal.capacity() - 1) + ".");
 
-			if (!packedDecimal.isDirect()) {
+			if (packedDecimal.isDirect()) {
+				convertLongToPackedDecimal_(longValue, packedDecimal, offset, precision, checkOverflow, NIO_ACCESS.getBufferAddress(packedDecimal), packedDecimal.position(), packedDecimal.capacity());
+			} else if (!packedDecimal.isDirect() && packedDecimal.hasArray()) {
 				convertLongToPackedDecimal_(longValue, packedDecimal.array(), offset, precision, checkOverflow);
-			} else {
-				convertLongToPackedDecimal_(longValue, packedDecimal, offset, precision, checkOverflow, ((DirectBuffer)packedDecimal).address(), packedDecimal.position(), packedDecimal.capacity());
 			}
 		}
 
@@ -645,7 +649,7 @@ public final class DecimalData
 		}
 	}
 
-	 public static void convertLongToPackedDecimal(long longValue,
+	public static void convertLongToPackedDecimal(long longValue,
 			byte[] packedDecimal, int offset, int precision,
 			boolean checkOverflow) {
 		if ((offset + ((precision/ 2) + 1) > packedDecimal.length) || (offset < 0))
