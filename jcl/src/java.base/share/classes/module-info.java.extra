@@ -82,9 +82,11 @@ opens jdk.internal.misc to
     openj9.criu;
 opens java.lang to
     openj9.criu;
-/*[ELSEIF]*/
+/*[ELSE] CRIU_SUPPORT */
+/*[IF JAVA_SPEC_VERSION >= 9]*/
 exports jdk.internal.access to
     openj9.dataaccess;
 opens jdk.internal.access to
     openj9.dataaccess;
+/*[ENDIF] JAVA_SPEC_VERSION >= 9 */
 /*[ENDIF] CRIU_SUPPORT */

@@ -27,9 +27,12 @@ import java.math.BigInteger;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
 
+/*[IF JAVA_SPEC_VERSION >= 9]*/
 import jdk.internal.access.JavaNioAccess;
 import jdk.internal.access.SharedSecrets;
-
+/*[ELSE] JAVA_SPEC_VERSION >= 9 */
+import sun.nio.ch.DirectBuffer;
+/*[ENDIF] JAVA_SPEC_VERSION >= 9 */
 import com.ibm.dataaccess.ByteArrayMarshaller;
 import com.ibm.dataaccess.ByteArrayUnmarshaller;
 import com.ibm.dataaccess.CommonData;
@@ -70,8 +73,9 @@ import com.ibm.dataaccess.PackedDecimal;
  */
 public final class DecimalData
 {
+/*[IF JAVA_SPEC_VERSION >= 9]*/
 	private static final JavaNioAccess NIO_ACCESS = SharedSecrets.getJavaNioAccess();
-
+/*[ENDIF] JAVA_SPEC_VERSION >= 9 */
 	/**
 	 * External Decimal data format where each byte is an EBCDIC character representing a decimal digit, the sign is
 	 * encoded in the top nibble of the last byte.
@@ -586,7 +590,14 @@ public final class DecimalData
 						" but valid indices are from 0 to " + (packedDecimal.capacity() - 1) + ".");
 
 			if (packedDecimal.isDirect()) {
-				convertLongToPackedDecimal_(longValue, packedDecimal, offset, precision, checkOverflow, NIO_ACCESS.getBufferAddress(packedDecimal), packedDecimal.position(), packedDecimal.capacity());
+				convertLongToPackedDecimal_(longValue, packedDecimal, offset,
+					precision, checkOverflow,
+/*[IF JAVA_SPEC_VERSION >= 9]*/
+					NIO_ACCESS.getBufferAddress(packedDecimal),
+/*[ELSE] JAVA_SPEC_VERSION >= 9 */
+					((DirectBuffer)packedDecimal).address(),
+/*[ENDIF] JAVA_SPEC_VERSION >= 9 */
+					packedDecimal.position(), packedDecimal.capacity());
 			} else if (!packedDecimal.isDirect() && packedDecimal.hasArray()) {
 				convertLongToPackedDecimal_(longValue, packedDecimal.array(), offset, precision, checkOverflow);
 			}
