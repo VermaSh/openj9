@@ -11307,9 +11307,10 @@ TR::CompilationInfoPerThreadBase::processException(
       {
       TR_VerboseLog::writeLineLocked(
          TR_Vlog_DISPATCH,
-         "Failed to finalize compiled body for %s @ %s",
+         "Failed to finalize compiled body for %s @ %s because of %s",
          compiler->signature(),
-         compiler->getHotnessName()
+         compiler->getHotnessName(),
+         exceptionName
          );
       }
 
