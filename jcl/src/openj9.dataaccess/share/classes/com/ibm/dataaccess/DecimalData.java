@@ -988,22 +988,21 @@ public final class DecimalData
 			int offset, int precision, boolean checkOverflow,
 			long address, int position, int capacity) {
 
-		byte[] pacedDecimalArry = packedDecimal.array();
 		int bytes = CommonData.getPackedByteCount(precision);
 		int end = offset + bytes - 1;
 		long value = 0;// = (packedDecimal[end] & CommonData.INTEGER_MASK) >> 4;
 
-		byte sign = CommonData.getSign((byte) (pacedDecimalArry[end] & CommonData.LOWER_NIBBLE_MASK));
+		byte sign = CommonData.getSign((byte) (packedDecimal.getLong(end) & CommonData.LOWER_NIBBLE_MASK));
 
 		// Skip the first byte if the precision is even and the low-order nibble is zero
-		if (precision % 2 == 0 && (pacedDecimalArry[offset] & CommonData.LOWER_NIBBLE_MASK) == 0x00)
+		if (precision % 2 == 0 && (packedDecimal.getLong(offset) & CommonData.LOWER_NIBBLE_MASK) == 0x00)
 		{
 			precision--;
 			offset++;
 		}
 
 		// Skip consecutive zero bytes
-		for (; offset < end && pacedDecimalArry[offset] == CommonData.PACKED_ZERO; offset++)
+		for (; offset < end && packedDecimal.getLong(offset) == CommonData.PACKED_ZERO; offset++)
 		{
 			precision -= 2;
 		}
@@ -1011,7 +1010,7 @@ public final class DecimalData
 		if (checkOverflow)
 		{
 			// Skip high-order zero if and only if precision is odd
-			if (precision % 2 == 1 && (pacedDecimalArry[offset] & CommonData.HIGHER_NIBBLE_MASK) == 0x00)
+			if (precision % 2 == 1 && (packedDecimal.getLong(offset) & CommonData.HIGHER_NIBBLE_MASK) == 0x00)
 			{
 				precision--;
 			}
@@ -1027,10 +1026,10 @@ public final class DecimalData
 
 		for (int pos = offset; pos <= end - 1; ++pos)
 		{
-			value = value * 100 + CommonData.getPackedToBinaryValues(pacedDecimalArry[pos]);
+			value = value * 100 + CommonData.getPackedToBinaryValues(packedDecimal.getLong(pos));
 		}
 
-		value = value * 10 + ((pacedDecimalArry[end] & CommonData.HIGHER_NIBBLE_MASK) >> 4);
+		value = value * 10 + ((packedDecimal.getLong(end) & CommonData.HIGHER_NIBBLE_MASK) >> 4);
 
 		if (sign == CommonData.PACKED_MINUS)
 			value = -1 * value;
