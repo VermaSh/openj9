@@ -988,21 +988,21 @@ public final class DecimalData
 			int offset, int precision, boolean checkOverflow,
 			long address, int position, int capacity) {
 
+		long value = 0;
 		int bytes = CommonData.getPackedByteCount(precision);
 		int end = offset + bytes - 1;
-		long value = 0;// = (packedDecimal[end] & CommonData.INTEGER_MASK) >> 4;
-
-		byte sign = CommonData.getSign((byte) (packedDecimal.getLong(end) & CommonData.LOWER_NIBBLE_MASK));
+		int last = packedDecimal.get(end) & CommonData.INTEGER_MASK;
+		byte sign = CommonData.getSign((byte) (last & CommonData.LOWER_NIBBLE_MASK));
 
 		// Skip the first byte if the precision is even and the low-order nibble is zero
-		if (precision % 2 == 0 && (packedDecimal.getLong(offset) & CommonData.LOWER_NIBBLE_MASK) == 0x00)
+		if (precision % 2 == 0 && (packedDecimal.get(offset) & CommonData.LOWER_NIBBLE_MASK) == 0x00)
 		{
 			precision--;
 			offset++;
 		}
 
 		// Skip consecutive zero bytes
-		for (; offset < end && packedDecimal.getLong(offset) == CommonData.PACKED_ZERO; offset++)
+		for (; offset < end && packedDecimal.get(offset) == CommonData.PACKED_ZERO; offset++)
 		{
 			precision -= 2;
 		}
@@ -1010,37 +1010,44 @@ public final class DecimalData
 		if (checkOverflow)
 		{
 			// Skip high-order zero if and only if precision is odd
-			if (precision % 2 == 1 && (packedDecimal.getLong(offset) & CommonData.HIGHER_NIBBLE_MASK) == 0x00)
+			if (precision % 2 == 1 && (packedDecimal.get(offset) & CommonData.HIGHER_NIBBLE_MASK) == 0x00)
 			{
 				precision--;
 			}
 
 			// At this point we are guaranteed that the nibble pointed by a non-zero precision value is non-zero
-			if (precision > 10)
+			if (precision > 19)
 				throw new ArithmeticException(
-						"Decimal overflow - Packed Decimal too large for an int");
+						"Decimal overflow - Packed Decimal too large for a long");
 		}
 
-		// For checkOverflow == true at this point we are guaranteed that precision <= 10. The following loop
-		// will never overflow because the long value can always contain an integer of precision 10.
+		// For checkOverflow == true at this point we are guaranteed that precision <= 19. The following loop
+		// may cause the signed long value to overflow. Because the first digit of Long.MAX_VALUE is a 9 the
+		// overflowed signed long value cannot overflow an unsigned long. This guarantees that if an overflow
+		// occurs, value will be negative. We will use this fact along with the sign code calculated earlier
+		// to determine whether overflow occurred.
 
 		for (int pos = offset; pos <= end - 1; ++pos)
 		{
-			value = value * 100 + CommonData.getPackedToBinaryValues(packedDecimal.getLong(pos));
+			value = value * 100 + CommonData.getPackedToBinaryValues(packedDecimal.get(pos));
 		}
 
-		value = value * 10 + ((packedDecimal.getLong(end) & CommonData.HIGHER_NIBBLE_MASK) >> 4);
+		value = value * 10 + ((last & CommonData.HIGHER_NIBBLE_MASK) >> 4);
 
 		if (sign == CommonData.PACKED_MINUS)
-			value = -1 * value;
+			value = -value;
 
-		if (checkOverflow && (value > Integer.MAX_VALUE || value < Integer.MIN_VALUE))
+		if (checkOverflow)
 		{
-			throw new ArithmeticException(
-					"Decimal overflow - Packed Decimal too large for a int");
+			if (sign == CommonData.PACKED_PLUS && value < 0)
+				throw new ArithmeticException(
+						"Decimal overflow - Packed Decimal too large for a long");
+			else if (sign == CommonData.PACKED_MINUS && value > 0)
+				throw new ArithmeticException(
+						"Decimal overflow - Packed Decimal too large for a long");
 		}
 
-		return (int)value;
+		return value;
 	}
 
 	/**
