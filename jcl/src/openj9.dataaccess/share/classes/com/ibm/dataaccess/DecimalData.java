@@ -968,7 +968,7 @@ public final class DecimalData
 		// 			" but valid indices are from 0 to " + (packedDecimal.length - 1) + ".");
 
 			if (packedDecimal.isDirect()) {
-				convertPackedDecimalToLong_(
+				return convertPackedDecimalToLong_(
 					packedDecimal,
 					offset, precision, checkOverflow,
 /*[IF JAVA_SPEC_VERSION >= 9]*/
@@ -978,7 +978,7 @@ public final class DecimalData
 /*[ENDIF] JAVA_SPEC_VERSION >= 9 */
 					packedDecimal.position(), packedDecimal.capacity());
 			} else if (!packedDecimal.isDirect() && packedDecimal.hasArray()) {
-				convertPackedDecimalToLong_(longValue, packedDecimal.array(), offset, precision, checkOverflow);
+				return convertPackedDecimalToLong_(packedDecimal.array(), offset, precision, checkOverflow);
 			}
 		}
 
