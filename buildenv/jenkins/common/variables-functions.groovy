@@ -1389,11 +1389,6 @@ def set_build_extra_options(build_specs=null) {
         buildspec = buildspec_manager.getSpec(SPEC)
         // single release
         EXTRA_GETSOURCE_OPTIONS = buildspec.getVectorField("extra_getsource_options", SDK_VERSION).join(" ")
-        GSKIT_BIN_OPTIONS = buildspec.getScalarField("gskit_bin_options", SDK_VERSION)
-        if (GSKIT_BIN_OPTIONS) {
-            // append options for GSKIT binaries, if available
-            EXTRA_GETSOURCE_OPTIONS = "${EXTRA_GETSOURCE_OPTIONS} ${GSKIT_BIN_OPTIONS}"
-        }
         if (params.EXTRA_GETSOURCE_OPTIONS) {
             // append options from job configuration to those specified in variables file
             EXTRA_GETSOURCE_OPTIONS = "${EXTRA_GETSOURCE_OPTIONS} ${params.EXTRA_GETSOURCE_OPTIONS}"
