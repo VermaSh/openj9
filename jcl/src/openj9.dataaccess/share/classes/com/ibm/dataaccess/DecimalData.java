@@ -933,6 +933,116 @@ public final class DecimalData
 	}
 
 	/**
+	 * Converts a binary long value into signed Packed Decimal format. The Packed Decimal will be padded with zeros on
+	 * the left if necessary.
+	 *
+	 * Overflow can happen if the resulting Packed Decimal does not fit into the result byte array, given the offset and
+	 * precision . In this case, when <code>checkOverflow</code> is true an <code>ArithmeticException</code> is thrown,
+	 * when false a truncated or invalid result is returned.
+	 *
+	 * @param longValue
+	 *            the binary long value to convert
+	 * @param packedDecimal
+	 *            byte array that will store the resulting Packed Decimal value
+	 * @param offset
+	 *            offset of the first byte of the Packed Decimal in <code>packedDecimal</code>
+	 * @param precision
+	 *            number of Packed Decimal digits. Maximum valid precision is 253
+	 * @param checkOverflow
+	 *            if true an <code>ArithmeticException</code> will be thrown if the decimal value does not fit in the
+	 *            specified precision (overflow), otherwise a truncated value is returned
+	 *
+	 * @throws ArrayIndexOutOfBoundsException
+	 *             if an invalid array access occurs
+	 * @throws NullPointerException
+	 *             if <code>packedDecimal</code> is null
+	 * @throws ArithmeticException
+	 *             the <code>checkOverflow</code> parameter is true and overflow occurs
+	 */
+	public static long convertPackedDecimalToLong(ByteBuffer packedDecimal,
+			int offset, int precision, boolean checkOverflow) {
+
+		// if ((offset + ((precision/ 2) + 1) > packedDecimal.length) || (offset < 0))
+		// 	throw new ArrayIndexOutOfBoundsException("Array access index out of bounds. " +
+		// 			"convertPackedDecimalToLong is trying to access packedDecimal[" + offset + "] to packedDecimal[" + (offset + (precision/ 2)) + "], " +
+		// 			" but valid indices are from 0 to " + (packedDecimal.length - 1) + ".");
+
+			if (packedDecimal.isDirect()) {
+				convertPackedDecimalToLong_(
+					packedDecimal,
+					offset, precision, checkOverflow,
+/*[IF JAVA_SPEC_VERSION >= 9]*/
+					NIO_ACCESS.getBufferAddress(packedDecimal),
+/*[ELSE] JAVA_SPEC_VERSION >= 9 */
+					((DirectBuffer)packedDecimal).address(),
+/*[ENDIF] JAVA_SPEC_VERSION >= 9 */
+					packedDecimal.position(), packedDecimal.capacity());
+			} else if (!packedDecimal.isDirect() && packedDecimal.hasArray()) {
+				convertPackedDecimalToLong_(longValue, packedDecimal.array(), offset, precision, checkOverflow);
+			}
+		}
+
+	private static long convertPackedDecimalToLong_(ByteBuffer packedDecimal,
+			int offset, int precision, boolean checkOverflow,
+			long address, int position, int capacity) {
+
+		byte[] pacedDecimalArry = packedDecimal.array();
+		int bytes = CommonData.getPackedByteCount(precision);
+		int end = offset + bytes - 1;
+		long value = 0;// = (packedDecimal[end] & CommonData.INTEGER_MASK) >> 4;
+
+		byte sign = CommonData.getSign((byte) (pacedDecimalArry[end] & CommonData.LOWER_NIBBLE_MASK));
+
+		// Skip the first byte if the precision is even and the low-order nibble is zero
+		if (precision % 2 == 0 && (pacedDecimalArry[offset] & CommonData.LOWER_NIBBLE_MASK) == 0x00)
+		{
+			precision--;
+			offset++;
+		}
+
+		// Skip consecutive zero bytes
+		for (; offset < end && pacedDecimalArry[offset] == CommonData.PACKED_ZERO; offset++)
+		{
+			precision -= 2;
+		}
+
+		if (checkOverflow)
+		{
+			// Skip high-order zero if and only if precision is odd
+			if (precision % 2 == 1 && (pacedDecimalArry[offset] & CommonData.HIGHER_NIBBLE_MASK) == 0x00)
+			{
+				precision--;
+			}
+
+			// At this point we are guaranteed that the nibble pointed by a non-zero precision value is non-zero
+			if (precision > 10)
+				throw new ArithmeticException(
+						"Decimal overflow - Packed Decimal too large for an int");
+		}
+
+		// For checkOverflow == true at this point we are guaranteed that precision <= 10. The following loop
+		// will never overflow because the long value can always contain an integer of precision 10.
+
+		for (int pos = offset; pos <= end - 1; ++pos)
+		{
+			value = value * 100 + CommonData.getPackedToBinaryValues(pacedDecimalArry[pos]);
+		}
+
+		value = value * 10 + ((pacedDecimalArry[end] & CommonData.HIGHER_NIBBLE_MASK) >> 4);
+
+		if (sign == CommonData.PACKED_MINUS)
+			value = -1 * value;
+
+		if (checkOverflow && (value > Integer.MAX_VALUE || value < Integer.MIN_VALUE))
+		{
+			throw new ArithmeticException(
+					"Decimal overflow - Packed Decimal too large for a int");
+		}
+
+		return (int)value;
+	}
+
+	/**
 	 * Converts a Packed Decimal value in a byte array into a binary integer. If the digital part of the input Packed
 	 * Decimal is not valid then the digital part of the output will not be valid. The sign of the input Packed Decimal
 	 * is assumed to be positive unless the sign nibble contains one of the negative sign codes, in which case the
