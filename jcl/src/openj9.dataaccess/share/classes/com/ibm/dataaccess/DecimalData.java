@@ -967,8 +967,9 @@ public final class DecimalData
 		// 			"convertPackedDecimalToLong is trying to access packedDecimal[" + offset + "] to packedDecimal[" + (offset + (precision/ 2)) + "], " +
 		// 			" but valid indices are from 0 to " + (packedDecimal.length - 1) + ".");
 
+			long longValue = 0;
 			if (packedDecimal.isDirect()) {
-				return convertPackedDecimalToLong_(
+				longValue = convertPackedDecimalToLong_(
 					packedDecimal,
 					offset, precision, checkOverflow,
 /*[IF JAVA_SPEC_VERSION >= 9]*/
@@ -978,8 +979,9 @@ public final class DecimalData
 /*[ENDIF] JAVA_SPEC_VERSION >= 9 */
 					packedDecimal.position(), packedDecimal.capacity());
 			} else if (!packedDecimal.isDirect() && packedDecimal.hasArray()) {
-				return convertPackedDecimalToLong_(packedDecimal.array(), offset, precision, checkOverflow);
+				longValue = convertPackedDecimalToLong_(packedDecimal.array(), offset, precision, checkOverflow);
 			}
+			return longValue;
 		}
 
 	private static long convertPackedDecimalToLong_(ByteBuffer packedDecimal,
