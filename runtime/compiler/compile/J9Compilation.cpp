@@ -887,7 +887,7 @@ J9::Compilation::maxInternalPointers()
    if (self()->getOption(TR_DisableInternalPointers))
       return 0;
    else
-      return 128;
+      return 999;
    }
 
 
