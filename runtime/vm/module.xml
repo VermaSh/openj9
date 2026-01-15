@@ -76,6 +76,9 @@ SPDX-License-Identifier: EPL-2.0 OR Apache-2.0 OR GPL-2.0-only WITH Classpath-ex
 		<makefilestubs>
 			<makefilestub data="UMA_ENABLE_ALL_WARNINGS=1"/>
 			<makefilestub data="UMA_TREAT_WARNINGS_AS_ERRORS=1"/>
+			<makefilestub data="UMA_OBJECTS:=$(filter-out FastJNI_com_ibm_crypto_hdwrCCA_provider_HIKM%,$(UMA_OBJECTS))">
+				<exclude-if condition="spec.zos_390.* and spec.java9"/>
+			</makefilestub>
 			<makefilestub data="UMA_OBJECTS:=$(filter-out xcinterp%,$(UMA_OBJECTS))">
 				<exclude-if condition="spec.flags.arch_x86"/>
 			</makefilestub>

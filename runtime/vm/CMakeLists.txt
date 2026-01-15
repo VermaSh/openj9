@@ -111,7 +111,6 @@ set(main_sources
 	exceptionsupport.c
 	extendedMessageNPE.cpp
 	FastJNI_com_ibm_crypto_plus_provider_icc_NativeInterface.cpp
-	FastJNI_com_ibm_crypto_hdwrCCA_provider_HIKM.cpp
 	FastJNI_com_ibm_oti_vm_VM.cpp
 	FastJNI.cpp
 	FastJNI_java_lang_Class.cpp
@@ -204,6 +203,12 @@ set(main_sources
 
 	${CMAKE_CURRENT_BINARY_DIR}/ut_j9vm.c
 )
+
+if(OMR_OS_ZOS AND (JAVA_SPEC_VERSION GREATER 8))
+	list(APPEND main_sources
+		FastJNI_com_ibm_crypto_hdwrCCA_provider_HIKM.cpp
+	)
+endif()
 
 if(J9VM_OPT_CRIU_SUPPORT)
 	list(APPEND main_sources
