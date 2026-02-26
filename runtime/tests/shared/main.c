@@ -208,7 +208,11 @@ signalProtectedMain(struct J9PortLibrary *portLibrary, void * vargs)
 		if (startsWith(argv[i],TRANSACTIONTEST_CMDLINE_STARTSWITH)!=0) {
 			IDATA procrc = 0;
 			if (createJavaVM(args, &vm, TRUE, FALSE, &env) != JNI_OK) {
-				j9tty_printf(PORTLIB,"\nCound not create jvm for transaction tests. Exiting unit test...\n");
+				j9tty_printf(PORTLIB, "Args being printed for TRANSACTIONTEST_CMDLINE_STARTSWITH\n");
+				for (int j=0; j<argc; j++) {
+					j9tty_printf(PORTLIB, "argv[%d]: %s\n", j, argv[j]);
+				}
+				j9tty_printf(PORTLIB,"\n1. Cound not create jvm for transaction tests. Exiting unit test...\n");
 				return 1;
 			}
 			HEADING(PORTLIB, "Shared Class Store Transaction Test");
@@ -228,7 +232,7 @@ signalProtectedMain(struct J9PortLibrary *portLibrary, void * vargs)
 		if (startsWith(argv[i],TRANSACTION_WITHBCI_TEST_CMDLINE_STARTSWITH)!=0) {
 			IDATA procrc = 0;
 			if (createJavaVM(args, &vm, TRUE, TRUE, &env) != JNI_OK) {
-				j9tty_printf(PORTLIB,"\nCound not create jvm for transaction tests. Exiting unit test...\n");
+				j9tty_printf(PORTLIB,"\n2.Cound not create jvm for transaction tests. Exiting unit test...\n");
 				return 1;
 			}
 			HEADING(PORTLIB, "Shared Class Store With BCI Test");
