@@ -133,7 +133,7 @@ createJavaVM(struct j9cmdlineOptions* startupOptions, J9JavaVM** vm_, BOOLEAN us
 
 	/* now set up the arguments for JNI_CreateJavaVM */
 	if (setupArguments(startupOptions,&vm_args,&vmOptionsTable, useXshareclasses, enablebci) != 0){
-		j9tty_printf(PORTLIB, "\nCound not create required arguments for JNI_CreateJavaVM...\n");
+		printf("\nCound not create required arguments for JNI_CreateJavaVM...\n");
 		rc = FAIL;
 		goto cleanup;
 	}
@@ -148,14 +148,14 @@ createJavaVM(struct j9cmdlineOptions* startupOptions, J9JavaVM** vm_, BOOLEAN us
 	strcat(libjvmPath, jvmLibName);
 
 	if (j9sl_open_shared_library(libjvmPath, &handle, J9PORT_SLOPEN_DECORATE)) {
-		j9tty_printf(PORTLIB, "Failed to open JVM DLL: %s (%s)\n", libjvmPath,
+		printf("Failed to open JVM DLL: %s (%s)\n", libjvmPath,
 				j9error_last_error_message());
 		rc = 1;
 		goto cleanup;
 	}
 
 	if (j9sl_lookup_name(handle, "JNI_CreateJavaVM", (UDATA*)&CreateJavaVM, "iLLL")) {
-		j9tty_printf (PORTLIB, "Failed to find JNI_CreateJavaVM in DLL\n");
+		printf("Failed to find JNI_CreateJavaVM in DLL\n");
 		rc = -1;
 		goto cleanup;
 	}
