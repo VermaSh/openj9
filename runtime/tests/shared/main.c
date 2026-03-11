@@ -123,6 +123,9 @@ createJavaVM(struct j9cmdlineOptions* startupOptions, J9JavaVM** vm_, BOOLEAN us
 	const char * jvmLibName = "jvm";
 	void *vmOptionsTable = NULL;
 	IDATA rc = 0;
+	JavaVMOption *options = NULL;
+	int optionCount = 0;
+
 	jint (JNICALL *CreateJavaVM)(JavaVM**, JNIEnv**, JavaVMInitArgs*);
 
 	JavaVMInitArgs vm_args;
@@ -136,6 +139,14 @@ createJavaVM(struct j9cmdlineOptions* startupOptions, J9JavaVM** vm_, BOOLEAN us
 		printf("\nCound not create required arguments for JNI_CreateJavaVM...\n");
 		rc = FAIL;
 		goto cleanup;
+	}
+
+	printf("sverma: in createJavaVM, finished setting up arguments for JNI_CreateJavaVM\n");
+	options = vmOptionsTableGetOptions(&vmOptionsTable);
+	optionCount = vmOptionsTableGetCount(&vmOptionsTable);
+	printf("sverma: Printing JVM options createJavaVM\n");
+	for (int i = 0; i < optionCount; i++) {
+		printf("option %d: %s\n", i, options[i].optionString);
 	}
 
 	if (cmdline_fetchRedirectorDllDir(startupOptions, libjvmPath) == FALSE) {
@@ -178,6 +189,13 @@ createJavaVM(struct j9cmdlineOptions* startupOptions, J9JavaVM** vm_, BOOLEAN us
 		vmOptionsTableDestroy(&vmOptionsTable);
 	}
 
+	options = vmOptionsTableGetOptions(&vmOptionsTable);
+	optionCount = vmOptionsTableGetCount(&vmOptionsTable);
+	printf("sverma: Printing JVM options createJavaVM\n");
+	for (int i = 0; i < optionCount; i++) {
+		printf("option %d: %s\n", i, options[i].optionString);
+	}
+
 	return rc;
 }
 
@@ -204,14 +222,14 @@ signalProtectedMain(struct J9PortLibrary *portLibrary, void * vargs)
 
 	main_setNLSCatalog(PORTLIB, argv);
 
+	j9tty_printf(PORTLIB, "Args being printed for TRANSACTIONTEST_CMDLINE_STARTSWITH\n");
+	for (int j=0; j<argc; j++) {
+		j9tty_printf(PORTLIB, "argv[%d]: %s\n", j, argv[j]);
+	}
 	for(i=0;i<argc;i++){
 		if (startsWith(argv[i],TRANSACTIONTEST_CMDLINE_STARTSWITH)!=0) {
 			IDATA procrc = 0;
 			if (createJavaVM(args, &vm, TRUE, FALSE, &env) != JNI_OK) {
-				j9tty_printf(PORTLIB, "Args being printed for TRANSACTIONTEST_CMDLINE_STARTSWITH\n");
-				for (int j=0; j<argc; j++) {
-					j9tty_printf(PORTLIB, "argv[%d]: %s\n", j, argv[j]);
-				}
 				j9tty_printf(PORTLIB,"\n1. Cound not create jvm for transaction tests. Exiting unit test...\n");
 				return 1;
 			}
