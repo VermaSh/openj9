@@ -59,8 +59,11 @@ J9_FAST_JNI_CLASS_TABLE(fastJNINatives)
 	J9_FAST_JNI_CLASS("java/lang/Class", java_lang_Class)
 	J9_FAST_JNI_CLASS("java/lang/Object", java_lang_Object)
 	J9_FAST_JNI_CLASS("java/lang/System", java_lang_System)
+#if JAVA_SPEC_VERSION <= 21
 	J9_FAST_JNI_CLASS("com/ibm/crypto/plus/provider/icc/NativeInterface", com_ibm_crypto_plus_provider_icc_NativeInterface)
-	J9_FAST_JNI_CLASS("com/ibm/crypto/plus/provider/ock/NativeInterface", com_ibm_crypto_plus_provider_icc_NativeInterface)
+#else /* JAVA_SPEC_VERSION <= 21 */
+	J9_FAST_JNI_CLASS("com/ibm/crypto/plus/provider/ock/NativeOCKImplementation", com_ibm_crypto_plus_provider_icc_NativeInterface)
+#endif /* JAVA_SPEC_VERSION <= 21 */
 #if defined(J9ZOS390) && (JAVA_SPEC_VERSION > 8)
 	J9_FAST_JNI_CLASS("com/ibm/crypto/hdwrCCA/provider/HIKM", com_ibm_crypto_hdwrCCA_provider_HIKM)
 #endif /* defined(J9ZOS390) && (JAVA_SPEC_VERSION > 8) */
