@@ -1,25 +1,12 @@
-/*******************************************************************************
- * Copyright (c) 2022, 2024 IBM Corp. and others
+/******************************************************************************
+ * Licensed Materials - Property of IBM
+ * "Restricted Materials of IBM"
  *
- * This program and the accompanying materials are made available under
- * the terms of the Eclipse Public License 2.0 which accompanies this
- * distribution and is available at https://www.eclipse.org/legal/epl-2.0/
- * or the Apache License, Version 2.0 which accompanies this distribution and
- * is available at https://www.apache.org/licenses/LICENSE-2.0.
+ * (c) Copyright IBM Corp. 2022, 2026 All Rights Reserved
  *
- * This Source Code may also be made available under the following
- * Secondary Licenses when the conditions for such availability set
- * forth in the Eclipse Public License, v. 2.0 are satisfied: GNU
- * General Public License, version 2 with the GNU Classpath
- * Exception [1] and GNU General Public License, version 2 with the
- * OpenJDK Assembly Exception [2].
- *
- * [1] https://www.gnu.org/software/classpath/license.html
- * [2] http://openjdk.java.net/legal/assembly-exception.html
- *
- * SPDX-License-Identifier: EPL-2.0 OR Apache-2.0 OR GPL-2.0 WITH Classpath-exception-2.0 OR LicenseRef-GPL-2.0 WITH Assembly-exception
- *******************************************************************************/
-
+ * US Government Users Restricted Rights - Use, duplication or disclosure
+ * restricted by GSA ADP Schedule Contract with IBM Corp.
+ ******************************************************************************/
 
 #include "fastJNI.h"
 
@@ -32,7 +19,7 @@
 #include "ArrayCopyHelpers.hpp"
 #include "ut_j9vm.h"
 
-//#define CRYPTO_DEBUG 0
+//#define CRYPTO_DEBUG
 
 #define J9_CRYPTO_DLL_NAME (char*)"HIKM"
 
@@ -1137,6 +1124,7 @@ Fast_com_ibm_crypto_hdwrCCA_provider_HIKM_KMDESD(J9VMThread *currentThread, jint
 
 jint JNICALL
 Fast_com_ibm_crypto_hdwrCCA_provider_HIKM_KMGCME(J9VMThread *currentThread,
+                                                 jint       icvMode,
                                                  jint       key_length,
                                                  j9object_t key_identifier,
                                                  jint       initialization_vector_length,
@@ -1148,11 +1136,12 @@ Fast_com_ibm_crypto_hdwrCCA_provider_HIKM_KMGCME(J9VMThread *currentThread,
                                                  jint       cipher_text_length,
                                                  j9object_t cipher_text,
                                                  jint       authTagLen,
-                                                 j9object_t authTag)
+                                                 j9object_t authTag,
+                                                 j9object_t handle)
 {
     TRACE_ENTER();
-    TRACE4("initialization_vector_length=%d clear_text_length=%d AAD_data_length=%d cipher_text_length=%d\n",
-           initialization_vector_length, clear_text_length, AAD_data_length, cipher_text_length);
+    TRACE6("icvMode=%d initialization_vector_length=%d clear_text_length=%d AAD_data_length=%d cipher_text_length=%d handle=0x%p\n",
+           icvMode, initialization_vector_length, clear_text_length, AAD_data_length, cipher_text_length, handle);
 
     cipher_request_t request;
 
@@ -1165,6 +1154,7 @@ Fast_com_ibm_crypto_hdwrCCA_provider_HIKM_KMGCME(J9VMThread *currentThread,
     j9object_t initVectorObj    = J9_JNI_UNWRAP_REFERENCE(initialization_vector);
     j9object_t aadObj           = J9_JNI_UNWRAP_REFERENCE(AAD_data);
     j9object_t authTagObj       = J9_JNI_UNWRAP_REFERENCE(authTag);
+    j9object_t handleObj        = J9_JNI_UNWRAP_REFERENCE(handle);
 
     request.key_length                   = key_length;
     request.key_identifier               = (jbyte*)J9JAVAARRAY_EA(currentThread, keyIdentifierObj, 0, U_8);
@@ -1177,7 +1167,8 @@ Fast_com_ibm_crypto_hdwrCCA_provider_HIKM_KMGCME(J9VMThread *currentThread,
     request.AAD_data                     = (jbyte*)J9JAVAARRAY_EA(currentThread, aadObj, 0, U_8);
     request.authTagLen                   = authTagLen;
     request.AuthTag                      = (jbyte*)J9JAVAARRAY_EA(currentThread, authTagObj, 0, U_8);
-    request.icvMode                      = ONLY;
+    request.icvMode                      = icvMode;
+    request.chain_data                   = (jbyte*)J9JAVAARRAY_EA(currentThread, handleObj, 0, U_8);
 
     jint result = aesCipher(currentThread,
                             clear_text,
@@ -1190,6 +1181,7 @@ Fast_com_ibm_crypto_hdwrCCA_provider_HIKM_KMGCME(J9VMThread *currentThread,
 
 jint JNICALL
 Fast_com_ibm_crypto_hdwrCCA_provider_HIKM_KMGCMD(J9VMThread *currentThread,
+                                                 jint       icvMode,
                                                  jint       key_length,
                                                  j9object_t key_identifier,
                                                  jint       initialization_vector_length,
@@ -1201,11 +1193,12 @@ Fast_com_ibm_crypto_hdwrCCA_provider_HIKM_KMGCMD(J9VMThread *currentThread,
                                                  jint       clear_text_length,
                                                  j9object_t clear_text,
                                                  jint       authTagLen,
-                                                 j9object_t authTag)
+                                                 j9object_t authTag,
+                                                 j9object_t handle)
 {
     TRACE_ENTER();
-    TRACE4("initialization_vector_length=%d cipher_text_length=%d AAD_data_length=%d clear_text_length=%d\n",
-           initialization_vector_length, cipher_text_length, AAD_data_length, clear_text_length);
+    TRACE6("icvMode=%d initialization_vector_length=%d cipher_text_length=%d AAD_data_length=%d clear_text_length=%d handle=0x%p\n",
+           icvMode, initialization_vector_length, cipher_text_length, AAD_data_length, clear_text_length, handle);
 
     cipher_request_t request;
 
@@ -1218,6 +1211,7 @@ Fast_com_ibm_crypto_hdwrCCA_provider_HIKM_KMGCMD(J9VMThread *currentThread,
     j9object_t initVectorObj    = J9_JNI_UNWRAP_REFERENCE(initialization_vector);
     j9object_t aadObj           = J9_JNI_UNWRAP_REFERENCE(AAD_data);
     j9object_t authTagObj       = J9_JNI_UNWRAP_REFERENCE(authTag);
+    j9object_t handleObj        = J9_JNI_UNWRAP_REFERENCE(handle);
 
     request.key_length                   = key_length;
     request.key_identifier               = (jbyte*)J9JAVAARRAY_EA(currentThread, keyIdentifierObj, 0, U_8);
@@ -1230,7 +1224,8 @@ Fast_com_ibm_crypto_hdwrCCA_provider_HIKM_KMGCMD(J9VMThread *currentThread,
     request.AAD_data                     = (jbyte*)J9JAVAARRAY_EA(currentThread, aadObj, 0, U_8);
     request.authTagLen                   = authTagLen;
     request.AuthTag                      = (jbyte*)J9JAVAARRAY_EA(currentThread, authTagObj, 0, U_8);
-    request.icvMode                      = ONLY;
+    request.icvMode                      = icvMode;
+    request.chain_data                   = (jbyte*)J9JAVAARRAY_EA(currentThread, handleObj, 0, U_8);
 
     jint result = aesCipher(currentThread,
                             cipher_text,
@@ -1405,9 +1400,9 @@ J9_FAST_JNI_METHOD_TABLE(com_ibm_crypto_hdwrCCA_provider_HIKM)
         J9_FAST_JNI_RETAIN_VM_ACCESS | J9_FAST_JNI_DO_NOT_PASS_RECEIVER)
     J9_FAST_JNI_METHOD("KMDESD", "(III[BI[BI[BI[BI[BI[B)I", Fast_com_ibm_crypto_hdwrCCA_provider_HIKM_KMDESD,
         J9_FAST_JNI_RETAIN_VM_ACCESS | J9_FAST_JNI_DO_NOT_PASS_RECEIVER)
-    J9_FAST_JNI_METHOD("KMGCME", "(I[BI[BI[BI[BI[BI[B)I", Fast_com_ibm_crypto_hdwrCCA_provider_HIKM_KMGCME,
+    J9_FAST_JNI_METHOD("KMGCME", "(II[BI[BI[BI[BI[BI[B[B)I", Fast_com_ibm_crypto_hdwrCCA_provider_HIKM_KMGCME,
         J9_FAST_JNI_RETAIN_VM_ACCESS | J9_FAST_JNI_DO_NOT_PASS_RECEIVER)
-    J9_FAST_JNI_METHOD("KMGCMD", "(I[BI[BI[BI[BI[BI[B)I", Fast_com_ibm_crypto_hdwrCCA_provider_HIKM_KMGCMD,
+    J9_FAST_JNI_METHOD("KMGCMD", "(II[BI[BI[BI[BI[BI[B[B)I", Fast_com_ibm_crypto_hdwrCCA_provider_HIKM_KMGCMD,
         J9_FAST_JNI_RETAIN_VM_ACCESS | J9_FAST_JNI_DO_NOT_PASS_RECEIVER)
     J9_FAST_JNI_METHOD("KXMDSHA", "(III[BII[BI[BI[B)I", Fast_com_ibm_crypto_hdwrCCA_provider_HIKM_KXMDSHA,
         J9_FAST_JNI_RETAIN_VM_ACCESS | J9_FAST_JNI_DO_NOT_PASS_RECEIVER)
