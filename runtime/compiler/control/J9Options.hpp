@@ -498,6 +498,8 @@ class OMR_EXTENSIBLE Options : public OMR::OptionsConnector
    static bool _xrsSync;
 
    static int32_t _jvmStarvationThreshold;
+   // Frequency (in ms) at which CPU stats are printed when -Xjit:verbose={CPUStats} is specified
+   static int32_t _cpuStatsPrintInterval;
 
    static ExternalOptionsMetadata _externalOptionsMetadata[ExternalOptions::TR_NumExternalOptions];
 
