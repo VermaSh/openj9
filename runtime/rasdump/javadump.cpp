@@ -394,23 +394,23 @@ private :
 	int64_t           _DumpStart;
 
 	/* Static declared data */
-	static const unsigned int _MaximumExceptionNameLength;
+	static const U_32 _MaximumExceptionNameLength;
 	static const U_32 _MaximumFormattedTracePointLength;
-	static const unsigned int _MaximumCommandLineLength;
-	static const unsigned int _MaximumTimeStampLength;
-	static const unsigned int _MaximumGPValueLength;
-	static const unsigned int _MaximumJavaStackDepth;
+	static const U_32 _MaximumCommandLineLength;
+	static const U_32 _MaximumTimeStampLength;
+	static const U_32 _MaximumGPValueLength;
+	static const U_32 _MaximumJavaStackDepth;
 	static const int _MaximumGCHistoryLines;
 	static const int _MaximumMonitorInfosPerThread;
 };
 
 /* Static declared data instantiation */
-const unsigned int JavaCoreDumpWriter::_MaximumExceptionNameLength(128);
-const unsigned int JavaCoreDumpWriter::_MaximumFormattedTracePointLength(512);
-const unsigned int JavaCoreDumpWriter::_MaximumCommandLineLength(512);
-const unsigned int JavaCoreDumpWriter::_MaximumTimeStampLength(30);
-const unsigned int JavaCoreDumpWriter::_MaximumGPValueLength(512);
-const unsigned int JavaCoreDumpWriter::_MaximumJavaStackDepth(100000);
+const U_32 JavaCoreDumpWriter::_MaximumExceptionNameLength(128);
+const U_32 JavaCoreDumpWriter::_MaximumFormattedTracePointLength(2048);
+const U_32 JavaCoreDumpWriter::_MaximumCommandLineLength(512);
+const U_32 JavaCoreDumpWriter::_MaximumTimeStampLength(30);
+const U_32 JavaCoreDumpWriter::_MaximumGPValueLength(512);
+const U_32 JavaCoreDumpWriter::_MaximumJavaStackDepth(100000);
 const int JavaCoreDumpWriter::_MaximumGCHistoryLines(2000);
 const int JavaCoreDumpWriter::_MaximumMonitorInfosPerThread(32);
 
@@ -2239,9 +2239,11 @@ JavaCoreDumpWriter::writeThreadsUsageSummary(void)
 				"NULL           =========================\n"
 			);
 
-	if (J9_ARE_ALL_BITS_SET(_VirtualMachine->extendedRuntimeFlags, J9_EXTENDED_RUNTIME_REDUCE_CPU_MONITOR_OVERHEAD)) {
+#if !defined(J9ZOS390)
+	if (J9_ARE_ANY_BITS_SET(_VirtualMachine->extendedRuntimeFlags, J9_EXTENDED_RUNTIME_REDUCE_CPU_MONITOR_OVERHEAD)) {
 		_OutputStream.writeCharacters("NULL\n1XMTHDCATINFO  Warning: to get more accurate CPU times for the GC, the option -XX:-ReduceCPUMonitorOverhead can be used. See the user guide for more information.\nNULL\n");
 	}
+#endif /* !defined(J9ZOS390) */
 
 	totalTime = cpuUsage.applicationCpuTime + cpuUsage.resourceMonitorCpuTime + cpuUsage.systemJvmCpuTime;
 	_OutputStream.writeCharacters("1XMTHDCATEGORY ");

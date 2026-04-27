@@ -596,6 +596,7 @@ enum INIT_STAGE {
 #define VMOPT_XXNOFLIGHTRECORDER "-XX:-FlightRecorder"
 
 #define VMOPT_XXSTARTFLIGHTRECORDING "-XX:StartFlightRecording"
+#define VMOPT_XXSTARTFLIGHTRECORDING_EQUALS "-XX:StartFlightRecording="
 #define VMOPT_XXSTARTOPENJ9EXPERIMENTALFLIGHTRECORDING "-XX:StartOpenJ9ExperimentalFlightRecording"
 #define VMOPT_XXSTARTOPENJ9EXPERIMENTALFLIGHTRECORDING_COLON "-XX:StartOpenJ9ExperimentalFlightRecording:"
 #define VMOPT_XXSTARTOPENJ9EXPERIMENTALFLIGHTRECORDING_EQUALS "-XX:StartOpenJ9ExperimentalFlightRecording="
@@ -693,6 +694,7 @@ enum INIT_STAGE {
 #define VMOPT_XXCLASSMEMORYDISCLAIM_NONE "none"
 #define VMOPT_XXCLASSMEMORYDISCLAIM_RAM "ram"
 #define VMOPT_XXCLASSMEMORYDISCLAIM_ROM "rom"
+#define VMOPT_XXDISCLAIMDIRECTORY "-XX:DisclaimDir="
 
 /* Modularity command line options */
 #define VMOPT_MODULE_UPGRADE_PATH "--upgrade-module-path"

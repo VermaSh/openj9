@@ -770,7 +770,11 @@ freeJavaVM(J9JavaVM * vm)
 
 #if defined(J9VM_OPT_JFR)
 	j9mem_free_memory(vm->jfrState.jfrFileName);
+	j9mem_free_memory(vm->jfrState.delay);
+	j9mem_free_memory(vm->jfrState.duration);
 	vm->jfrState.jfrFileName = NULL;
+	vm->jfrState.delay = NULL;
+	vm->jfrState.duration = NULL;
 #endif /* defined(J9VM_OPT_JFR) */
 
 #if defined(J9VM_INTERP_ATOMIC_FREE_JNI_USES_FLUSH)
@@ -1017,13 +1021,6 @@ freeJavaVM(J9JavaVM * vm)
 		}
 	}
 #endif /* defined(J9VM_OPT_CRIU_SUPPORT) */
-
-#if JAVA_SPEC_VERSION >= 22
-	if (NULL != vm->closeScopeMutex) {
-		omrthread_monitor_destroy(vm->closeScopeMutex);
-		vm->closeScopeMutex = NULL;
-	}
-#endif /* JAVA_SPEC_VERSION >= 22 */
 
 #if defined(J9VM_OPT_SNAPSHOTS)
 	if (IS_SNAPSHOTTING_ENABLED(vm)) {
@@ -4122,6 +4119,43 @@ processVMArgsFromFirstToLast(J9JavaVM * vm)
 		}
 	}
 
+	{
+		/* Parse -XX:DisclaimDir= option to set directory for temporary disclaim files. */
+		IDATA argIndex = FIND_AND_CONSUME_VMARG(STARTSWITH_MATCH, VMOPT_XXDISCLAIMDIRECTORY, NULL);
+		if (0 <= argIndex) {
+			PORT_ACCESS_FROM_JAVAVM(vm);
+#if defined(LINUX)
+			char *optionValue = NULL;
+			GET_OPTION_VALUE(argIndex, '=', &optionValue);
+			if (NULL != optionValue) {
+				OMRPORT_ACCESS_FROM_J9PORT(PORTLIB);
+				/* Make sure the directory exists. */
+				struct J9FileStat statBuf = {0};
+				int32_t statRc = omrfile_stat(optionValue, 0, &statBuf);
+
+				/* Verify the directory exists and is actually a directory. */
+				if (0 != statRc) {
+					j9tty_printf(PORTLIB, "Error: Directory specified by -XX:DisclaimDir=%s does not exist\n", optionValue);
+					return JNI_ERR;
+				}
+				if (0 == statBuf.isDir) {
+					j9tty_printf(PORTLIB, "Error: Path specified by -XX:DisclaimDir=%s is not a directory\n", optionValue);
+					return JNI_ERR;
+				}
+				/* Set the temporary directory via port control. */
+				j9port_control(OMRPORT_CTLDATA_VMEM_TMPDIR_PATH, (uintptr_t)optionValue);
+				/* If the port_control fails, fall back on /tmp as tye default directory for disclaim files. */
+			} else {
+				j9nls_printf(PORTLIB, J9NLS_ERROR, J9NLS_VM_UNRECOGNISED_CMD_LINE_OPT, VMOPT_XXDISCLAIMDIRECTORY);
+				return JNI_ERR;
+			}
+#else /* defined(LINUX) */
+			j9nls_printf(PORTLIB, J9NLS_ERROR, J9NLS_VM_UNSUPPORTED_OPTION, VMOPT_XXDISCLAIMDIRECTORY);
+			return JNI_ERR;
+#endif /* defined(LINUX) */
+		}
+	}
+
 #if defined(J9VM_OPT_CRIU_SUPPORT)
 	{
 		IDATA enableCRIU = FIND_AND_CONSUME_VMARG(EXACT_MATCH, VMOPT_XXENABLECRIU, NULL);
@@ -4421,8 +4455,59 @@ processVMArgsFromFirstToLast(J9JavaVM * vm)
 		}
 	}
 	{
-		if (0 <= FIND_AND_CONSUME_VMARG(EXACT_MATCH, VMOPT_XXSTARTFLIGHTRECORDING, NULL)) {
+		IDATA startFlightRecordingIndex = FIND_AND_CONSUME_VMARG(STARTSWITH_MATCH, VMOPT_XXSTARTFLIGHTRECORDING, NULL);
+		if (0 <= startFlightRecordingIndex) {
+			PORT_ACCESS_FROM_JAVAVM(vm);
 			vm->extendedRuntimeFlags3 |= J9_EXTENDED_RUNTIME3_START_FLIGHT_RECORDING;
+
+			char *optionBuffer = NULL;
+			GET_OPTION_VALUE(startFlightRecordingIndex, '=', &optionBuffer);
+
+			if (NULL != optionBuffer) {
+#define JFR_OPTION_FILENAME "filename="
+#define JFR_OPTION_DELAY "delay="
+#define JFR_OPTION_DURATION "duration="
+					char *scan_start = optionBuffer;
+
+					while ('\0' != *scan_start) {
+						char **targetPtr = NULL;
+						try_scan(&scan_start, ",");
+
+						if ('\0' == *scan_start) {
+							break;
+						}
+
+						if (try_scan(&scan_start, JFR_OPTION_FILENAME)) {
+							targetPtr = NULL;
+						} else if (try_scan(&scan_start, JFR_OPTION_DELAY)) {
+							targetPtr = &vm->jfrState.delay;
+						} else if (try_scan(&scan_start, JFR_OPTION_DURATION)) {
+							targetPtr = &vm->jfrState.duration;
+						} else {
+							j9nls_printf(PORTLIB, J9NLS_ERROR, J9NLS_VM_UNRECOGNISED_CMD_LINE_OPT, optionBuffer);
+							return JNI_ERR;
+						}
+
+						char *comma = strchr(scan_start, ',');
+						UDATA valueLen = (NULL != comma) ? (UDATA)(comma - scan_start) : strlen(scan_start);
+						if (0 < valueLen) {
+							char *valueCopy = (char *)j9mem_allocate_memory(valueLen + 1, OMRMEM_CATEGORY_VM);
+							if (NULL != valueCopy) {
+								strncpy(valueCopy, scan_start, valueLen);
+								valueCopy[valueLen] = '\0';
+								if (NULL == targetPtr) {
+									vm->internalVMFunctions->setJFRRecordingFileName(vm, valueCopy);
+								} else {
+									*targetPtr = valueCopy;
+								}
+								scan_start += valueLen;
+							}
+						}
+					}
+#undef JFR_OPTION_FILENAME
+#undef JFR_OPTION_DELAY
+#undef JFR_OPTION_DURATION
+			}
 		}
 	}
 	{
@@ -7861,15 +7946,6 @@ protectedInitializeJavaVM(J9PortLibrary* portLibrary, void * userData)
 		goto error;
 	}
 
-#if defined(J9VM_OPT_JFR)
-	if (J9_ARE_ANY_BITS_SET(vm->extendedRuntimeFlags2, J9_EXTENDED_RUNTIME2_JFR_ENABLED)) {
-		if (J9_ARE_ANY_BITS_SET(vm->extendedRuntimeFlags3, J9_EXTENDED_RUNTIME3_START_FLIGHT_RECORDING)) {
-			if (JNI_OK != initializeJFR(vm, FALSE)) {
-				goto error;
-			}
-		}
-	}
-#endif /* defined(J9VM_OPT_JFR) */
 #if defined(OMR_THR_YIELD_ALG)
 	omrthread_monitor_init_with_name(&vm->cpuUtilCacheMutex, 0, "CPU Utilization Cache Mutex");
 #endif /* defined(OMR_THR_YIELD_ALG) */

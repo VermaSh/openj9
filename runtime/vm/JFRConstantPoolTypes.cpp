@@ -316,8 +316,10 @@ VM_JFRConstantPoolTypes::findShallowEntries(void *entry, void *userData)
 	ClassEntry *tableEntry = (ClassEntry *) entry;
 	J9Pool *shallowEntries = (J9Pool*) userData;
 
-	ClassEntry **newEntry = (ClassEntry**)pool_newElement(shallowEntries);
-	*newEntry = tableEntry;
+	if (tableEntry->shallow) {
+		ClassEntry **newEntry = (ClassEntry**)pool_newElement(shallowEntries);
+		*newEntry = tableEntry;
+	}
 
 	return FALSE;
 }
@@ -328,7 +330,7 @@ VM_JFRConstantPoolTypes::fixupShallowEntries(void *entry, void *userData)
 	ClassEntry *tableEntry = *(ClassEntry **) entry;
 	VM_JFRConstantPoolTypes *cp = (VM_JFRConstantPoolTypes*) userData;
 
-	cp->getClassEntry(tableEntry->clazz);
+	cp->getClassEntry(tableEntry->clazz, false);
 }
 
 UDATA
@@ -408,7 +410,7 @@ done:
 }
 
 U_32
-VM_JFRConstantPoolTypes::getClassEntry(J9Class *clazz)
+VM_JFRConstantPoolTypes::getClassEntry(J9Class *clazz, bool shallow)
 {
 	U_32 index = U_32_MAX;
 	ClassEntry *entry = NULL;
@@ -431,7 +433,7 @@ VM_JFRConstantPoolTypes::getClassEntry(J9Class *clazz)
 	entry->nameStringUTF8Index = addStringUTF8Entry(J9ROMCLASS_CLASSNAME(clazz->romClass));
 	if (isResultNotOKay()) goto done;
 
-	entry->classLoaderIndex = addClassLoaderEntry(clazz->classLoader);
+	entry->classLoaderIndex = addClassLoaderEntry(clazz->classLoader, shallow);
 	if (isResultNotOKay()) goto done;
 
 	entry->packageIndex = addPackageEntry(clazz);
@@ -684,7 +686,7 @@ done:
 }
 
 U_32
-VM_JFRConstantPoolTypes::addClassLoaderEntry(J9ClassLoader *classLoader)
+VM_JFRConstantPoolTypes::addClassLoaderEntry(J9ClassLoader *classLoader, bool shallow)
 {
 	U_32 index = U_32_MAX;
 	ClassloaderEntry *entry = NULL;
@@ -703,7 +705,11 @@ VM_JFRConstantPoolTypes::addClassLoaderEntry(J9ClassLoader *classLoader)
 		entry = &entryBuffer;
 	}
 
-	entry->classIndex = getShallowClassEntry(J9OBJECT_CLAZZ(_currentThread, classLoader->classLoaderObject));
+	if (shallow) {
+		entry->classIndex = getShallowClassEntry(J9OBJECT_CLAZZ(_currentThread, classLoader->classLoaderObject));
+	} else {
+		entry->classIndex = getClassEntry(J9OBJECT_CLAZZ(_currentThread, classLoader->classLoaderObject), false);
+	}
 	if (isResultNotOKay()) goto done;
 
 #if JAVA_SPEC_VERSION > 8
@@ -869,7 +875,11 @@ VM_JFRConstantPoolTypes::addThreadEntry(J9VMThread *vmThread)
 	entry->vmThread = vmThread;
 	_buildResult = OK;
 	osThread = vmThread->osThread;
+#if JAVA_SPEC_VERSION >= 19
+	threadObject = vmThread->carrierThreadObject;
+#else /* JAVA_SPEC_VERSION >= 19 */
 	threadObject = vmThread->threadObject;
+#endif /* JAVA_SPEC_VERSION >= 19 */
 
 	if ((NULL == osThread) || (NULL == threadObject)) {
 		/* this can happen if a thread dies during a monitor enter */
@@ -886,7 +896,7 @@ VM_JFRConstantPoolTypes::addThreadEntry(J9VMThread *vmThread)
 	}
 
 	entry->osTID = ((J9AbstractThread*)osThread)->tid;
-	if (NULL != threadObject) {
+	if ((NULL != threadObject) && J9VMJAVALANGTHREAD_STARTED(_currentThread, threadObject)) {
 		entry->javaTID = J9VMJAVALANGTHREAD_TID(_currentThread, threadObject);
 
 		entry->javaThreadName = copyStringToJ9UTF8WithMemAlloc(_currentThread, J9VMJAVALANGTHREAD_NAME(_currentThread, threadObject), J9_STR_NONE, "", 0, NULL, 0);

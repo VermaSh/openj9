@@ -1,5 +1,5 @@
 /*
- * Copyright IBM Corp. and others 2024
+ * Copyright IBM Corp. and others 2026
  *
  * This program and the accompanying materials are made available under
  * the terms of the Eclipse Public License 2.0 which accompanies this
@@ -19,28 +19,18 @@
  *
  * SPDX-License-Identifier: EPL-2.0 OR Apache-2.0 OR GPL-2.0-only WITH Classpath-exception-2.0 OR GPL-2.0-only WITH OpenJDK-assembly-exception-1.0
  */
-package org.openj9.test;
+package org.openj9.test.reflect;
 
-import com.ibm.oti.vm.VM;
+/*
+ * Test interface for Class.getMethod() tests.
+ * Contains private methods (Java 9+ feature) to test reflection behavior.
+ */
+public interface TestInterfaceForGetMethod {
 
-public class JFRCMDLineTest {
+	private static void privateStaticMethod() {}
+	private void privateNonStaticMethod() {}
+	public static void publicStaticMethod() {}
+	public void publicNonStaticMethod();
+	default void defaultMethod() {}
 
-	public static void main(String[] args) throws Throwable {
-
-		final WorkLoad workLoad = new WorkLoad(200, 20000, 200, false);
-
-		if (VM.isJFRRecordingStarted()) {
-			System.out.println("JFR recording has started");
-		} else {
-			System.out.println("JFR recording has not started");
-		}
-
-		if (VM.isJFREnabled()) {
-			System.out.println("JFR is enabled");
-		} else {
-			System.out.println("JFR is not enabled");
-		}
-
-		System.out.println("All runs complete");
-	}
 }

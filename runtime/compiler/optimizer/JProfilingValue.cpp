@@ -411,6 +411,17 @@ TR_JProfilingValue::lowerCalls()
       }
    }
 
+// Identify a direct-load of the MethodMetaData symbol named "ExceptionMeta"
+static bool isExceptionMetaLoad(TR::Node *node)
+   {
+   const char *exceptionMetaName = "ExceptionMeta";
+   return (node && node->getOpCode().isLoadDirect() && node->getOpCode().hasSymbolReference()
+      && node->getSymbolReference() && node->getSymbolReference()->getSymbol()
+      && node->getSymbolReference()->getSymbol()->isMethodMetaData()
+      && node->getSymbolReference()->getSymbol()->getName()
+      && !strcmp(node->getSymbolReference()->getSymbol()->getName(), exceptionMetaName));
+   }
+
 /*
  * Insert the trees and control flow to profile a node after an insertion point.
  * The original block will be split after the insertion point.
@@ -757,19 +768,37 @@ TR_JProfilingValue::addProfilingTrees(
             }
          }
       }
-   // In case we can not find value in register or temp slot, store the value to temp slot before going to helper block.
+
+   /*
+    * In case we can not find value in register or temp slot, store the value to temp slot before going to helper
+    * block.
+    *
+    * When selecting an existing symref to reuse for the helper call value, do not
+    * reuse the MethodMetaData symref for ExceptionMeta loads. ExceptionMeta may be
+    * cleared to NULL, so helper calls must not reload it from the metadata slot.
+    * Instead, store to a temp slot and load from that stable location.
+    */
    if (valueChildOfHelperCall == NULL)
       {
       TR::SymbolReference *storedValueSymRef = NULL;
-      if (profilingValue->getOpCode().isStoreDirect() || (profilingValue->getOpCode().isLoadDirect() && !profilingValue->getOpCode().isLoadConst()))
+      if (profilingValue->getOpCode().isStoreDirect()
+         || (profilingValue->getOpCode().isLoadDirect() && !profilingValue->getOpCode().isLoadConst()
+            && !isExceptionMetaLoad(profilingValue)))
          {
          storedValueSymRef = profilingValue->getSymbolReference();
+         logprintf(trace, log, "\t\t\tstoredValueSymRef #%d\n", storedValueSymRef->getReferenceNumber());
          }
       else
          {
-         logprintf(trace, log, "\t\t\tNode n%dn needs to be stored on temp slot\n", profilingValue->getGlobalIndex());
-         // profiledValue is normal Node which is not referenced further. Store value to temp slot at the beginning of quick test
-         TR::TreeTop *storeValue = TR::TreeTop::create(comp, quickTestBlock->getEntry(), storeNode(comp,  profilingValue, storedValueSymRef));
+         /*
+          * profiledValue is normal Node which is not referenced further. Store value to temp slot at the beginning
+          * of quick test
+          */
+         TR::TreeTop *storeValue = TR::TreeTop::create(comp, quickTestBlock->getEntry(),
+            storeNode(comp, profilingValue, storedValueSymRef));
+         logprintf(trace, log, "\t\t\tprofilingValue n%dn is stored on temp slot n%dn #%d\n",
+            profilingValue->getGlobalIndex(), storeValue->getNode()->getGlobalIndex(),
+            storedValueSymRef->getReferenceNumber());
          }
       valueChildOfHelperCall = TR::Node::createLoad(value, storedValueSymRef);
       }
@@ -781,7 +810,7 @@ TR_JProfilingValue::addProfilingTrees(
                                        comp->getSymRefTab()->findOrCreateVftSymbolRef());
       }
 
-   // Add the call to the helper and return to the mainline
+   /* Add the call to the helper and return to the mainline */
    TR::TreeTop *helperCallTreeTop = TR::TreeTop::create(comp, helper->getEntry(), createHelperCall(comp,
       valueChildOfHelperCall,
       TR::Node::aconst(value, table->getBaseAddress())));
