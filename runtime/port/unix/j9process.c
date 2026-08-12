@@ -456,6 +456,7 @@ j9process_create(struct J9PortLibrary *portLibrary, const char *command[], uintp
 			processHandleStruct->errHandle = J9PORT_INVALID_FD;
 		}
 
+		processHandleStruct->exitCode = -1;
 		processHandleStruct->procHandle = (intptr_t) grdpid;
 		processHandleStruct->pid = (int32_t) grdpid;
 
@@ -494,6 +495,8 @@ j9process_waitfor(struct J9PortLibrary *portLibrary, J9ProcessHandle processHand
 	if (retVal==(pid_t)processHandleStruct->procHandle){
 		if(WIFEXITED(StatusLocation)!=0) {
 			processHandleStruct->exitCode = WEXITSTATUS(StatusLocation);
+		} else if (WIFSIGNALED(StatusLocation)!=0) {
+			processHandleStruct->exitCode = -WTERMSIG(StatusLocation);
 		}
 		return 0;
 	} else {
