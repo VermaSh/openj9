@@ -495,9 +495,8 @@ j9process_waitfor(struct J9PortLibrary *portLibrary, J9ProcessHandle processHand
 	if (retVal==(pid_t)processHandleStruct->procHandle){
 		if(WIFEXITED(StatusLocation)!=0) {
 			processHandleStruct->exitCode = WEXITSTATUS(StatusLocation);
-		} else if (WIFSIGNALED(StatusLocation)!=0) {
-			processHandleStruct->exitCode = -WTERMSIG(StatusLocation);
 		}
+
 		return 0;
 	} else {
 		return findError(errno);
