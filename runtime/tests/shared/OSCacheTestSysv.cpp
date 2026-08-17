@@ -269,10 +269,12 @@ SH_OSCacheTestSysv::testMultipleCreate(J9PortLibrary* portLibrary, J9JavaVM *vm,
 
 			switch(procrc) {
 			case 0:
+				j9tty_printf(PORTLIB, "Child process: %d successfully opened cache\n", pid[i]);
 				/* Cache opened*/
 				opened++;
-				break;					
+				break;
 			case 1:
+				j9tty_printf(PORTLIB, "Child process: %d was successful in creating cache\n", pid[i]);
 				/* Cache created */
 				created++;
 				break;

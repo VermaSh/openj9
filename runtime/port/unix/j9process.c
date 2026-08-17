@@ -487,6 +487,7 @@ j9process_create(struct J9PortLibrary *portLibrary, const char *command[], uintp
 intptr_t 
 j9process_waitfor(struct J9PortLibrary *portLibrary, J9ProcessHandle processHandle) 
 {
+	OMRPORT_ACCESS_FROM_J9PORT(portLibrary);
 	J9ProcessHandleStruct *processHandleStruct = (J9ProcessHandleStruct *) processHandle;
 	pid_t retVal = 0;
 	int StatusLocation = -1;
@@ -494,9 +495,12 @@ j9process_waitfor(struct J9PortLibrary *portLibrary, J9ProcessHandle processHand
 	retVal = waitpid((pid_t)processHandleStruct->procHandle, &StatusLocation, 0);
 	if (retVal==(pid_t)processHandleStruct->procHandle){
 		if(WIFEXITED(StatusLocation)!=0) {
+			omrtty_printf("Process %d exited with code %d\n", processHandleStruct->pid, WEXITSTATUS(StatusLocation));
 			processHandleStruct->exitCode = WEXITSTATUS(StatusLocation);
+		} else if (WIFSIGNALED(StatusLocation)!=0) {
+			omrtty_printf("Process %d exited with abend %d\n", processHandleStruct->pid, WEXITSTATUS(StatusLocation));
+			processHandleStruct->exitCode = -WTERMSIG(StatusLocation);
 		}
-
 		return 0;
 	} else {
 		return findError(errno);
