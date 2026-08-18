@@ -261,6 +261,7 @@ j9process_create(struct J9PortLibrary *portLibrary, const char *command[], uintp
 	memset(newCommand, 0, newCommandSize);
 
 	{
+		omrtty_printf("cmd:\n");
 		for (i = 0 ; i < commandLength ; i++) {
 			intptr_t translateStatus = translateModifiedUtf8ToPlatform(portLibrary, (const uint8_t *)command[i], strlen(command[i]), (uint8_t**) &(newCommand[i]));
 			if (0 != translateStatus) {
@@ -268,8 +269,10 @@ j9process_create(struct J9PortLibrary *portLibrary, const char *command[], uintp
 				freeTranslatedMemory(portLibrary, newCommand, commandLength, execEnv, envSize);
 				return translateStatus;
 			}
+			omrtty_printf("%s | ", newCommand[i]);
 		}
 		cmd = newCommand[0];
+		omrtty_printf("\n");
 	}
 
 	/* If we were giving an environment, it needs to be converted from UTF-8 to platform encoding */
