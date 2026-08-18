@@ -214,6 +214,7 @@ SH_OSCachemmap::startup(J9JavaVM* vm, const char* ctrlDirName, UDATA cacheDirPer
 		goto _errorPostFileOpen;
 	}
 	Trc_SHR_OSC_Mmap_startup_goodfileopen(_cachePathName, _fileHandle);
+	j9tty_printf(PORTLIB, "OSCachemmap::startup: file opened OK: %s\n", _cachePathName);
 
 #if defined(J9VM_OPT_JITSERVER)
 	if (J9_ARE_ALL_BITS_SET(openMode, J9OSCACHE_OPEN_MODE_JITSERVER_AOT_LAYER)) {
@@ -285,6 +286,8 @@ SH_OSCachemmap::startup(J9JavaVM* vm, const char* ctrlDirName, UDATA cacheDirPer
 		setCorruptionContext(ACQUIRE_HEADER_WRITE_LOCK_FAILED, (UDATA)lastErrorInfo.lastErrorCode);
 		goto _errorPostHeaderLock;
 	}
+	j9tty_printf(PORTLIB, "OSCachemmap::startup: header write lock acquired\n");
+
 	Trc_SHR_OSC_Mmap_startup_goodAcquireHeaderWriteLock();
 
 	/* Check the length of the file */
@@ -304,6 +307,7 @@ SH_OSCachemmap::startup(J9JavaVM* vm, const char* ctrlDirName, UDATA cacheDirPer
 			setCorruptionContext(CACHE_SIZE_INVALID, (UDATA)_cacheSize);
 			goto _errorPostHeaderLock;
 		}
+		j9tty_printf(PORTLIB, "OSCachemmap::startup: about to call internalAttach, cacheSize=%u\n", _cacheSize);
 
 		/* At this point, don't check the cache version - we need to attach to older versions in order to destroy */
 		rc = internalAttach(false, _activeGeneration);
@@ -1001,7 +1005,11 @@ SH_OSCachemmap::internalAttach(bool isNewCache, UDATA generation)
 	if (J9_ARE_NO_BITS_SET(_runtimeFlags, J9SHR_RUNTIMEFLAG_MAP31)
 		&& zos_version_at_least(ZOS_V2R4_RELEASE, ZOS_V2R4_VERSION)
 	) {
+		j9tty_printf(PORTLIB, "OSCachemmap::internalAttach: about to mmap, fileLength=%zu, accessFlags=0x%x\n",
+    (size_t)_actualFileLength, (unsigned)accessFlags);
 		accessFlags |= J9PORT_MMAP_FLAG_ZOS_64BIT;
+		j9tty_printf(PORTLIB, "OSCachemmap::internalAttach: mmap returned handle=%p, pointer=%p\n",
+    _mapFileHandle, _mapFileHandle ? _mapFileHandle->pointer : NULL);
 	}
 #endif /* defined(J9ZOS39064) */
 	/* Map the file */
