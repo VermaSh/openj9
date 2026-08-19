@@ -386,8 +386,6 @@ setupArguments(struct j9cmdlineOptions* startupOptions,JavaVMInitArgs* vm_args,v
 	|| (vmOptionsTableAddOption(vmOptionsTable, "-Xint", NULL) != J9CMDLINE_OK)
 	|| (vmOptionsTableAddOption(vmOptionsTable, "-Dcom.ibm.tools.attach.enable=no", NULL) != J9CMDLINE_OK)
 	|| (vmOptionsTableAddOption(vmOptionsTable, "-Xmx64m", NULL) != J9CMDLINE_OK)
-	|| (vmOptionsTableAddOption(vmOptionsTable, "-Xlp:objectheap:pagesize=4K,pageable", NULL) != J9CMDLINE_OK)
-	|| (vmOptionsTableAddOption(vmOptionsTable, "-Xlp:codecache:pagesize=4K,pageable", NULL) != J9CMDLINE_OK)
 	) {
 			goto cleanup;
 	}
