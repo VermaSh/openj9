@@ -395,22 +395,16 @@ SH_OSCacheTestMmap::testMultipleCreate(J9PortLibrary* portLibrary, J9JavaVM *vm,
 		
 		WaitForLaunchSemaphore(PORTLIB, semhandle);
 		CloseLaunchSemaphore(PORTLIB, semhandle);
-		j9tty_printf(PORTLIB, "CHILD: semaphore released, about to create SH_OSCachemmap\n");
-		fflush(stdout);
 
 		oscHandle = new(j9mem_allocate_memory(SH_OSCache::getRequiredConstrBytes(), J9MEM_CATEGORY_CLASSES)) SH_OSCachemmap(PORTLIB, vm, cacheDir, OSCACHE_AREA_NAME, piconfig, 1, J9SH_OSCACHE_CREATE, 1, 0, 0, &versionData, init);
-		j9tty_printf(PORTLIB, "CHILD: SH_OSCachemmap constructor returned, error=%d\n", oscHandle->getError());
-		fflush(stdout);
-
+		
 		if(oscHandle->getError() < 0) {
 			return -1;
 		}
-		j9tty_printf(PORTLIB, "CHILD: about to call attach()\n");
-
+		
 		if(NULL == (q = (char *)oscHandle->attach(SH_OSCacheTestMmap::currentThread, &versionData))) {
 			return -1;
 		}
-		j9tty_printf(PORTLIB, "CHILD: attach() returned, q=%p\n", q);
 		
 		cacheSize = oscHandle->getDataSize();
 		if (cacheSize > 5) {
