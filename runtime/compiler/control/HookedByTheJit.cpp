@@ -6890,7 +6890,6 @@ static int32_t J9THREAD_PROC samplerThreadProc(void *entryarg)
             // Determine the CPU load factor based on number of active threads and CPU utilization of the machine/JVM
             uint32_t cpuLoadFactor = computeCpuLoadFactor(numActiveThreads, compInfo);
 
-#if defined(J9ZOS390)
             // Print CPU stats every second
             if (TR::Options::isAnyVerboseOptionSet(TR_VerboseCPUStats)
                 && (crtTime - lastSecondCPUUsageCheck >= TR::Options::_cpuStatsPrintInterval)) {
@@ -6909,8 +6908,10 @@ static int32_t J9THREAD_PROC samplerThreadProc(void *entryarg)
                 } else {
                     TR_VerboseLog::writeLineLocked(TR_Vlog_INFO, "Invalid elapsedTime, %llu", elapsedTime);
                 }
+                TR_VerboseLog::writeLineLocked(TR_Vlog_INFO, "number of active threads= %lu", numActiveThreads);
 
                 // Print CPU usage metrics
+#if defined(J9ZOS390) /* J9ZOS390 */
                 struct CpuUsageStats usageStats = { 0 };
                 int rc = omrsysinfo_get_CPU_usage_stats(&usageStats);
                 if (rc == 0) {
@@ -6940,8 +6941,19 @@ static int32_t J9THREAD_PROC samplerThreadProc(void *entryarg)
                     TR_VerboseLog::writeLineLocked(TR_Vlog_INFO,
                         "call to omrsysinfo_get_CPU_usage_stats FAILED with %d", rc);
                 }
-            }
+#else
+                auto cpuUtil = compInfo->getCpuUtil();
+                if (cpuUtil->hasValidData()) {
+                    int32_t vmCpuUsage = cpuUtil->getVmCpuUsage();
+                    int32_t avgCpuUsage = cpuUtil->getAvgCpuUsage();
+                    int32_t avgCpuIdle = cpuUtil->getAvgCpuIdle();
+                    TR_VerboseLog::writeLineLocked(TR_Vlog_INFO, "VmCpuUsage=%d%% avgCpuUsage=%d%% avgCpuIdle=%d%%", (int)vmCpuUsage,
+                        (int)avgCpuUsage, (int)avgCpuIdle);
+                } else {
+                    TR_VerboseLog::writeLineLocked(TR_Vlog_INFO, "CPU utilization data is not valid");
+                }
 #endif /* defined(J9ZOS390) */
+            }
 
             UDATA samplingFreq = jitConfig->samplingFrequency;
             // TODO: Should the sampling frequency types in TR::Options be changed to more closely match the J9JITConfig
