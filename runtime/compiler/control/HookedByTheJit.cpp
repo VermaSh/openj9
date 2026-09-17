@@ -6901,10 +6901,8 @@ static int32_t J9THREAD_PROC samplerThreadProc(void *entryarg)
                 uint64_t elapsedTime = currentTimestamp - processStartTime;
                 if (elapsedTime > 0) {
                     TR_VerboseLog::CriticalSection vlogLock;
-                    TR_VerboseLog::writeLine(TR_Vlog_INFO, "t (us)= %llu",
-                        elapsedTime / 1000LL); // print elapsed time in micro seconds
-                    TR_VerboseLog::writeLine(TR_Vlog_INFO, "current timestamp (ms)= %llu",
-                        currentTimestamp / 1000000LL);
+                    TR_VerboseLog::writeLine(TR_Vlog_INFO, "t (us)= %llu", elapsedTime / 1000LL); // print elapsed time in micro seconds
+                    TR_VerboseLog::writeLine(TR_Vlog_INFO, "current timestamp (ms)= %llu", currentTimestamp / 1000000LL);
                 } else {
                     TR_VerboseLog::writeLineLocked(TR_Vlog_INFO, "Invalid elapsedTime, %llu", elapsedTime);
                 }
@@ -6916,27 +6914,17 @@ static int32_t J9THREAD_PROC samplerThreadProc(void *entryarg)
                 int rc = omrsysinfo_get_CPU_usage_stats(&usageStats);
                 if (rc == 0) {
                     TR_VerboseLog::CriticalSection vlogLock;
-                    TR_VerboseLog::writeLine(TR_Vlog_INFO, "number of active threads= %lu", numActiveThreads);
-                    TR_VerboseLog::writeLine(TR_Vlog_INFO, "gcp-utilization(ccvutilp)= %3.2f%%",
-                        usageStats.gcpLoad * 100);
-                    TR_VerboseLog::writeLine(TR_Vlog_INFO, "ziip-utilization(ccvutils)= %3.2f%%",
-                        usageStats.ziipLoad * 100);
-                    TR_VerboseLog::writeLine(TR_Vlog_INFO, "average-combined-utilization(ccvutila)= %3.2f%%",
-                        usageStats.combinedLoad * 100);
-                    TR_VerboseLog::writeLine(TR_Vlog_INFO, "calculatedCombinedCpuLoad= %3.2f%%",
-                        usageStats.calculatedCombinedCpuLoad * 100);
-                    TR_VerboseLog::writeLine(TR_Vlog_INFO, "process-cpu-utilization= %3.2f%%",
-                        usageStats.perProcessUtilization * 100);
+                    TR_VerboseLog::writeLine(TR_Vlog_INFO, "gcp-utilization(ccvutilp)= %3.2f%%", usageStats.gcpLoad * 100);
+                    TR_VerboseLog::writeLine(TR_Vlog_INFO, "ziip-utilization(ccvutils)= %3.2f%%", usageStats.ziipLoad * 100);
+                    TR_VerboseLog::writeLine(TR_Vlog_INFO, "average-combined-utilization(ccvutila)= %3.2f%%", usageStats.combinedLoad * 100);
+                    TR_VerboseLog::writeLine(TR_Vlog_INFO, "calculatedCombinedCpuLoad= %3.2f%%", usageStats.calculatedCombinedCpuLoad * 100);
+                    TR_VerboseLog::writeLine(TR_Vlog_INFO, "process-cpu-utilization= %3.2f%%", usageStats.perProcessUtilization * 100);
 
                     // Convert nanosecond timestamps to milliseconds for easier readability
-                    TR_VerboseLog::writeLine(TR_Vlog_INFO, "oldestCpuTime->timestamp (ms)= %llu",
-                        usageStats.oldestCpuTime.timestamp / 1000000LL);
-                    TR_VerboseLog::writeLine(TR_Vlog_INFO, "oldestCpuTime->cpuTime (ms)= %llu",
-                        usageStats.oldestCpuTime.cpuTime / 1000000LL);
-                    TR_VerboseLog::writeLine(TR_Vlog_INFO, "latestCpuTime->timestamp (ms)= %llu",
-                        usageStats.latestCpuTime.timestamp / 1000000LL);
-                    TR_VerboseLog::writeLine(TR_Vlog_INFO, "latestCpuTime->cpuTime (ms)= %llu",
-                        usageStats.latestCpuTime.cpuTime / 1000000LL);
+                    TR_VerboseLog::writeLine(TR_Vlog_INFO, "oldestCpuTime->timestamp (ms)= %llu", usageStats.oldestCpuTime.timestamp / 1000000LL);
+                    TR_VerboseLog::writeLine(TR_Vlog_INFO, "oldestCpuTime->cpuTime (ms)= %llu", usageStats.oldestCpuTime.cpuTime / 1000000LL);
+                    TR_VerboseLog::writeLine(TR_Vlog_INFO, "latestCpuTime->timestamp (ms)= %llu", usageStats.latestCpuTime.timestamp / 1000000LL);
+                    TR_VerboseLog::writeLine(TR_Vlog_INFO, "latestCpuTime->cpuTime (ms)= %llu", usageStats.latestCpuTime.cpuTime / 1000000LL);
                 } else {
                     TR_VerboseLog::writeLineLocked(TR_Vlog_INFO,
                         "call to omrsysinfo_get_CPU_usage_stats FAILED with %d", rc);
