@@ -6927,7 +6927,7 @@ static int32_t J9THREAD_PROC samplerThreadProc(void *entryarg)
                     TR_VerboseLog::writeLineLocked(TR_Vlog_INFO,
                         "call to omrsysinfo_get_CPU_usage_stats FAILED with %d", rc);
                 }
-#else
+#else /* defined(J9ZOS390) */
                 auto cpuUtil = compInfo->getCpuUtil();
                 if (cpuUtil->hasValidData()) {
                     int32_t vmCpuUsage = cpuUtil->getVmCpuUsage();
@@ -6938,7 +6938,7 @@ static int32_t J9THREAD_PROC samplerThreadProc(void *entryarg)
                 } else {
                     TR_VerboseLog::writeLineLocked(TR_Vlog_INFO, "CPU utilization data is not valid");
                 }
-#endif /* defined(J9ZOS390) */
+#endif
             }
 
             UDATA samplingFreq = jitConfig->samplingFrequency;
