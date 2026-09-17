@@ -6328,10 +6328,8 @@ static int32_t J9THREAD_PROC samplerThreadProc(void *entryarg)
     compInfo->setSamplingThreadLifetimeState(TR::CompilationInfo::SAMPLE_THR_ATTACHED);
     j9thread_monitor_notify_all(jitConfig->samplerMonitor);
     j9thread_monitor_exit(jitConfig->samplerMonitor);
-#if defined(J9ZOS390)
     uint64_t processStartTime = 0;
     uint64_t lastSecondCPUUsageCheck = 0;
-#endif /* defined(J9ZOS390) */
 
     // Read some stats about SCC. This code could have stayed in aboutToBootstrap,
     // but here we execute it on a separate thread and hide its overhead
