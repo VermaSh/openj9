@@ -42,26 +42,35 @@ public final class PackedDecimal {
 		super();
 	}
 
-	private static final ThreadLocal<PackedDecimalOperand> op1_threadLocal = new ThreadLocal<PackedDecimalOperand>() {
-		protected PackedDecimalOperand initialValue()
-		{
-		return new PackedDecimalOperand();
-		}
-	};
+	// private static final ThreadLocal<PackedDecimalOperand> op1_threadLocal = new ThreadLocal<PackedDecimalOperand>() {
+	// 	protected PackedDecimalOperand initialValue()
+	// 	{
+	// 	return new PackedDecimalOperand();
+	// 	}
+	// };
 
-	private static final ThreadLocal<PackedDecimalOperand> op2_threadLocal = new ThreadLocal<PackedDecimalOperand>() {
-		protected PackedDecimalOperand initialValue()
-		{
-		return new PackedDecimalOperand();
-		}
-	};
+	// private static final ThreadLocal<PackedDecimalOperand> op2_threadLocal = new ThreadLocal<PackedDecimalOperand>() {
+	// 	protected PackedDecimalOperand initialValue()
+	// 	{
+	// 	return new PackedDecimalOperand();
+	// 	}
+	// };
 
-	private static final ThreadLocal<PackedDecimalOperand> sum_threadLocal = new ThreadLocal<PackedDecimalOperand>() {
-		protected PackedDecimalOperand initialValue()
-		{
-		return new PackedDecimalOperand();
-		}
-	};
+	// private static final ThreadLocal<PackedDecimalOperand> sum_threadLocal = new ThreadLocal<PackedDecimalOperand>() {
+	// 	protected PackedDecimalOperand initialValue()
+	// 	{
+	// 	return new PackedDecimalOperand();
+	// 	}
+	// };
+
+	private static final class Holder {
+		private final PackedDecimalOperand v = new PackedDecimalOperand();
+		PackedDecimalOperand get() { return v; }
+	}
+
+	private static final Holder op1_threadLocal = new Holder();
+	private static final Holder op2_threadLocal = new Holder();
+	private static final Holder sum_threadLocal = new Holder();
 
 	/**
 	 * Checks the validity of a Packed Decimal, return code indicating the status of the Packed Decimal.
