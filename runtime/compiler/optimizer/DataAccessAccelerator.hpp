@@ -246,7 +246,8 @@ private:
 
     bool printInliningStatus(bool status, TR::Node *node, const char *reason = "")
     {
-        if (trace()) {
+        comp()->log()->printf("DataAccessAccelerator.printInliningStatus trace(): %s\n", trace() ? "true" : "false");
+        if (trace() || true) {
             OMR::Logger *log = comp()->log();
             if (status)
                 log->printf("DataAccessAccelerator: Intrinsics on node %p : SUCCESS\n", node);
