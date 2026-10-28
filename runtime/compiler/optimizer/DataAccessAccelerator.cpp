@@ -180,6 +180,7 @@ int32_t TR_DataAccessAccelerator::performOnBlock(TR::Block *block, TreeTopContai
     int32_t blockResult = 0;
     bool requestOSRGuardRemoval = false;
 
+    comp()->log()->printf("Entering TR_DataAccessAccelerator::performOnBlock\n");
     for (TR::TreeTopIterator iter(block->getEntry(), comp()); iter != block->getExit(); ++iter) {
         TR::Node *currentNode = iter.currentNode();
         if (currentNode->getOpCodeValue() == TR::treetop) {
@@ -327,10 +328,12 @@ int32_t TR_DataAccessAccelerator::performOnBlock(TR::Block *block, TreeTopContai
                     }
                 }
 
+                comp()->log()->printf("Entering if block in TR_DataAccessAccelerator::performOnBlock\n");
                 if (!matched && (isZOS || isZLinux) && !block->isCold()
                     && !comp()->getOption(TR_DisablePackedDecimalIntrinsics)) {
                     matched = true;
                     comp()->cg()->setUpStackSizeForCallNode(callNode);
+                    comp()->log()->printf("Have entered if block in TR_DataAccessAccelerator::performOnBlock\n");
                     switch (callSymbol->getRecognizedMethod()) {
                         // DAA Packed Decimal arithmetic methods
                         case TR::com_ibm_dataaccess_PackedDecimal_addPackedDecimal_:
@@ -400,10 +403,12 @@ int32_t TR_DataAccessAccelerator::performOnBlock(TR::Block *block, TreeTopContai
 
                             // DAA Packed Decimal <-> Integer
                         case TR::com_ibm_dataaccess_DecimalData_convertPackedDecimalToInteger_: {
+                            comp()->log()->printf("In com_ibm_dataaccess_DecimalData_convertPackedDecimalToInteger_ case\n");
                             if (IS_VARIABLE_PD2I(callNode)) {
                                 variableCallTreeTops->push_back(treeTop);
                             } else {
                                 if (generatePD2I(treeTop, callNode, true, false)) {
+                                    comp()->log()->printf("In generatePD2I(treeTop, callNode, true, false)\n");
                                     ++result;
                                 }
                             }
