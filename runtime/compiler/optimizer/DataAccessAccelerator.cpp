@@ -1674,6 +1674,7 @@ bool TR_DataAccessAccelerator::generatePD2IConstantParameter(TR::TreeTop *treeTo
     else if (!isPD2i && precision > 31)
         failMsg = "Invalid precision. Precision can not be greater than 31";
 
+    printf("generatePD2IConstantParameter: %s\n", failMsg != NULL ? failMsg : "Passed");
     if (failMsg) {
         TR::DebugCounter::incStaticDebugCounter(comp(),
             TR::DebugCounter::debugCounterName(comp(), "DAA/rejected/%s", isPD2i ? "pd2i" : "pd2l"));
