@@ -419,10 +419,11 @@ public final class PackedDecimal {
 			throws ArithmeticException {
 
 		PackedDecimalOperand sum = sum_threadLocal.get();
-
+		int op1IndexValue = 0;
+		int op2IndexValue = 0;
 		boolean carry;// add op2 sign digit to op1 sign digit
-		sum.indexValue = ((op1.signDigit + op2.signDigit) << 1) & 0x3FF;
-		sum.byteValue = CommonData.getPackedSumValues(sum.indexValue);
+		int sumIndexValue = ((op1.signDigit + op2.signDigit) << 1) & 0x3FF;
+		sum.byteValue = CommonData.getPackedSumValues(sumIndexValue);
 		carry = sum.byteValue < op1.signDigit;
 		sum.byteArray[sum.signOffset] = (byte) (sum.byteValue | (op1.sign & CommonData.LOWER_NIBBLE_MASK));
 
@@ -438,16 +439,16 @@ public final class PackedDecimal {
 					& CommonData.INTEGER_MASK;
 			op2.byteValue = op2.byteArray[op2.currentOffset]
 					& CommonData.INTEGER_MASK;
-			op1.indexValue = op1.byteValue
+			op1IndexValue = op1.byteValue
 					+ (op1.byteValue & CommonData.HIGHER_NIBBLE_MASK);
-			op2.indexValue = op2.byteValue
+			op2IndexValue = op2.byteValue
 					+ (op2.byteValue & CommonData.HIGHER_NIBBLE_MASK);
-			sum.indexValue = op1.indexValue + op2.indexValue;
+			sumIndexValue = op1IndexValue + op2IndexValue;
 			if (carry)
 				sum.byteValue = CommonData
-						.getPackedSumPlusOneValues(sum.indexValue);
+						.getPackedSumPlusOneValues(sumIndexValue);
 			else
-				sum.byteValue = CommonData.getPackedSumValues(sum.indexValue);
+				sum.byteValue = CommonData.getPackedSumValues(sumIndexValue);
 			carry = (sum.byteValue & CommonData.INTEGER_MASK) < ((op1.byteValue & CommonData.INTEGER_MASK) + (op2.byteValue & CommonData.INTEGER_MASK));
 			sum.byteArray[sum.currentOffset] = (byte) (sum.byteValue);
 		}
@@ -494,6 +495,9 @@ public final class PackedDecimal {
 
 		PackedDecimalOperand sum = sum_threadLocal.get();
 
+		int op1IndexValue = 0;
+		int op2IndexValue = 0;
+		int sumIndexValue = 0;
 		boolean borrow;
 		// compute difference from sign byte
 		borrow = op1.signDigit < op2.signDigit;
@@ -514,17 +518,17 @@ public final class PackedDecimal {
 					& CommonData.INTEGER_MASK;
 			op2.byteValue = op2.byteArray[op2.currentOffset]
 					& CommonData.INTEGER_MASK;
-			op1.indexValue = op1.byteValue
+			op1IndexValue = op1.byteValue
 					+ (op1.byteValue & CommonData.HIGHER_NIBBLE_MASK);
-			op2.indexValue = op2.byteValue
+			op2IndexValue = op2.byteValue
 					+ (op2.byteValue & CommonData.HIGHER_NIBBLE_MASK);
-			sum.indexValue = (op1.indexValue - op2.indexValue) & 0x3FF;
+			sumIndexValue = (op1IndexValue - op2IndexValue) & 0x3FF;
 			if (borrow)
 				sum.byteValue = CommonData
-						.getPackedDifferenceMinusOneValues(sum.indexValue);
+						.getPackedDifferenceMinusOneValues(sumIndexValue);
 			else
 				sum.byteValue = CommonData
-						.getPackedDifferenceValues(sum.indexValue);
+						.getPackedDifferenceValues(sumIndexValue);
 			borrow = (sum.byteValue & CommonData.INTEGER_MASK) > ((op1.byteValue & CommonData.INTEGER_MASK) - (op2.byteValue & CommonData.INTEGER_MASK));
 			if (sum.currentOffset >= sum.offset)
 				sum.byteArray[sum.currentOffset] = (byte) (sum.byteValue);
@@ -2004,7 +2008,7 @@ public final class PackedDecimal {
 		int sign;
 		int signDigit;
 		int byteValue;
-		int indexValue;
+		// int indexValue; // Used only has temporary variable
 
 		/**
 		 * Sets up the attributes of a Packed Decimal operand. Truncates leading zeros. Captures the sign value.
