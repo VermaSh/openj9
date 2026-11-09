@@ -383,7 +383,7 @@ public final class PackedDecimal {
 		op1.setOperand(op1Decimal, op1Offset, op1Precision);
 		op2.setOperand(op2Decimal, op2Offset, op2Precision);
 		// change op2 sign for subtraction
-		if ((op2.sign & CommonData.LOWER_NIBBLE_MASK) == CommonData.PACKED_PLUS)
+		if (op2.sign == CommonData.PACKED_PLUS)
 			op2.sign = (op2.sign & CommonData.HIGHER_NIBBLE_MASK)
 					| CommonData.PACKED_MINUS;
 		else
@@ -429,8 +429,8 @@ public final class PackedDecimal {
 		int sumIndexValue = ((op1SignDigit + op2SignDigit) << 1) & 0x3FF;
 		sum.byteValue = CommonData.getPackedSumValues(sumIndexValue);
 		carry = sum.byteValue < op1SignDigit;
-		int sumSignOffset = sum.signOffset;
-		sum.byteArray[sumSignOffset] = (byte) (sum.byteValue | (op1.sign & CommonData.LOWER_NIBBLE_MASK));
+		int sumSignOffset = sum.offset + sum.bytes - 1;
+		sum.byteArray[sumSignOffset] = (byte) (sum.byteValue | op1.sign);
 
 		// add op2 digits to op1 digits
 		for (; op2.currentOffset >= op2.offset
@@ -514,7 +514,7 @@ public final class PackedDecimal {
 		sum.byteValue = Math.abs((op1SignDigit >> 4) - (op2SignDigit >> 4)
 				+ 10) % 10;
 		int sumSignOffset = sum.signOffset;
-		sum.byteArray[sumSignOffset] = (byte) ((sum.byteValue << 4) | (op1.sign & CommonData.LOWER_NIBBLE_MASK));
+		sum.byteArray[sumSignOffset] = (byte) ((sum.byteValue << 4) | op1.sign);
 
 		// compute op1 digit values - op2 digit values ;
 		for (op2.currentOffset = op2SignOffset - 1, op1.currentOffset = op1SignOffset - 1; op2.currentOffset >= op2.offset
@@ -568,7 +568,7 @@ public final class PackedDecimal {
 		PackedDecimalOperand op1 = op1_threadLocal.get();
 		PackedDecimalOperand op2 = op2_threadLocal.get();
 
-		if ((op1.sign & CommonData.LOWER_NIBBLE_MASK) == (op2.sign & CommonData.LOWER_NIBBLE_MASK)) {
+		if (op1.sign == op2.sign) {
 			// signs are same, compute sum of values
 			// add less bytes to more bytes
 			if (op1.bytes < op2.bytes)
