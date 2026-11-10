@@ -422,10 +422,15 @@ public final class PackedDecimal {
 		int op1IndexValue = 0;
 		int op2IndexValue = 0;
 		boolean carry;// add op2 sign digit to op1 sign digit
-		int sumIndexValue = ((op1.signDigit + op2.signDigit) << 1) & 0x3FF;
+		final int op1SignOffset = op1.signOffset;
+		int op1SignDigit = getSignDigit(op1.byteArray[op1SignOffset]);
+		final int op2SignOffset = op2.signOffset;
+		int op2SignDigit = getSignDigit(op2.byteArray[op2SignOffset]);
+		int sumIndexValue = ((op1SignDigit + op2SignDigit) << 1) & 0x3FF;
 		sum.byteValue = CommonData.getPackedSumValues(sumIndexValue);
-		carry = sum.byteValue < op1.signDigit;
-		sum.byteArray[sum.signOffset] = (byte) (sum.byteValue | (op1.sign & CommonData.LOWER_NIBBLE_MASK));
+		carry = sum.byteValue < op1SignDigit;
+		int sumSignOffset = sum.signOffset;
+		sum.byteArray[sumSignOffset] = (byte) (sum.byteValue | (op1.sign & CommonData.LOWER_NIBBLE_MASK));
 
 		// add op2 digits to op1 digits
 		for (; op2.currentOffset >= op2.offset
@@ -498,16 +503,21 @@ public final class PackedDecimal {
 		int op1IndexValue = 0;
 		int op2IndexValue = 0;
 		int sumIndexValue = 0;
+		final int op1SignOffset = op1.signOffset;
+		final int op1SignDigit = getSignDigit(op1.byteArray[op1SignOffset]);
+		final int op2SignOffset = op2.signOffset;
+		final int op2SignDigit = getSignDigit(op2.byteArray[op2SignOffset]);
 		boolean borrow;
 		// compute difference from sign byte
-		borrow = op1.signDigit < op2.signDigit;
+		borrow = op1SignDigit < op2SignDigit;
 
-		sum.byteValue = Math.abs((op1.signDigit >> 4) - (op2.signDigit >> 4)
+		sum.byteValue = Math.abs((op1SignDigit >> 4) - (op2SignDigit >> 4)
 				+ 10) % 10;
-		sum.byteArray[sum.signOffset] = (byte) ((sum.byteValue << 4) | (op1.sign & CommonData.LOWER_NIBBLE_MASK));
+		int sumSignOffset = sum.signOffset;
+		sum.byteArray[sumSignOffset] = (byte) ((sum.byteValue << 4) | (op1.sign & CommonData.LOWER_NIBBLE_MASK));
 
 		// compute op1 digit values - op2 digit values ;
-		for (op2.currentOffset = op2.signOffset - 1, op1.currentOffset = op1.signOffset - 1; op2.currentOffset >= op2.offset
+		for (op2.currentOffset = op2SignOffset - 1, op1.currentOffset = op1SignOffset - 1; op2.currentOffset >= op2.offset
 				&& sum.currentOffset >= sum.offset; op2.currentOffset -= 1, op1.currentOffset -= 1, sum.currentOffset -= 1) {
 			if (checkOverflow && sum.currentOffset < sum.offset) {
 				throw new ArithmeticException(
@@ -578,8 +588,9 @@ public final class PackedDecimal {
 				// compare values to find which is larger.
 				// adjust offsets at same time - difference between equal bytes
 				// is 0
+				final int op1SignOffset = op1.signOffset;
 				findDifference: {
-					for (; op1.offset < op1.signOffset; op1.offset += 1, op2.offset += 1) {
+					for (; op1.offset < op1SignOffset; op1.offset += 1, op2.offset += 1) {
 						op1.byteValue = op1.byteArray[op1.offset];
 						op2.byteValue = op2.byteArray[op2.offset];
 						if (op1.byteValue != op2.byteValue)
@@ -1990,6 +2001,9 @@ public final class PackedDecimal {
 						sourcePrecision, 0, checkOverflow);
 	}
 
+	private static int getSignDigit(int signByte) {
+		return (signByte & CommonData.INTEGER_MASK) & CommonData.HIGHER_NIBBLE_MASK;
+	}
 	private static class PackedDecimalOperand {
 
 		PackedDecimalOperand() {
@@ -2004,9 +2018,9 @@ public final class PackedDecimal {
 		int bytes;
 		int signOffset;
 		int currentOffset;
-		int signByteValue;
+		// int signByteValue; // Not Needed, used only in setOperand()
 		int sign;
-		int signDigit;
+		// int signDigit; // Used only once in ComputeSum/ComputeDifference
 		int byteValue;
 		// int indexValue; // Used only has temporary variable
 
@@ -2041,10 +2055,9 @@ public final class PackedDecimal {
 			bytes = signOffset - this.offset + 1;
 
 			// capture sign values
-			signByteValue = this.byteArray[signOffset]
-					& CommonData.INTEGER_MASK;
-			signDigit = signByteValue & CommonData.HIGHER_NIBBLE_MASK;
-			sign = CommonData.getSign(signByteValue & CommonData.LOWER_NIBBLE_MASK);
+			// signByteValue = this.byteArray[signOffset] & CommonData.INTEGER_MASK;
+			// signDigit = signByteValue & CommonData.HIGHER_NIBBLE_MASK;
+			sign = CommonData.getSign(byteArray[signOffset] & CommonData.LOWER_NIBBLE_MASK);
 		}
 
 		/**
