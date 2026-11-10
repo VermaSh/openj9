@@ -2023,11 +2023,7 @@ public final class PackedDecimal {
 		int bytes;
 		int signOffset;
 		int currentOffset;
-		// int signByteValue; // Not Needed, used only in setOperand()
 		int sign;
-		// int signDigit; // Used only once in ComputeSum/ComputeDifference
-		// int byteValue;
-		// int indexValue; // Used only has temporary variable
 
 		/**
 		 * Sets up the attributes of a Packed Decimal operand. Truncates leading zeros. Captures the sign value.
@@ -2060,8 +2056,6 @@ public final class PackedDecimal {
 			bytes = signOffset - this.offset + 1;
 
 			// capture sign values
-			// signByteValue = this.byteArray[signOffset] & CommonData.INTEGER_MASK;
-			// signDigit = signByteValue & CommonData.HIGHER_NIBBLE_MASK;
 			sign = CommonData.getSign(byteArray[signOffset] & CommonData.LOWER_NIBBLE_MASK);
 		}
 
