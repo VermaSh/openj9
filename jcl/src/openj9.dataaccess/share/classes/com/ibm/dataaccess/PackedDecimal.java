@@ -432,7 +432,7 @@ public final class PackedDecimal {
 		int op2ByteValue = 0;
 		sumByteValue = CommonData.getPackedSumValues(sumIndexValue);
 		carry = sumByteValue < op1SignDigit;
-		int sumSignOffset = sum.offset + sum.bytes - 1;
+		int sumSignOffset = sum.signOffset;
 		sum.byteArray[sumSignOffset] = (byte) (sumByteValue | op1.sign);
 
 		// add op2 digits to op1 digits
