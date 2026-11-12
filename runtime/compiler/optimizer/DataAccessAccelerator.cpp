@@ -1980,11 +1980,31 @@ bool TR_DataAccessAccelerator::generatePD2I(TR::TreeTop *treeTop, TR::Node *call
     return generatePD2IConstantParameter(treeTop, callNode, isPD2i, isByteBuffer);
 }
 
+TR::Node* TR_DataAccessAccelerator::restructureVariableParamCallNode(TR::TreeTop* treeTop, TR::Node* callNode)
+{
+   uint16_t numCallChildren = callNode->getNumChildren();
+
+   TR::SymbolReferenceTable* symRefTab = comp()->getSymRefTab();
+   TR::ResolvedMethodSymbol* methodSym = comp()->getMethodSymbol();
+
+   for(int i = 0; i < numCallChildren; ++i)
+      {
+      TR::Node* child = callNode->getChild(i);
+      TR::SymbolReference * temp = symRefTab->createTemporary(methodSym, child->getDataType());
+      treeTop->insertBefore(TR::TreeTop::create(comp(), TR::Node::createStore(temp, child->duplicateTree())));
+      callNode->setAndIncChild(i, TR::Node::createLoad(child, temp));
+      child->decReferenceCount();
+      }
+
+   return callNode;
+}
+
 bool TR_DataAccessAccelerator::genArithmeticIntrinsic(TR::TreeTop *treeTop, TR::Node *callNode, TR::ILOpCodes opCode)
 {
     if (!isChildConst(callNode, 2) || !isChildConst(callNode, 5) || !isChildConst(callNode, 8)
         || !isChildConst(callNode, 9)) {
-        return printInliningStatus(false, callNode, "Child (2|5|8|9) is not constant");
+        // return printInliningStatus(false, callNode, "Child (2|5|8|9) is not constant");
+        return genArithmeticIntrinsicVariableParameter(treeTop, callNode, opCode);
     }
 
     TR_ASSERT(callNode->getNumChildren() == 10, "Expecting BCD arithmetics call with 10 children.");
@@ -2120,6 +2140,96 @@ bool TR_DataAccessAccelerator::genArithmeticIntrinsic(TR::TreeTop *treeTop, TR::
         return printInliningStatus(true, callNode);
     }
     return false;
+}
+
+bool TR_DataAccessAccelerator::genArithmeticIntrinsicVariableParameter(TR::TreeTop *treeTop, TR::Node *callNode, TR::ILOpCodes opCode)
+{
+   if (comp()->getOption(TR_DisableVariablePrecisionDAA) ||
+           !performTransformation(comp(), "O^O TR_DataAccessAccelerator: genArithmetics variable precision call: %p inlined, with opcode:%d \n", callNode, opCode))
+      {
+      return false;
+      }
+
+   TR::Node* resultNode = callNode->getChild(0);
+   TR::Node* resOffsetNode = callNode->getChild(1);
+   TR::Node* resPrecNode = callNode->getChild(2);
+   TR::Node* input1Node = callNode->getChild(3);
+   TR::Node* offset1Node = callNode->getChild(4);
+   TR::Node* prec1Node = callNode->getChild(5);
+   TR::Node* input2Node = callNode->getChild(6);
+   TR::Node* offset2Node = callNode->getChild(7);
+   TR::Node* prec2Node = callNode->getChild(8);
+   TR::Node* overflowNode = callNode->getChild(9);
+
+   /** 1. Construct a fast path BCDCHK node */
+
+   // loading The first operand
+   TR::Node * arrayAddressNodeA = constructAddressNode(callNode, input1Node, offset1Node);
+   TR::SymbolReference * symRef1 = comp()->getSymRefTab()->findOrCreateArrayShadowSymbolRef(TR::PackedDecimal, arrayAddressNodeA, 8, fe());
+   symRef1->setOffset(0);
+
+   TR::Node * pdloadA = TR::Node::create(TR::pdloadi, 2, arrayAddressNodeA, prec1Node);
+   pdloadA->setSymbolReference(symRef1);
+   pdloadA->setIsVariablePrecision(true);
+
+   //load the second operand
+   TR::Node * arrayAddressNodeB = constructAddressNode(callNode, input2Node, offset2Node);
+   TR::SymbolReference * symRef2 = comp()->getSymRefTab()->findOrCreateArrayShadowSymbolRef(TR::PackedDecimal, arrayAddressNodeB, 8, fe());
+   symRef2->setOffset(0);
+
+   TR::Node * pdloadB = TR::Node::create(TR::pdloadi, 2, arrayAddressNodeB, prec2Node);
+   pdloadB->setSymbolReference(symRef2);
+   pdloadB->setIsVariablePrecision(true);
+
+   // create actual arithmetic operation under BCDCHK node
+   TR::Node * pdOperationNode = TR::Node::create(opCode, 3, pdloadA, pdloadB, resPrecNode);
+   pdOperationNode->setIsVariablePrecision(true);
+
+   TR::Node * arrayAddressNodeResult = constructAddressNode(callNode, resultNode, resOffsetNode);
+   TR::Node* bcdchkNode = TR::Node::createWithSymRef(TR::BCDCHK, 12, 12,
+                                                     pdOperationNode, arrayAddressNodeResult,
+                                                     callNode->getChild(0), callNode->getChild(1),
+                                                     callNode->getChild(2), callNode->getChild(3),
+                                                     callNode->getChild(4), callNode->getChild(5),
+                                                     callNode->getChild(6), callNode->getChild(7),
+                                                     callNode->getChild(8), callNode->getChild(9),
+                                                     callNode->getSymbolReference());
+
+   // pdstore node
+   TR::ILOpCodes storeOp = comp()->il.opCodeForIndirectStore(TR::PackedDecimal);
+   TR::Node* pdstoreNode = TR::Node::create(storeOp, 3, arrayAddressNodeResult, pdOperationNode, resPrecNode);
+   pdstoreNode->setIsVariablePrecision(true);
+   TR::SymbolReference * symRefPdstore = comp()->getSymRefTab()->findOrCreateArrayShadowSymbolRef(TR::PackedDecimal, arrayAddressNodeResult, 8, fe());
+   TR::Symbol * symStore = TR::Symbol::createShadow(comp()->trHeapMemory(), TR::PackedDecimal, TR_MAX_INPUT_PACKED_DECIMAL_PRECISION);
+   symStore->setArrayShadowSymbol();
+   symRefPdstore->setSymbol(symStore);
+   pdstoreNode->setSymbolReference(symRefPdstore);
+
+   // Connect BCDCHK and pdstore TreeTops
+   TR::TreeTop* bcdchkTT = TR::TreeTop::create(comp(), bcdchkNode);
+   TR::TreeTop* pdstoreTT =  TR::TreeTop::create(comp(), pdstoreNode);
+
+   /** 2. Construct the slow path node by reorganizing the existing call node */
+   callNode = restructureVariableParamCallNode(treeTop, callNode);
+   TR::Node* slowNode = callNode->duplicateTree();
+   TR::Node* fastNode = bcdchkNode;
+
+   TR::TreeTop* slowTT = TR::TreeTop::create(comp(), slowNode);
+   TR::TreeTop* fastTT = bcdchkTT;
+
+   slowNode->setDAAVariableSlowCall(true);
+
+   /** 3. Create precision checking logic for the three precision nodes */
+   createPrecisionDiamond(comp(), treeTop, fastTT, slowTT, false, 3, prec1Node, prec2Node, resPrecNode);
+
+   // Patch up pdstore for BCDCHK node
+   TR::TreeTop* nextTT = fastTT->getNextTreeTop();
+   fastTT->join(pdstoreTT);
+   pdstoreTT->join(nextTT);
+
+   // Patch up with extra if-blocks
+
+   return printInliningStatus(true, callNode);
 }
 
 bool TR_DataAccessAccelerator::genShiftRightIntrinsic(TR::TreeTop *treeTop, TR::Node *callNode)
