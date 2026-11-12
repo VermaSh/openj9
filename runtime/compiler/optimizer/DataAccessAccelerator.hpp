@@ -234,6 +234,8 @@ private:
     bool generatePD2IConstantParameter(TR::TreeTop *treeTop, TR::Node *callNode, bool isPD2i, bool isByteBuffer);
     bool generateI2PD(TR::TreeTop *treeTop, TR::Node *callNode, bool isI2PD, bool isByteBuffer);
     bool genArithmeticIntrinsic(TR::TreeTop *treeTop, TR::Node *callNode, TR::ILOpCodes opCode);
+    bool genArithmeticIntrinsicVariableParameter(TR::TreeTop *treeTop, TR::Node *callNode, TR::ILOpCodes opCode);
+    TR::Node* restructureVariableParamCallNode(TR::TreeTop* treeTop, TR::Node* callNode);
     bool genComparisionIntrinsic(TR::TreeTop *treeTop, TR::Node *callNode, TR::ILOpCodes opCode);
     bool genShiftLeftIntrinsic(TR::TreeTop *treeTop, TR::Node *callNode);
     bool genShiftRightIntrinsic(TR::TreeTop *treeTop, TR::Node *callNode);

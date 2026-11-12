@@ -454,6 +454,7 @@ protected:
         processedByCallCloneConstrain = 0x00100000,
         unsafeGetPutOnNonArray = 0x00200000,
         DAAVariableSlowCall = 0x00400000, ///< Used to avoid Variable precision DAA optimization
+        DAAVariablePrecision = 0x00800000, ///< Used to mark variable precision DAA calls
 
         // Flag used by binary coded decimal load nodes
         IsBCDStoreTemporarilyALoad = 0x00400000,

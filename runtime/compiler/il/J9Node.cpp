@@ -1963,6 +1963,18 @@ void J9::Node::setDAAVariableSlowCall(bool v)
     _flags.set(DAAVariableSlowCall);
 }
 
+bool J9::Node::isVariablePrecision()
+{
+    TR_ASSERT(self()->getOpCode().isCall(), "Opcode must be a call");
+    return _flags.testAny(DAAVariablePrecision);
+}
+
+void J9::Node::setIsVariablePrecision(bool v)
+{
+    TR_ASSERT(self()->getOpCode().isCall(), "Opcode must be a call");
+    _flags.set(DAAVariablePrecision);
+}
+
 bool J9::Node::isBCDStoreTemporarilyALoad()
 {
     TR_ASSERT(self()->getOpCode().isBCDLoadVar(), "flag only valid for BCD load ops\n");
