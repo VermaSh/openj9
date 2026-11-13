@@ -2005,7 +2005,7 @@ bool TR_DataAccessAccelerator::genArithmeticIntrinsic(TR::TreeTop *treeTop, TR::
     if (!isChildConst(callNode, 2) || !isChildConst(callNode, 5) || !isChildConst(callNode, 8)
         || !isChildConst(callNode, 9)) {
         // return printInliningStatus(false, callNode, "Child (2|5|8|9) is not constant");
-        return genArithmeticIntrinsicVariableParam(treeTop, callNode, opCode);
+        return genArithmeticIntrinsicVariableParameter(treeTop, callNode, opCode);
     }
 
     TR_ASSERT(callNode->getNumChildren() == 10, "Expecting BCD arithmetics call with 10 children.");
