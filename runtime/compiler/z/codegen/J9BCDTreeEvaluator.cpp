@@ -3503,6 +3503,34 @@ TR::Register *J9::Z::TreeEvaluator::pdloadVectorEvaluatorHelper(TR::Node *node, 
 
     TR::Register *vTargetReg = vTargetReg = cg->allocateRegister(TR_VRF);
 
+    if (node->isVariablePrecision()) {
+        // Variable precision: the precision is a child (second child) rather than a compile-time constant.
+        // VLL takes its index (length code = byteLength - 1 = precision/2) from a GPR and requires a D(B) memory
+        // operand, so the address is evaluated into a single base register.
+        TR::Node *addressNode = node->getFirstChild();
+        TR::Node *precisionNode = node->getSecondChild();
+        TR::Register *addressReg = cg->evaluate(addressNode);
+        TR::Register *precisionReg = cg->evaluate(precisionNode);
+        TR::Register *lengthCodeReg = cg->allocateRegister();
+
+        // lengthCode = precision/2 (same computation as the pd2l path in pd2lVariableEvaluator)
+        if (comp->target().cpu.isAtLeast(OMR_PROCESSOR_S390_Z196)) {
+            generateRSInstruction(cg, TR::InstOpCode::SRAK, node, lengthCodeReg, precisionReg, 0x1, NULL);
+        } else {
+            generateRRInstruction(cg, TR::InstOpCode::LR, node, lengthCodeReg, precisionReg);
+            generateRSInstruction(cg, TR::InstOpCode::SRA, node, lengthCodeReg, 0x1);
+        }
+
+        TR::MemoryReference *sourceMR = generateS390MemoryReference(addressReg, 0, cg);
+        generateVRSbInstruction(cg, TR::InstOpCode::VLL, node, vTargetReg, lengthCodeReg, sourceMR);
+
+        cg->decReferenceCount(addressNode);
+        cg->decReferenceCount(precisionNode);
+
+        node->setRegister(vTargetReg);
+        return vTargetReg;
+    }
+
     // No need to evaluate the address node (first child) of the pdloadi.
     // TR::MemoryReference::create(...) will call populateMemoryReference(...)
     // to evaluate address node and decrement its reference count.
