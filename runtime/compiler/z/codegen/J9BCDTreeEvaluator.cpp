@@ -5338,6 +5338,14 @@ TR::Register *J9::Z::TreeEvaluator::pdArithmeticVectorEvaluatorHelper(TR::Node *
     cg->decReferenceCount(firstChild);
     cg->decReferenceCount(secondChild);
 
+    if (node->isVariablePrecision()) {
+        // The result precision child is evaluated only for its reference count; the vector op takes the RDC as an
+        // immediate, so the precision value itself is not consumed here.
+        TR::Node *precisionNode = node->getThirdChild();
+        cg->evaluate(precisionNode);
+        cg->decReferenceCount(precisionNode);
+    }
+
     return targetReg;
 }
 
