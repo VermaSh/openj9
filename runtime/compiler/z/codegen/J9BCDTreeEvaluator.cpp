@@ -4528,6 +4528,35 @@ TR::Register *J9::Z::TreeEvaluator::pdstoreVectorEvaluatorHelper(TR::Node *node,
     TR_ASSERT((pdValueReg->getKind() == TR_FPR || pdValueReg->getKind() == TR_VRF),
         "vectorized pdstore is expecting its value in a vector register.");
 
+    if (node->isVariablePrecision()) {
+        // Variable precision: the precision is the last child (third child, resPrecNode) rather than a compile-time
+        // constant. VSTL takes its index (length code = byteLength - 1 = precision/2) from a GPR and requires a D(B)
+        // memory operand, so the address is evaluated into a single base register.
+        TR::Node *addressNode = node->getFirstChild();
+        TR::Node *precisionNode = node->getThirdChild();
+        TR::Register *addressReg = cg->evaluate(addressNode);
+        TR::Register *precisionReg = cg->evaluate(precisionNode);
+        TR::Register *lengthCodeReg = cg->allocateRegister();
+
+        // lengthCode = precision/2 (same computation as the variable-precision pdload path)
+        if (comp->target().cpu.isAtLeast(OMR_PROCESSOR_S390_Z196)) {
+            generateRSInstruction(cg, TR::InstOpCode::SRAK, node, lengthCodeReg, precisionReg, 0x1, NULL);
+        } else {
+            generateRRInstruction(cg, TR::InstOpCode::LR, node, lengthCodeReg, precisionReg);
+            generateRSInstruction(cg, TR::InstOpCode::SRA, node, lengthCodeReg, 0x1);
+        }
+
+        TR::MemoryReference *targetMR = generateS390MemoryReference(addressReg, 0, cg);
+        generateVRSbInstruction(cg, TR::InstOpCode::VSTL, node, pdValueReg, lengthCodeReg, targetMR);
+
+        cg->decReferenceCount(addressNode);
+        cg->decReferenceCount(precisionNode);
+        cg->decReferenceCount(valueChild);
+
+        logprintf(trace, log, "DAA: Exiting pdstoreVectorEvaluator (variable precision) %d\n", __LINE__);
+        return NULL;
+    }
+
     logprintf(trace, log, "generating VSTRL for pdstore node->size = %d.\n", node->getSize());
 
     // No need to evaluate the address node (first child) of the pdstorei.
