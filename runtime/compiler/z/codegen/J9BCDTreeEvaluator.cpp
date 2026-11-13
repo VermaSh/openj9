@@ -5285,7 +5285,10 @@ int32_t getAddSubComputedResultPrecision(TR::Node *node, TR::CodeGenerator *cg)
 TR::Register *J9::Z::TreeEvaluator::pdArithmeticVectorEvaluatorHelper(TR::Node *node, TR::InstOpCode::Mnemonic op,
     TR::CodeGenerator *cg)
 {
-    int32_t immediateValue = node->getDecimalPrecision();
+    // Variable precision: the precision is a child, so the I4 immediate cannot come from it. Until a dispatch
+    // over the precision is added, use the maximum precision (31) as the RDC. Overflow handling is out of scope.
+    int32_t immediateValue = node->isVariablePrecision() ? TR_MAX_INPUT_PACKED_DECIMAL_PRECISION
+                                                         : node->getDecimalPrecision();
     TR_ASSERT_FATAL((immediateValue >> 8) == 0, "Decimal precision (%d) exceeds 1 byte", immediateValue);
 
     if (cg->comp()->target().cpu.supportsFeature(OMR_FEATURE_S390_VECTOR_PACKED_DECIMAL_ENHANCEMENT_FACILITY)
@@ -5305,6 +5308,14 @@ TR::Register *J9::Z::TreeEvaluator::pdArithmeticVectorEvaluatorHelper(TR::Node *
 
     cg->decReferenceCount(firstChild);
     cg->decReferenceCount(secondChild);
+
+    if (node->isVariablePrecision()) {
+        // The result precision child is evaluated only for its reference count; the vector op takes the RDC as an
+        // immediate, so the precision value itself is not consumed here.
+        TR::Node *precisionNode = node->getThirdChild();
+        cg->evaluate(precisionNode);
+        cg->decReferenceCount(precisionNode);
+    }
 
     return targetReg;
 }

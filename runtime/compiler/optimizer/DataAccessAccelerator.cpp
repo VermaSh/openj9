@@ -1530,7 +1530,7 @@ void TR_DataAccessAccelerator::createPrecisionDiamond(TR::Compilation *comp, TR:
 {
     // Create precision guards
     const uint8_t precisionMin = 1;
-    const uint8_t precisionMax = isPD2I ? 15 : 31;
+    const uint8_t precisionMax = isPD2I ? 15 : TR_MAX_INPUT_PACKED_DECIMAL_PRECISION;
 
     uint32_t numGuards = numPrecisionNodes * 2;
 
