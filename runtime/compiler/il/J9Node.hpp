@@ -311,6 +311,8 @@ public:
 
     bool isDAAVariableSlowCall();
     void setDAAVariableSlowCall(bool v);
+    bool isVariablePrecision();
+    void setIsVariablePrecision(bool v);
 
     // Flag used by binary coded decimal load nodes
     bool isBCDStoreTemporarilyALoad();
