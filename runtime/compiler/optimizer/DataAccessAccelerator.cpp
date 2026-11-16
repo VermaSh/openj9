@@ -1982,7 +1982,7 @@ bool TR_DataAccessAccelerator::generatePD2I(TR::TreeTop *treeTop, TR::Node *call
 
 TR::Node* TR_DataAccessAccelerator::restructureVariableParamCallNode(TR::TreeTop* treeTop, TR::Node* callNode)
 {
-   uint32_t numCallChildren = callNode->getNumChildren();
+   uint16_t numCallChildren = callNode->getNumChildren();
    TR::SymbolReference* temps[numCallChildren];
 
    TR::SymbolReferenceTable* symRefTab = comp()->getSymRefTab();
