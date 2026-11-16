@@ -1983,7 +1983,6 @@ bool TR_DataAccessAccelerator::generatePD2I(TR::TreeTop *treeTop, TR::Node *call
 TR::Node* TR_DataAccessAccelerator::restructureVariableParamCallNode(TR::TreeTop* treeTop, TR::Node* callNode)
 {
    uint16_t numCallChildren = callNode->getNumChildren();
-   TR::SymbolReference* temps[numCallChildren];
 
    TR::SymbolReferenceTable* symRefTab = comp()->getSymRefTab();
    TR::ResolvedMethodSymbol* methodSym = comp()->getMethodSymbol();
@@ -1991,9 +1990,9 @@ TR::Node* TR_DataAccessAccelerator::restructureVariableParamCallNode(TR::TreeTop
    for(int i = 0; i < numCallChildren; ++i)
       {
       TR::Node* child = callNode->getChild(i);
-      temps[i] = symRefTab->createTemporary(methodSym, child->getDataType());
-      treeTop->insertBefore(TR::TreeTop::create(comp(), TR::Node::createStore(temps[i], child->duplicateTree())));
-      callNode->setAndIncChild(i, TR::Node::createLoad(child, temps[i]));
+      TR::SymbolReference * temp = symRefTab->createTemporary(methodSym, child->getDataType());
+      treeTop->insertBefore(TR::TreeTop::create(comp(), TR::Node::createStore(temp, child->duplicateTree())));
+      callNode->setAndIncChild(i, TR::Node::createLoad(child, temp));
       child->decReferenceCount();
       }
 
