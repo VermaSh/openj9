@@ -2193,7 +2193,7 @@ bool TR_DataAccessAccelerator::genArithmeticIntrinsicVariableParameter(TR::TreeT
                                                      callNode->getChild(4), callNode->getChild(5),
                                                      callNode->getChild(6), callNode->getChild(7),
                                                      callNode->getChild(8), callNode->getChild(9),
-                                                     getSymRefTab()->findOrCreateBCDCheckSymbol());
+                                                     callNode->getSymbolReference());
    TR::Symbol* symbol = callNode->getSymbolReference()->getSymbol();
    TR::Method* method = symbol->castToMethodSymbol()->getMethod();
    TR::SymbolReference* newMethodSymRef = getSymRefTab()->methodSymRefFromName(callNode->getSymbolReference()->getOwningMethodSymbol(comp()),
