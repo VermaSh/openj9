@@ -2195,7 +2195,7 @@ bool TR_DataAccessAccelerator::genArithmeticIntrinsicVariableParameter(TR::TreeT
                                                      callNode->getChild(8), callNode->getChild(9),
                                                      getSymRefTab()->findOrCreateBCDCheckSymbol());
    TR::Symbol* symbol = callNode->getSymbolReference()->getSymbol();
-   TR_Method* method = symbol->castToMethodSymbol()->getMethod();
+   TR::Method* method = symbol->castToMethodSymbol()->getMethod();
    TR::SymbolReference* newMethodSymRef = getSymRefTab()->methodSymRefFromName(callNode->getSymbolReference()->getOwningMethodSymbol(comp()),
                                                                                 method->classNameChars(),
                                                                                 method->nameChars(),
@@ -2255,7 +2255,7 @@ bool TR_DataAccessAccelerator::genArithmeticIntrinsicVariableParameter(TR::TreeT
    testTTs[4] = testResTT1;
    testTTs[5] = testResTT2;
 
-   createPrecisionDiamond(comp(), treeTop, fastTT, slowTT, 6, testTTs);
+   createPrecisionDiamond(comp(), treeTop, fastTT, slowTT, false, 6, testTTs);
 
    // Patch up pdstore for BCDCHK node
    TR::TreeTop* nextTT = fastTT->getNextTreeTop();
