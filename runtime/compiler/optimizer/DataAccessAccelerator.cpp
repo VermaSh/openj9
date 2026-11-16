@@ -2142,7 +2142,7 @@ bool TR_DataAccessAccelerator::genArithmeticIntrinsic(TR::TreeTop *treeTop, TR::
     return false;
 }
 
-bool genArithmeticIntrinsicVariableParameter(TR::TreeTop *treeTop, TR::Node *callNode, TR::ILOpCodes opCode)
+bool TR_DataAccessAccelerator::genArithmeticIntrinsicVariableParameter(TR::TreeTop *treeTop, TR::Node *callNode, TR::ILOpCodes opCode)
 {
    if (comp()->getOption(TR_DisableVariablePrecisionDAA) ||
            !performTransformation(comp(), "O^O TR_DataAccessAccelerator: genArithmetics variable precision call: %p inlined, with opcode:%d \n", callNode, opCode))
