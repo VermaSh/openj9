@@ -2194,15 +2194,6 @@ bool TR_DataAccessAccelerator::genArithmeticIntrinsicVariableParameter(TR::TreeT
                                                      callNode->getChild(6), callNode->getChild(7),
                                                      callNode->getChild(8), callNode->getChild(9),
                                                      callNode->getSymbolReference());
-   TR::Symbol* symbol = callNode->getSymbolReference()->getSymbol();
-   TR::Method* method = symbol->castToMethodSymbol()->getMethod();
-   TR::SymbolReference* newMethodSymRef = getSymRefTab()->methodSymRefFromName(callNode->getSymbolReference()->getOwningMethodSymbol(comp()),
-                                                                                method->classNameChars(),
-                                                                                method->nameChars(),
-                                                                                method->signatureChars(),
-                                                                                symbol->castToMethodSymbol()->getMethodKind(),
-                                                                                callNode->getSymbolReference()->getCPIndex());
-   bcdchkNode->setSymbolReference(newMethodSymRef);
 
    // pdstore node
    TR::ILOpCodes storeOp = comp()->il.opCodeForIndirectStore(TR::PackedDecimal);
