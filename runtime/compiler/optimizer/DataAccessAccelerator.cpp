@@ -2220,33 +2220,7 @@ bool TR_DataAccessAccelerator::genArithmeticIntrinsicVariableParameter(TR::TreeT
    slowNode->setDAAVariableSlowCall(true);
 
    /** 3. Create precision checking logic for the three precision nodes */
-   TR::Node* testP1Node1 = TR::Node::createif(TR::ificmpgt, prec1Node->duplicateTree(), TR::Node::iconst(TR_MAX_INPUT_PACKED_DECIMAL_PRECISION));
-   TR::Node* testP1Node2 = TR::Node::createif(TR::ificmplt, prec1Node->duplicateTree(), TR::Node::iconst(TR_MIN_INPUT_PACKED_DECIMAL_PRECISION));
-
-   TR::Node* testP2Node1 = TR::Node::createif(TR::ificmpgt, prec2Node->duplicateTree(), TR::Node::iconst(TR_MAX_INPUT_PACKED_DECIMAL_PRECISION));
-   TR::Node* testP2Node2 = TR::Node::createif(TR::ificmplt, prec2Node->duplicateTree(), TR::Node::iconst(TR_MIN_INPUT_PACKED_DECIMAL_PRECISION));
-
-   TR::Node* testResPrecNode1 = TR::Node::createif(TR::ificmpgt, resPrecNode->duplicateTree(), TR::Node::iconst(TR_MAX_INPUT_PACKED_DECIMAL_PRECISION));
-   TR::Node* testResPrecNode2 = TR::Node::createif(TR::ificmplt, resPrecNode->duplicateTree(), TR::Node::iconst(TR_MIN_INPUT_PACKED_DECIMAL_PRECISION));
-
-   TR::TreeTop* test1TT1 = TR::TreeTop::create(comp(), testP1Node1);
-   TR::TreeTop* test1TT2 = TR::TreeTop::create(comp(), testP1Node2);
-
-   TR::TreeTop* test2TT1 = TR::TreeTop::create(comp(), testP2Node1);
-   TR::TreeTop* test2TT2 = TR::TreeTop::create(comp(), testP2Node2);
-
-   TR::TreeTop* testResTT1 = TR::TreeTop::create(comp(), testResPrecNode1);
-   TR::TreeTop* testResTT2 = TR::TreeTop::create(comp(), testResPrecNode2);
-   TR::TreeTop* testTTs[6];
-
-   testTTs[0] = test1TT1;
-   testTTs[1] = test1TT2;
-   testTTs[2] = test2TT1;
-   testTTs[3] = test2TT2;
-   testTTs[4] = testResTT1;
-   testTTs[5] = testResTT2;
-
-   createPrecisionDiamond(comp(), treeTop, fastTT, slowTT, false, 6, testTTs);
+   createPrecisionDiamond(comp(), treeTop, fastTT, slowTT, false, 3, prec1Node, prec2Node, resPrecNode);
 
    // Patch up pdstore for BCDCHK node
    TR::TreeTop* nextTT = fastTT->getNextTreeTop();
