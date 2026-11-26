@@ -2146,9 +2146,10 @@ bool TR_DataAccessAccelerator::genArithmeticIntrinsicVariableParameter(TR::TreeT
 {
    if (comp()->getOption(TR_DisableVariablePrecisionDAA) ||
            !performTransformation(comp(), "O^O TR_DataAccessAccelerator: genArithmetics variable precision call: %p inlined, with opcode:%d \n", callNode, opCode))
-      {
-      return false;
-      }
+        {
+        printInliningStatus(false, callNode, "Variable precision DAA is disabled");
+        return false;
+        }
 
    TR::Node* resultNode = callNode->getChild(0);
    TR::Node* resOffsetNode = callNode->getChild(1);
