@@ -78,6 +78,10 @@
 #include "ras/Debug.hpp"
 
 #define IS_VARIABLE_PD2I(callNode) (!isChildConst(callNode, 2) || !isChildConst(callNode, 3))
+#define IS_VARIABLE_PD_ARITHMETIC(callNode)                                                                    \
+    (!isChildConst(callNode, 1) || !isChildConst(callNode, 2)                \
+        || !isChildConst(callNode, 4) || !isChildConst(callNode, 5)          \
+        || !isChildConst(callNode, 8) || !isChildConst(callNode, 9))
 
 TR_DataAccessAccelerator::TR_DataAccessAccelerator(TR::OptimizationManager *manager)
     : TR::Optimization(manager)
@@ -136,6 +140,33 @@ int32_t TR_DataAccessAccelerator::processVariableCalls(TreeTopContainer *variabl
         if (callSymbol != NULL) {
             if (!comp()->getOption(TR_DisablePackedDecimalIntrinsics)) {
                 switch (callSymbol->getRecognizedMethod()) {
+                    // DAA Packed Decimal arithmetic with variable precision
+                    case TR::com_ibm_dataaccess_PackedDecimal_addPackedDecimal_:
+                        if (genArithmeticIntrinsicVariableParameter(treeTop, callNode, TR::pdadd)) {
+                            ++result;
+                        }
+                        continue;
+                    case TR::com_ibm_dataaccess_PackedDecimal_subtractPackedDecimal_:
+                        if (genArithmeticIntrinsicVariableParameter(treeTop, callNode, TR::pdsub)) {
+                            ++result;
+                        }
+                        continue;
+                    case TR::com_ibm_dataaccess_PackedDecimal_multiplyPackedDecimal_:
+                        if (genArithmeticIntrinsicVariableParameter(treeTop, callNode, TR::pdmul)) {
+                            ++result;
+                        }
+                        continue;
+                    case TR::com_ibm_dataaccess_PackedDecimal_dividePackedDecimal_:
+                        if (genArithmeticIntrinsicVariableParameter(treeTop, callNode, TR::pddiv)) {
+                            ++result;
+                        }
+                        continue;
+                    case TR::com_ibm_dataaccess_PackedDecimal_remainderPackedDecimal_:
+                        if (genArithmeticIntrinsicVariableParameter(treeTop, callNode, TR::pdrem)) {
+                            ++result;
+                        }
+                        continue;
+
                     // DAA Packed Decimal <-> Integer
                     case TR::com_ibm_dataaccess_DecimalData_convertPackedDecimalToInteger_: {
                         if (generatePD2IVariableParameter(treeTop, callNode, true, false)) {
@@ -337,28 +368,38 @@ int32_t TR_DataAccessAccelerator::performOnBlock(TR::Block *block, TreeTopContai
                     switch (callSymbol->getRecognizedMethod()) {
                         // DAA Packed Decimal arithmetic methods
                         case TR::com_ibm_dataaccess_PackedDecimal_addPackedDecimal_:
-                            if (genArithmeticIntrinsic(treeTop, callNode, TR::pdadd)) {
+                            if (!IS_VARIABLE_PD_ARITHMETIC(callNode) && genArithmeticIntrinsic(treeTop, callNode, TR::pdadd)) {
                                 ++result;
+                            } else if (IS_VARIABLE_PD_ARITHMETIC(callNode) && !callNode->isDAAVariableSlowCall()) {
+                                variableCallTreeTops->push_back(treeTop);
                             }
                             break;
                         case TR::com_ibm_dataaccess_PackedDecimal_subtractPackedDecimal_:
-                            if (genArithmeticIntrinsic(treeTop, callNode, TR::pdsub)) {
+                            if (!IS_VARIABLE_PD_ARITHMETIC(callNode) && genArithmeticIntrinsic(treeTop, callNode, TR::pdsub)) {
                                 ++result;
+                            } else if (IS_VARIABLE_PD_ARITHMETIC(callNode) && !callNode->isDAAVariableSlowCall()) {
+                                variableCallTreeTops->push_back(treeTop);
                             }
                             break;
                         case TR::com_ibm_dataaccess_PackedDecimal_multiplyPackedDecimal_:
-                            if (genArithmeticIntrinsic(treeTop, callNode, TR::pdmul)) {
+                            if (!IS_VARIABLE_PD_ARITHMETIC(callNode) && genArithmeticIntrinsic(treeTop, callNode, TR::pdmul)) {
                                 ++result;
+                            } else if (IS_VARIABLE_PD_ARITHMETIC(callNode) && !callNode->isDAAVariableSlowCall()) {
+                                variableCallTreeTops->push_back(treeTop);
                             }
                             break;
                         case TR::com_ibm_dataaccess_PackedDecimal_dividePackedDecimal_:
-                            if (genArithmeticIntrinsic(treeTop, callNode, TR::pddiv)) {
+                            if (!IS_VARIABLE_PD_ARITHMETIC(callNode) && genArithmeticIntrinsic(treeTop, callNode, TR::pddiv)) {
                                 ++result;
+                            } else if (IS_VARIABLE_PD_ARITHMETIC(callNode) && !callNode->isDAAVariableSlowCall()) {
+                                variableCallTreeTops->push_back(treeTop);
                             }
                             break;
                         case TR::com_ibm_dataaccess_PackedDecimal_remainderPackedDecimal_:
-                            if (genArithmeticIntrinsic(treeTop, callNode, TR::pdrem)) {
+                            if (!IS_VARIABLE_PD_ARITHMETIC(callNode) && genArithmeticIntrinsic(treeTop, callNode, TR::pdrem)) {
                                 ++result;
+                            } else if (IS_VARIABLE_PD_ARITHMETIC(callNode) && !callNode->isDAAVariableSlowCall()) {
+                                variableCallTreeTops->push_back(treeTop);
                             }
                             break;
 
@@ -2003,8 +2044,7 @@ bool TR_DataAccessAccelerator::genArithmeticIntrinsic(TR::TreeTop *treeTop, TR::
 {
     if (!isChildConst(callNode, 2) || !isChildConst(callNode, 5) || !isChildConst(callNode, 8)
         || !isChildConst(callNode, 9)) {
-        // return printInliningStatus(false, callNode, "Child (2|5|8|9) is not constant");
-        return genArithmeticIntrinsicVariableParameter(treeTop, callNode, opCode);
+        return printInliningStatus(false, callNode, "Child (2|5|8|9) is not constant");
     }
 
     TR_ASSERT(callNode->getNumChildren() == 10, "Expecting BCD arithmetics call with 10 children.");
@@ -2216,6 +2256,7 @@ bool TR_DataAccessAccelerator::genArithmeticIntrinsicVariableParameter(TR::TreeT
    TR::Node* fastNode = bcdchkNode;
 
    TR::TreeTop* slowTT = TR::TreeTop::create(comp(), slowNode);
+   TR::TreeTop* slowTT = TR::TreeTop::create(comp(), TR::Node::create(TR::treetop, 1, slowNode));
    TR::TreeTop* fastTT = bcdchkTT;
 
    slowNode->setDAAVariableSlowCall(true);

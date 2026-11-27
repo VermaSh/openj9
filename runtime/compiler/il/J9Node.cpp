@@ -1965,14 +1965,14 @@ void J9::Node::setDAAVariableSlowCall(bool v)
 
 bool J9::Node::isVariablePrecision()
 {
-    TR_ASSERT(self()->getOpCode().isCall(), "Opcode must be a call");
+    TR_ASSERT(self()->getType().isBCD(), "Opcode must be a BCD node");
     return _flags.testAny(DAAVariablePrecision);
 }
 
 void J9::Node::setIsVariablePrecision(bool v)
 {
-    TR_ASSERT(self()->getOpCode().isCall(), "Opcode must be a call");
-    _flags.set(DAAVariablePrecision);
+    TR_ASSERT(self()->getType().isBCD(), "Opcode must be a BCD node");
+    _flags.set(DAAVariablePrecision, v);
 }
 
 bool J9::Node::isBCDStoreTemporarilyALoad()
