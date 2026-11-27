@@ -2255,7 +2255,6 @@ bool TR_DataAccessAccelerator::genArithmeticIntrinsicVariableParameter(TR::TreeT
    TR::Node* slowNode = callNode->duplicateTree();
    TR::Node* fastNode = bcdchkNode;
 
-   TR::TreeTop* slowTT = TR::TreeTop::create(comp(), slowNode);
    TR::TreeTop* slowTT = TR::TreeTop::create(comp(), TR::Node::create(TR::treetop, 1, slowNode));
    TR::TreeTop* fastTT = bcdchkTT;
 
